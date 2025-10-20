@@ -4,7 +4,7 @@
  */
 export async function up(knex) {
   return knex.schema.createTable("master_kelas", (table) => {
-    table.increments("id").primary(); // Primary key auto increment
+    table.increments("ID").primary(); // Primary key auto increment
     table.string("KELAS_ID", 6).notNullable().unique(); // Unique ID kelas
 
     table

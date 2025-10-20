@@ -6,7 +6,7 @@
 export async function up(knex) {
   return knex.schema.createTable("transaksi_siswa_kelas", (table) => {
     // Primary key internal
-    table.increments("id").primary();
+    table.increments("ID").primary();
 
     // Unique kode transaksi (opsional)
     table.string("TRANSAKSI_ID", 10).notNullable().unique();
