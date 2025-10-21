@@ -10,17 +10,22 @@ const FormGedung = ({ visible, onHide, onSave, selectedGedung }) => {
   const [namaGedung, setNamaGedung] = useState(""); // NAMA_GEDUNG
   const [lokasi, setLokasi] = useState("");         // LOKASI
 
+  // fungsi untuk mengosongkan semua field
+  const clearForm = () => {
+    setGedungId("");
+    setNamaGedung("");
+    setLokasi("");
+  };
+
   useEffect(() => {
     if (selectedGedung) {
-      // Jika sedang edit, isi field dari data yang dipilih
+      // Mode edit: isi field dari data yang dipilih
       setGedungId(selectedGedung.GEDUNG_ID || "");
       setNamaGedung(selectedGedung.NAMA_GEDUNG || "");
       setLokasi(selectedGedung.LOKASI || "");
     } else {
-      // Jika tambah baru, kosongkan semua field
-      setGedungId("");
-      setNamaGedung("");
-      setLokasi("");
+      // Mode tambah baru: kosongkan field
+      clearForm();
     }
   }, [selectedGedung]);
 
@@ -30,7 +35,11 @@ const FormGedung = ({ visible, onHide, onSave, selectedGedung }) => {
       NAMA_GEDUNG: namaGedung,
       LOKASI: lokasi,
     };
+
     onSave(data);
+
+    // setelah simpan, langsung kosongkan form
+    clearForm();
   };
 
   return (
@@ -39,7 +48,10 @@ const FormGedung = ({ visible, onHide, onSave, selectedGedung }) => {
       visible={visible}
       style={{ width: "30vw" }}
       modal
-      onHide={onHide}
+      onHide={() => {
+        clearForm(); // bersihkan saat ditutup
+        onHide();
+      }}
     >
       <div className="p-fluid">
         {/* GEDUNG_ID */}
@@ -79,7 +91,10 @@ const FormGedung = ({ visible, onHide, onSave, selectedGedung }) => {
             label="Batal"
             icon="pi pi-times"
             className="p-button-text"
-            onClick={onHide}
+            onClick={() => {
+              clearForm();
+              onHide();
+            }}
           />
           <Button
             label="Simpan"
