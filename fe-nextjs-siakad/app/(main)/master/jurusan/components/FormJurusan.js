@@ -6,14 +6,17 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 
 const FormJurusan = ({ visible, onHide, onSave, selectedJurusan }) => {
+  const [jurusanId, setJurusanId] = useState("");  // Menambahkan state untuk JURUSAN_ID
   const [namaJurusan, setNamaJurusan] = useState("");
   const [deskripsi, setDeskripsi] = useState("");
 
   useEffect(() => {
     if (selectedJurusan) {
+      setJurusanId(selectedJurusan.JURUSAN_ID || "");  // Mengatur JURUSAN_ID dari selectedJurusan
       setNamaJurusan(selectedJurusan.NAMA_JURUSAN || "");
       setDeskripsi(selectedJurusan.DESKRIPSI || "");
     } else {
+      setJurusanId("");  // Kosongkan saat menambah jurusan baru
       setNamaJurusan("");
       setDeskripsi("");
     }
@@ -21,6 +24,7 @@ const FormJurusan = ({ visible, onHide, onSave, selectedJurusan }) => {
 
   const handleSubmit = () => {
     const data = {
+      JURUSAN_ID: jurusanId,  // Menambahkan JURUSAN_ID ke dalam data
       NAMA_JURUSAN: namaJurusan,
       DESKRIPSI: deskripsi,
     };
@@ -36,6 +40,15 @@ const FormJurusan = ({ visible, onHide, onSave, selectedJurusan }) => {
       onHide={onHide}
     >
       <div className="p-fluid">
+        <div className="field">
+          <label htmlFor="jurusanId">Kode Jurusan</label>
+          <InputText
+            id="jurusanId"
+            value={jurusanId}
+            onChange={(e) => setJurusanId(e.target.value)}
+            disabled={!!selectedJurusan}  // Nonaktifkan jika sedang mengedit jurusan
+          />
+        </div>
         <div className="field">
           <label htmlFor="namaJurusan">Nama Jurusan</label>
           <InputText

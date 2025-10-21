@@ -1,100 +1,78 @@
 import { db } from "../core/config/knex.js";
 
 /**
- * Ambil semua data gedung
- */
+ * Get all gedung
+ **/
 export const getAllGedung = async () => {
   return db("master_gedung").select("*").orderBy("GEDUNG_ID", "asc");
 };
 
 /**
- * Ambil gedung berdasarkan ID
- */
+ * Get gedung by ID (Primary Key)
+ **/
 export const getGedungById = async (id) => {
-  return db("master_gedung").where({ GEDUNG_ID: id }).first();
+  return db("master_gedung").where({ id }).first();
 };
 
 /**
- * Ambil gedung berdasarkan kode
- */
+ * Get gedung by GEDUNG_ID (kode unik)
+ **/
 export const getGedungByKode = async (kode) => {
-  return db("master_gedung").where({ KODE_GEDUNG: kode }).first();
+  return db("master_gedung").where({ GEDUNG_ID: kode }).first();
 };
 
 /**
- * Tambah data gedung baru
- */
-export const createGedung = async (data) => {
-  const {
-    KODE_GEDUNG,
-    NAMA_GEDUNG,
-    JUMLAH_LANTAI,
-    KAPASITAS,
-    KONDISI,
-    TAHUN_DIBANGUN,
-    LUAS_BANGUNAN,
-    LETAK,
-    KETERANGAN,
-    STATUS = "Aktif",
-  } = data;
+ * Ambil gedung terakhir (untuk auto-generate kode GEDUNG_ID jika dibutuhkan)
+ **/
+export const getLastGedung = async () => {
+  return db("master_gedung").orderBy("GEDUNG_ID", "desc").first();
+};
+
+/**
+ * Create new gedung
+ **/
+export const createGedung = async ({ GEDUNG_ID, NAMA_GEDUNG, LOKASI }) => {
+  if (!GEDUNG_ID || !NAMA_GEDUNG) {
+    throw new Error("GEDUNG_ID dan NAMA_GEDUNG wajib diisi");
+  }
 
   const [id] = await db("master_gedung").insert({
-    KODE_GEDUNG,
+    GEDUNG_ID,
     NAMA_GEDUNG,
-    JUMLAH_LANTAI: JUMLAH_LANTAI ?? 1,
-    KAPASITAS: KAPASITAS ?? 0,
-    KONDISI: KONDISI ?? "Baik",
-    TAHUN_DIBANGUN: TAHUN_DIBANGUN ?? null,
-    LUAS_BANGUNAN: LUAS_BANGUNAN ?? null,
-    LETAK: LETAK ?? null,
-    KETERANGAN: KETERANGAN ?? null,
-    STATUS: STATUS === "Tidak Aktif" ? "Tidak Aktif" : "Aktif",
-    CREATED_AT: db.fn.now(),
-    UPDATED_AT: db.fn.now(),
+    LOKASI,
+    created_at: db.fn.now(),
+    updated_at: db.fn.now(),
   });
 
-  return db("master_gedung").where({ GEDUNG_ID: id }).first();
+  return db("master_gedung").where({ id }).first();
 };
 
 /**
- * Update data gedung
- */
-export const updateGedung = async (id, data) => {
-  const {
-    KODE_GEDUNG,
+ * Update gedung
+ **/
+export const updateGedung = async (id, { GEDUNG_ID, NAMA_GEDUNG, LOKASI }) => {
+  // Jika GEDUNG_ID tidak dikirim, jangan dipaksa wajib ada
+  if (!NAMA_GEDUNG) {
+    throw new Error("NAMA_GEDUNG wajib diisi");
+  }
+
+  const dataToUpdate = {
     NAMA_GEDUNG,
-    JUMLAH_LANTAI,
-    KAPASITAS,
-    KONDISI,
-    TAHUN_DIBANGUN,
-    LUAS_BANGUNAN,
-    LETAK,
-    KETERANGAN,
-    STATUS,
-  } = data;
+    LOKASI,
+    updated_at: db.fn.now(),
+  };
 
-  await db("master_gedung")
-    .where({ GEDUNG_ID: id })
-    .update({
-      KODE_GEDUNG,
-      NAMA_GEDUNG,
-      JUMLAH_LANTAI,
-      KAPASITAS,
-      KONDISI,
-      TAHUN_DIBANGUN,
-      LUAS_BANGUNAN,
-      LETAK,
-      KETERANGAN,
-      STATUS: STATUS === "Tidak Aktif" ? "Tidak Aktif" : "Aktif",
-      UPDATED_AT: db.fn.now(),
-    });
+  // Update GEDUNG_ID hanya jika dikirim dari body (opsional)
+  if (GEDUNG_ID) dataToUpdate.GEDUNG_ID = GEDUNG_ID;
 
-  return db("master_gedung").where({ GEDUNG_ID: id }).first();
+  await db("master_gedung").where({ id }).update(dataToUpdate);
+
+  return db("master_gedung").where({ id }).first();
 };
 
 /**
- * Hapus data gedung
- */
+ * Delete gedung
+ **/
 export const deleteGedung = async (id) => {
-  return db("master_gedung").where({ GEDUNG_ID: id }).del();
+  return db("master_gedung").where({ id }).del();
 };

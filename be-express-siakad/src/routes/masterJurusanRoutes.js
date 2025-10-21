@@ -5,7 +5,7 @@ import {
   createJurusan,
   updateJurusan,
   deleteJurusan
-} from '../controllers/jurusanController.js';
+} from '../controllers/masterJurusanController.js';
 
 const router = express.Router();
 

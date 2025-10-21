@@ -1,35 +1,76 @@
 import { db } from "../core/config/knex.js";
 
-const table = "master_tingkatan";
-
-// Ambil semua tingkatan
+/**
+ * Get all tingkatan
+ **/
 export const getAllTingkatan = async () => {
-  return db(table).select("*").orderBy("TINGKATAN", "asc");
+  return db("master_tingkatan").select("*").orderBy("TINGKATAN_ID", "asc");
 };
 
-// Ambil tingkatan berdasarkan ID
+/**
+ * Get tingkatan by ID (Primary Key)
+ **/
 export const getTingkatanById = async (id) => {
-  return db(table).where({ TINGKATAN_ID: id }).first();
+  return db("master_tingkatan").where({ id }).first();
 };
 
-// Tambah tingkatan
-export const createTingkatan = async (data) => {
-  const [id] = await db(table).insert(data);
-  return getTingkatanById(id);
+/**
+ * Get tingkatan by TINGKATAN_ID (kode unik)
+ **/
+export const getTingkatanByKode = async (kode) => {
+  return db("master_tingkatan").where({ TINGKATAN_ID: kode }).first();
 };
 
-// Update tingkatan
-export const updateTingkatan = async (id, data) => {
-  const tingkatan = await getTingkatanById(id);
-  if (!tingkatan) return null;
-  await db(table).where({ TINGKATAN_ID: id }).update(data);
-  return getTingkatanById(id);
+/**
+ * Ambil tingkatan terakhir (untuk auto-generate kode TINGKATAN_ID jika dibutuhkan)
+ **/
+export const getLastTingkatan = async () => {
+  return db("master_tingkatan").orderBy("TINGKATAN_ID", "desc").first();
 };
 
-// Hapus tingkatan
+/**
+ * Create new tingkatan
+ **/
+export const createTingkatan = async ({ TINGKATAN_ID, TINGKATAN, STATUS }) => {
+  if (!TINGKATAN_ID || !TINGKATAN) {
+    throw new Error("TINGKATAN_ID dan TINGKATAN wajib diisi");
+  }
+
+  const [id] = await db("master_tingkatan").insert({
+    TINGKATAN_ID,
+    TINGKATAN,
+    STATUS: STATUS ?? "aktif",
+    created_at: db.fn.now(),
+    updated_at: db.fn.now(),
+  });
+
+  return db("master_tingkatan").where({ id }).first();
+};
+
+/**
+ * Update tingkatan
+ **/
+export const updateTingkatan = async (id, { TINGKATAN_ID, TINGKATAN, STATUS }) => {
+  if (!TINGKATAN) {
+    throw new Error("TINGKATAN wajib diisi");
+  }
+
+  const dataToUpdate = {
+    TINGKATAN,
+    STATUS,
+    updated_at: db.fn.now(),
+  };
+
+  if (TINGKATAN_ID) dataToUpdate.TINGKATAN_ID = TINGKATAN_ID;
+
+  await db("master_tingkatan").where({ id }).update(dataToUpdate);
+
+  return db("master_tingkatan").where({ id }).first();
+};
+
+/**
+ * Delete tingkatan
+ **/
 export const deleteTingkatan = async (id) => {
-  const tingkatan = await getTingkatanById(id);
-  if (!tingkatan) return null;
-  await db(table).where({ TINGKATAN_ID: id }).del();
-  return tingkatan;
+  return db("master_tingkatan").where({ id }).del();
 };

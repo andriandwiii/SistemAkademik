@@ -18,7 +18,14 @@ export const getAllJurusan = async (req, res) => {
     res.status(200).json({
       status: "00",
       message: "Data jurusan berhasil diambil",
-      data: jurusan,
+      data: jurusan.map(jurusan => ({
+        id: jurusan.id,
+        JURUSAN_ID: jurusan.JURUSAN_ID,
+        NAMA_JURUSAN: jurusan.NAMA_JURUSAN,
+        DESKRIPSI: jurusan.DESKRIPSI,
+        created_at: jurusan.created_at,
+        updated_at: jurusan.updated_at
+      })),
     });
   } catch (err) {
     res.status(500).json({
@@ -30,7 +37,7 @@ export const getAllJurusan = async (req, res) => {
 };
 
 /**
- * GET jurusan by ID
+ * GET jurusan by JURUSAN_ID
  */
 export const getJurusanById = async (req, res) => {
   try {
@@ -47,7 +54,14 @@ export const getJurusanById = async (req, res) => {
     res.status(200).json({
       status: "00",
       message: "Data jurusan berhasil diambil",
-      data: jurusan,
+      data: {
+        id: jurusan.id,
+        JURUSAN_ID: jurusan.JURUSAN_ID,
+        NAMA_JURUSAN: jurusan.NAMA_JURUSAN,
+        DESKRIPSI: jurusan.DESKRIPSI,
+        created_at: jurusan.created_at,
+        updated_at: jurusan.updated_at
+      },
     });
   } catch (err) {
     res.status(500).json({
@@ -63,33 +77,41 @@ export const getJurusanById = async (req, res) => {
  */
 export const createJurusan = async (req, res) => {
   try {
-    const { KODE_JURUSAN, KETERANGAN } = req.body;
+    const { JURUSAN_ID, NAMA_JURUSAN, DESKRIPSI } = req.body;
 
-    if (!KODE_JURUSAN || !KETERANGAN) {
+    if (!JURUSAN_ID || !NAMA_JURUSAN) {
       return res.status(400).json({
         status: "01",
-        message: "KODE_JURUSAN dan KETERANGAN wajib diisi",
+        message: "JURUSAN_ID dan NAMA_JURUSAN wajib diisi",
       });
     }
 
     // Cek apakah kode jurusan sudah ada
-    const existing = await MasterJurusanModel.getJurusanByKode(KODE_JURUSAN);
+    const existing = await MasterJurusanModel.getJurusanByKode(JURUSAN_ID);
     if (existing) {
       return res.status(409).json({
         status: "02",
-        message: "KODE_JURUSAN sudah terdaftar",
+        message: "JURUSAN_ID sudah terdaftar",
       });
     }
 
     const newJurusan = await MasterJurusanModel.createJurusan({
-      KODE_JURUSAN,
-      KETERANGAN,
+      JURUSAN_ID,
+      NAMA_JURUSAN,
+      DESKRIPSI,
     });
 
     res.status(201).json({
       status: "00",
       message: "Jurusan berhasil ditambahkan",
-      data: newJurusan,
+      data: {
+        id: newJurusan.id,
+        JURUSAN_ID: newJurusan.JURUSAN_ID,
+        NAMA_JURUSAN: newJurusan.NAMA_JURUSAN,
+        DESKRIPSI: newJurusan.DESKRIPSI,
+        created_at: newJurusan.created_at,
+        updated_at: newJurusan.updated_at
+      },
     });
   } catch (err) {
     res.status(500).json({
@@ -106,12 +128,12 @@ export const createJurusan = async (req, res) => {
 export const updateJurusan = async (req, res) => {
   try {
     const { id } = req.params;
-    const { KODE_JURUSAN, KETERANGAN } = req.body;
+    const { JURUSAN_ID, NAMA_JURUSAN, DESKRIPSI } = req.body;
 
-    if (!KODE_JURUSAN || !KETERANGAN) {
+    if (!JURUSAN_ID || !NAMA_JURUSAN) {
       return res.status(400).json({
         status: "01",
-        message: "KODE_JURUSAN dan KETERANGAN wajib diisi",
+        message: "JURUSAN_ID dan NAMA_JURUSAN wajib diisi",
       });
     }
 
@@ -124,14 +146,22 @@ export const updateJurusan = async (req, res) => {
     }
 
     const updatedJurusan = await MasterJurusanModel.updateJurusan(id, {
-      KODE_JURUSAN,
-      KETERANGAN,
+      JURUSAN_ID,
+      NAMA_JURUSAN,
+      DESKRIPSI,
     });
 
     res.status(200).json({
       status: "00",
       message: "Jurusan berhasil diperbarui",
-      data: updatedJurusan,
+      data: {
+        id: updatedJurusan.id,
+        JURUSAN_ID: updatedJurusan.JURUSAN_ID,
+        NAMA_JURUSAN: updatedJurusan.NAMA_JURUSAN,
+        DESKRIPSI: updatedJurusan.DESKRIPSI,
+        created_at: updatedJurusan.created_at,
+        updated_at: updatedJurusan.updated_at
+      },
     });
   } catch (err) {
     res.status(500).json({

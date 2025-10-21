@@ -10,23 +10,22 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
-export default function AdjustPrintMarginLaporanGedung({
+export default function AdjustPrintMarginLaporan({
   adjustDialog,
   setAdjustDialog,
-  dataGedung = [],
+  dataJurusan = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
+  
+  // 1. TERIMA STATE DARI PARENT
+  dataAdjust,
+  setDataAdjust,
 }) {
   const [loadingExport, setLoadingExport] = useState(false)
-  const [dataAdjust, setDataAdjust] = useState({
-    marginTop: 10,
-    marginBottom: 10,
-    marginRight: 10,
-    marginLeft: 10,
-    paperSize: 'A4',
-    orientation: 'portrait',
-  })
+
+  // 2. HAPUS STATE LOKAL 'dataAdjust' DARI SINI
+  // const [dataAdjust, setDataAdjust] = useState({ ... });
 
   const paperSizes = [
     { name: 'A4', value: 'A4' },
@@ -39,6 +38,7 @@ export default function AdjustPrintMarginLaporanGedung({
     { label: 'Lanskap', value: 'landscape' },
   ]
 
+  // 3. Fungsi ini sekarang akan mengubah state di PARENT
   const onInputChangeNumber = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }))
   }
@@ -104,7 +104,7 @@ export default function AdjustPrintMarginLaporanGedung({
 
     const startY = addHeader(
       doc,
-      'LAPORAN MASTER GEDUNG SEKOLAH',
+      'LAPORAN MASTER JURUSAN SEKOLAH',
       marginLeft,
       marginTop,
       marginRight
@@ -112,11 +112,11 @@ export default function AdjustPrintMarginLaporanGedung({
 
     autoTable(doc, {
       startY,
-      head: [['ID', 'Nama Gedung', 'Lokasi']],
-      body: dataGedung.map((g) => [
-        g.GEDUNG_ID,
-        g.NAMA_GEDUNG || '-',
-        g.LOKASI || '-',
+      head: [['ID', 'Nama Jurusan', 'Deskripsi']],
+      body: dataJurusan.map((j) => [
+        j.id,
+        j.NAMA_JURUSAN || '-',
+        j.DESKRIPSI || '-',
       ]),
       margin: { left: marginLeft, right: marginRight },
       styles: { fontSize: 9, cellPadding: 2 },
@@ -129,25 +129,25 @@ export default function AdjustPrintMarginLaporanGedung({
 
   // 🔸 Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataGedung.map((g) => ({
-      ID: g.GEDUNG_ID,
-      'Nama Gedung': g.NAMA_GEDUNG,
-      Lokasi: g.LOKASI,
+    const dataForExcel = dataJurusan.map((j) => ({
+      ID: j.id,
+      'Nama Jurusan': j.NAMA_JURUSAN,
+      Deskripsi: j.DESKRIPSI,
     }))
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Data Gedung')
-    XLSX.writeFile(wb, 'Laporan_Master_Gedung.xlsx')
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Jurusan')
+    XLSX.writeFile(wb, 'Laporan_Master_Jurusan.xlsx')
   }
 
   // 🔸 Handle Export PDF
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true)
-      const pdfDataUrl = await exportPDF(dataAdjust)
+      const pdfDataUrl = await exportPDF(dataAdjust) // dataAdjust dari props
       setPdfUrl(pdfDataUrl)
-      setFileName('Laporan_Master_Gedung')
+      setFileName('Laporan_Master_Jurusan')
       setAdjustDialog(false)
       setJsPdfPreviewOpen(true)
     } finally {
@@ -177,9 +177,10 @@ export default function AdjustPrintMarginLaporanGedung({
     <Dialog
       visible={adjustDialog}
       onHide={() => setAdjustDialog(false)}
-      header="Pengaturan Cetak Laporan Gedung"
+      header="Pengaturan Cetak Laporan Jurusan"
       style={{ width: '50vw' }}
       modal
+      blockScroll
     >
       <div className="grid p-fluid">
         {/* 🔹 Bagian Margin */}
@@ -190,7 +191,7 @@ export default function AdjustPrintMarginLaporanGedung({
               <div className="col-6 field" key={label}>
                 <label>Margin {label}</label>
                 <InputNumber
-                  value={dataAdjust[`margin${label}`]}
+                  value={dataAdjust[`margin${label}`]} // value dari props
                   onChange={(e) => onInputChangeNumber(e, `margin${label}`)}
                   min={0}
                   suffix=" mm"
@@ -210,7 +211,7 @@ export default function AdjustPrintMarginLaporanGedung({
             <div className="col-12 field">
               <label>Ukuran Kertas</label>
               <Dropdown
-                value={dataAdjust.paperSize}
+                value={dataAdjust.paperSize} // value dari props
                 options={paperSizes}
                 onChange={(e) => onInputChange(e, 'paperSize')}
                 optionLabel="name"
@@ -220,7 +221,7 @@ export default function AdjustPrintMarginLaporanGedung({
             <div className="col-12 field">
               <label>Orientasi</label>
               <Dropdown
-                value={dataAdjust.orientation}
+                value={dataAdjust.orientation} // value dari props
                 options={orientationOptions}
                 onChange={(e) => onInputChange(e, 'orientation')}
                 className="w-full"
