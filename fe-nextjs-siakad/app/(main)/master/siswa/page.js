@@ -11,6 +11,7 @@ import HeaderBar from "../../../components/headerbar";
 import FilterTanggal from "../../../components/filterTanggal";
 import FormSiswa from "./components/SiswaDetailDialog";
 import AdjustPrintMarginLaporan from "./print/AdjustPrintMarginLaporan";
+import SiswaDetailDialog from "./components/SiswaDetailDialog";
 import dynamic from "next/dynamic";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -26,6 +27,9 @@ export default function SiswaPage() {
 
   const [dialogVisible, setDialogVisible] = useState(false);
   const [selectedSiswa, setSelectedSiswa] = useState(null);
+
+  const [detailDialogVisible, setDetailDialogVisible] = useState(false);
+  const [detailSiswa, setDetailSiswa] = useState(null);
 
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -78,7 +82,7 @@ export default function SiswaPage() {
     }
   };
 
-  // 📅 Filter berdasarkan tanggal lahir
+  // 📅 Filter tanggal lahir
   const handleDateFilter = () => {
     if (!startDate && !endDate) return setDataSiswa(originalData);
     const filtered = originalData.filter((item) => {
@@ -96,7 +100,7 @@ export default function SiswaPage() {
     setDataSiswa(originalData);
   };
 
-  // 💾 Simpan siswa (Tambah/Edit) - menggunakan FormData
+  // 💾 Simpan siswa
   const handleSubmit = async (formData) => {
     try {
       const config = {
@@ -107,15 +111,11 @@ export default function SiswaPage() {
       };
 
       if (selectedSiswa) {
-        // Edit siswa
         await axios.put(`${API_URL}/siswa/${selectedSiswa.SISWA_ID}`, formData, config);
         toastRef.current?.showToast("00", "Data siswa berhasil diperbarui");
       } else {
-        // Tambah siswa
         const res = await axios.post(`${API_URL}/auth/register-siswa`, formData, config);
         toastRef.current?.showToast("00", "Siswa baru berhasil ditambahkan");
-
-        // Bisa langsung update data lokal dengan response terbaru
         if (res.data.siswa_id) {
           fetchData(token);
         }
@@ -125,12 +125,7 @@ export default function SiswaPage() {
       setSelectedSiswa(null);
     } catch (err) {
       console.error("Gagal simpan siswa:", err);
-      if (err.response?.data?.errors) {
-        const messages = err.response.data.errors.map((e) => `${e.field}: ${e.message}`).join("\n");
-        toastRef.current?.showToast("01", messages);
-      } else {
-        toastRef.current?.showToast("01", "Gagal menyimpan data siswa");
-      }
+      toastRef.current?.showToast("01", "Gagal menyimpan data siswa");
     }
   };
 
@@ -138,6 +133,12 @@ export default function SiswaPage() {
   const handleEdit = (row) => {
     setSelectedSiswa(row);
     setDialogVisible(true);
+  };
+
+  // 🔍 Detail siswa
+  const handleDetail = (row) => {
+    setDetailSiswa(row);
+    setDetailDialogVisible(true);
   };
 
   // ❌ Hapus siswa
@@ -166,69 +167,60 @@ export default function SiswaPage() {
 
   // 🔹 Kolom tabel
   const columns = [
-  { field: "NIS", header: "NIS", style: { minWidth: "120px" } },
-  { field: "NISN", header: "NISN", style: { minWidth: "120px" } },
-  { field: "NAMA", header: "Nama", style: { minWidth: "200px" } },
-  {
-    field: "GENDER",
-    header: "Jenis Kelamin",
-    style: { minWidth: "120px" },
-    body: (row) => (row.GENDER === "L" ? "Laki-laki" : "Perempuan"),
-  },
-  {
-    field: "TGL_LAHIR",
-    header: "Tanggal Lahir",
-    style: { minWidth: "120px" },
-    body: (row) => (row.TGL_LAHIR ? new Date(row.TGL_LAHIR).toLocaleDateString("id-ID") : "-"),
-  },
-  { field: "TEMPAT_LAHIR", header: "Tempat Lahir", style: { minWidth: "150px" } },
-  { field: "AGAMA", header: "Agama", style: { minWidth: "100px" } },
-  { field: "ALAMAT", header: "Alamat", style: { minWidth: "200px" } },
-  { field: "NO_TELP", header: "No. Telp", style: { minWidth: "120px" } },
-  { field: "STATUS", header: "Status", style: { minWidth: "100px" } },
-  {
-    field: "FOTO",
-    header: "Foto",
-    style: { minWidth: "80px" },
-    body: (row) =>
-      row.FOTO ? (
-        <img
-          src={`${API_URL}${row.FOTO}`}
-          alt={row.NAMA}
-          className="w-12 h-12 rounded-full object-cover"
-        />
-      ) : (
-        <span>-</span>
+    { field: "NIS", header: "NIS", style: { minWidth: "120px" } },
+    { field: "NISN", header: "NISN", style: { minWidth: "120px" } },
+    { field: "NAMA", header: "Nama", style: { minWidth: "200px" } },
+    {
+      field: "GENDER",
+      header: "Jenis Kelamin",
+      style: { minWidth: "120px" },
+      body: (row) => (row.GENDER === "L" ? "Laki-laki" : "Perempuan"),
+    },
+    {
+      field: "TGL_LAHIR",
+      header: "Tanggal Lahir",
+      style: { minWidth: "120px" },
+      body: (row) =>
+        row.TGL_LAHIR ? new Date(row.TGL_LAHIR).toLocaleDateString("id-ID") : "-",
+    },
+    { field: "TEMPAT_LAHIR", header: "Tempat Lahir", style: { minWidth: "150px" } },
+    { field: "AGAMA", header: "Agama", style: { minWidth: "100px" } },
+    { field: "ALAMAT", header: "Alamat", style: { minWidth: "200px" } },
+    { field: "NO_TELP", header: "No. Telp", style: { minWidth: "120px" } },
+    { field: "STATUS", header: "Status", style: { minWidth: "100px" } },
+    {
+      field: "FOTO",
+      header: "Foto",
+      style: { minWidth: "100px" },
+      body: (row) => {
+        const fotoUrl = row.FOTO
+          ? row.FOTO.startsWith("http")
+            ? row.FOTO
+            : `${API_URL.replace("/api", "")}${row.FOTO}`
+          : null;
+        return fotoUrl ? (
+          <img
+            src={fotoUrl}
+            alt={row.NAMA}
+            className="w-12 h-12 rounded-full object-cover border border-gray-300"
+          />
+        ) : (
+          <span>-</span>
+        );
+      },
+    },
+    {
+      header: "Aksi",
+      body: (row) => (
+        <div className="flex gap-2">
+          <Button icon="pi pi-search" size="small" severity="info" onClick={() => handleDetail(row)} />
+          <Button icon="pi pi-pencil" size="small" severity="warning" onClick={() => handleEdit(row)} />
+          <Button icon="pi pi-trash" size="small" severity="danger" onClick={() => handleDelete(row)} />
+        </div>
       ),
-  },
-  {
-    header: "Aksi",
-    body: (row) => (
-      <div className="flex gap-2">
-        <Button
-          icon="pi pi-search"
-          size="small"
-          severity="info"
-          onClick={() => handleDetail(row)}
-        />
-        <Button
-          icon="pi pi-pencil"
-          size="small"
-          severity="warning"
-          onClick={() => onEdit(row)}
-        />
-        <Button
-          icon="pi pi-trash"
-          size="small"
-          severity="danger"
-          onClick={() => onDelete(row)}
-        />
-      </div>
-    ),
-    style: { width: "150px" },
-  },
-];
-
+      style: { width: "150px" },
+    },
+  ];
 
   return (
     <div className="card">
@@ -237,7 +229,7 @@ export default function SiswaPage() {
 
       <h3 className="text-xl font-semibold mb-3">Master Siswa</h3>
 
-      {/* Filter tanggal & Toolbar atas */}
+      {/* 🔹 Toolbar & Filter */}
       <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4">
         <FilterTanggal
           startDate={startDate}
@@ -273,7 +265,7 @@ export default function SiswaPage() {
 
       <CustomDataTable data={dataSiswa} columns={columns} loading={isLoading} />
 
-      {/* Form Siswa */}
+      {/* 🔹 Form Tambah/Edit */}
       <FormSiswa
         visible={dialogVisible}
         onHide={() => {
@@ -285,7 +277,14 @@ export default function SiswaPage() {
         token={token}
       />
 
-      {/* Dialog Print Margin */}
+      {/* 🔹 Detail Siswa */}
+      <SiswaDetailDialog
+        visible={detailDialogVisible}
+        onHide={() => setDetailDialogVisible(false)}
+        siswa={detailSiswa}
+      />
+
+      {/* 🔹 Print Margin */}
       <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
@@ -295,7 +294,7 @@ export default function SiswaPage() {
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
       />
 
-      {/* PDF Preview */}
+      {/* 🔹 PDF Preview */}
       <Dialog
         visible={jsPdfPreviewOpen}
         onHide={() => setJsPdfPreviewOpen(false)}

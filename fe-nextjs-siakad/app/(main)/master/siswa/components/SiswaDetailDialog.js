@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { Card } from "primereact/card";
 import { Divider } from "primereact/divider";
+import { Skeleton } from "primereact/skeleton";
+import { Tag } from "primereact/tag";
 import axios from "axios";
 
 const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
@@ -33,122 +35,258 @@ const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
     }
   }, [siswa, visible, API_TRANSAKSI]);
 
+  const fotoUrl =
+    siswa?.FOTO
+      ? siswa.FOTO.startsWith("http")
+        ? siswa.FOTO
+        : `${API_URL.replace("/api", "")}${siswa.FOTO}`
+      : null;
+
+  const InfoItem = ({ label, value }) => (
+    <div className="mb-3">
+      <span className="text-600 text-sm font-medium block mb-1">{label}</span>
+      <span className="text-900 font-semibold">{value || "-"}</span>
+    </div>
+  );
+
   return (
     <Dialog
-      header="Detail Siswa"
+      header={
+        <div className="flex align-items-center gap-2">
+          <i className="pi pi-user text-primary text-2xl"></i>
+          <span className="font-bold text-xl">Detail Siswa</span>
+        </div>
+      }
       visible={visible}
-      style={{ width: "800px" }}
+      style={{ width: "900px", maxWidth: "95vw" }}
       modal
       draggable={false}
       onHide={onHide}
       className="p-fluid"
     >
       {siswa ? (
-        <>
-          {/* ====== DATA IDENTITAS ====== */}
-          <Card className="shadow-md border-round-lg mb-3">
-            <div className="grid text-sm p-3">
-              <div className="col-6">
-                <p><strong>ID:</strong> {siswa.SISWA_ID}</p>
-                <p><strong>NIS:</strong> {siswa.NIS}</p>
-                <p><strong>NISN:</strong> {siswa.NISN}</p>
-                <p><strong>Nama:</strong> {siswa.NAMA}</p>
-                <p><strong>Jenis Kelamin:</strong> {siswa.GENDER === "L" ? "Laki-laki" : "Perempuan"}</p>
-                <p><strong>Tempat Lahir:</strong> {siswa.TEMPAT_LAHIR || "-"}</p>
-                <p><strong>Tanggal Lahir:</strong> {siswa.TGL_LAHIR ? new Date(siswa.TGL_LAHIR).toLocaleDateString("id-ID") : "-"}</p>
-                <p><strong>Agama:</strong> {siswa.AGAMA || "-"}</p>
-                <p><strong>Alamat:</strong> {siswa.ALAMAT || "-"}</p>
-                <p><strong>No. Telp:</strong> {siswa.NO_TELP || "-"}</p>
-                <p><strong>Email:</strong> {siswa.EMAIL}</p>
-                <p><strong>Status:</strong> {siswa.STATUS}</p>
-              </div>
-
-              <div className="col-6">
-                {loading ? (
-                  <p>Memuat kelas dan jurusan...</p>
-                ) : transaksi ? (
-                  <>
-                    <p><strong>Kelas:</strong> {transaksi.kelas ? `${transaksi.kelas.TINGKATAN} ${transaksi.kelas.NAMA_KELAS}` : "-"}</p>
-                    <p><strong>Jurusan:</strong> {transaksi.kelas?.NAMA_JURUSAN || "-"}</p>
-                    <p><strong>Tahun Masuk:</strong> {transaksi.TAHUN_AJARAN || "-"}</p>
-                  </>
+        <div className="pb-2">
+          {/* ====== HEADER CARD - FOTO & INFO UTAMA ====== */}
+          <Card className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-none shadow-3">
+            <div className="grid align-items-center">
+              <div className="col-12 md:col-4 text-center">
+                {fotoUrl ? (
+                  <img
+                    src={fotoUrl}
+                    alt="Foto Siswa"
+                    className="border-circle shadow-4"
+                    style={{
+                      width: "160px",
+                      height: "160px",
+                      objectFit: "cover",
+                      margin: "0 auto",
+                      border: "4px solid white",
+                    }}
+                  />
                 ) : (
-                  <>
-                    <p><strong>Kelas:</strong> -</p>
-                    <p><strong>Jurusan:</strong> -</p>
-                    <p><strong>Tahun Masuk:</strong> -</p>
-                  </>
-                )}
-
-                <p><strong>Golongan Darah:</strong> {siswa.GOL_DARAH || "-"}</p>
-                <p><strong>Tinggi / Berat:</strong> {siswa.TINGGI || "-"} cm / {siswa.BERAT || "-"} kg</p>
-                <p><strong>Kebutuhan Khusus:</strong> {siswa.KEBUTUHAN_KHUSUS || "-"}</p>
-
-                {/* FOTO SISWA */}
-                {siswa.FOTO && (
-                  <div className="text-center mt-3">
-                    <img
-                      src={`${API_URL}${siswa.FOTO}`}
-                      alt="Foto Siswa"
-                      className="border-round-lg shadow-2"
-                      style={{ maxWidth: "160px", height: "160px", objectFit: "cover" }}
-                    />
+                  <div
+                    className="border-circle bg-gray-200 flex align-items-center justify-content-center shadow-2"
+                    style={{
+                      width: "160px",
+                      height: "160px",
+                      margin: "0 auto",
+                    }}
+                  >
+                    <i className="pi pi-user text-6xl text-gray-400"></i>
                   </div>
                 )}
+              </div>
+              <div className="col-12 md:col-8">
+                <h2 className="mt-0 mb-2 text-primary">{siswa.NAMA}</h2>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Tag
+                    severity={siswa.STATUS === "AKTIF" ? "success" : "warning"}
+                    value={siswa.STATUS}
+                    icon="pi pi-check-circle"
+                  />
+                  <Tag
+                    severity="info"
+                    value={siswa.GENDER === "L" ? "Laki-laki" : "Perempuan"}
+                    icon={
+                      siswa.GENDER === "L" ? "pi pi-mars" : "pi pi-venus"
+                    }
+                  />
+                </div>
+                <div className="grid">
+                  <div className="col-6">
+                    <InfoItem label="NIS" value={siswa.NIS} />
+                    <InfoItem label="NISN" value={siswa.NISN} />
+                  </div>
+                  <div className="col-6">
+                    <InfoItem label="Email" value={siswa.EMAIL} />
+                    <InfoItem label="No. Telp" value={siswa.NO_TELP} />
+                  </div>
+                </div>
               </div>
             </div>
           </Card>
 
-          <Divider align="center">Data Orang Tua</Divider>
+          {/* ====== DATA PRIBADI ====== */}
+          <Card title="Data Pribadi" className="mb-4 shadow-2">
+            <div className="grid">
+              <div className="col-12 md:col-6">
+                <InfoItem label="Tempat Lahir" value={siswa.TEMPAT_LAHIR} />
+                <InfoItem
+                  label="Tanggal Lahir"
+                  value={
+                    siswa.TGL_LAHIR
+                      ? new Date(siswa.TGL_LAHIR).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "-"
+                  }
+                />
+                <InfoItem label="Agama" value={siswa.AGAMA} />
+                <InfoItem label="Golongan Darah" value={siswa.GOL_DARAH} />
+              </div>
+              <div className="col-12 md:col-6">
+                <InfoItem
+                  label="Tinggi Badan"
+                  value={siswa.TINGGI ? `${siswa.TINGGI} cm` : "-"}
+                />
+                <InfoItem
+                  label="Berat Badan"
+                  value={siswa.BERAT ? `${siswa.BERAT} kg` : "-"}
+                />
+                <InfoItem
+                  label="Kebutuhan Khusus"
+                  value={siswa.KEBUTUHAN_KHUSUS}
+                />
+                <InfoItem label="Alamat" value={siswa.ALAMAT} />
+              </div>
+            </div>
+          </Card>
+
+          {/* ====== DATA AKADEMIK ====== */}
+          <Card title="Data Akademik" className="mb-4 shadow-2">
+            {loading ? (
+              <div className="grid">
+                <div className="col-4">
+                  <Skeleton height="60px" />
+                </div>
+                <div className="col-4">
+                  <Skeleton height="60px" />
+                </div>
+                <div className="col-4">
+                  <Skeleton height="60px" />
+                </div>
+              </div>
+            ) : transaksi ? (
+              <div className="grid">
+                <div className="col-12 md:col-4">
+                  <InfoItem
+                    label="Kelas"
+                    value={
+                      transaksi.kelas
+                        ? `${transaksi.kelas.TINGKATAN} ${transaksi.kelas.NAMA_KELAS}`
+                        : "-"
+                    }
+                  />
+                </div>
+                <div className="col-12 md:col-4">
+                  <InfoItem
+                    label="Jurusan"
+                    value={transaksi.kelas?.NAMA_JURUSAN}
+                  />
+                </div>
+                <div className="col-12 md:col-4">
+                  <InfoItem label="Tahun Masuk" value={transaksi.TAHUN_AJARAN} />
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-600 my-3">
+                Data akademik tidak tersedia
+              </p>
+            )}
+          </Card>
+
+          <Divider align="center">
+            <span className="bg-white px-3 text-700 font-semibold">
+              Data Keluarga
+            </span>
+          </Divider>
 
           {/* ====== DATA AYAH ====== */}
-          <Card className="shadow-md border-round-lg mb-2">
-            <div className="grid text-sm p-3">
-              <div className="col-6">
-                <p><strong>Nama Ayah:</strong> {siswa.NAMA_AYAH || "-"}</p>
-                <p><strong>Pekerjaan Ayah:</strong> {siswa.PEKERJAAN_AYAH || "-"}</p>
-                <p><strong>Pendidikan Ayah:</strong> {siswa.PENDIDIKAN_AYAH || "-"}</p>
+          <Card
+            title={
+              <div className="flex align-items-center gap-2">
+                <i className="pi pi-user text-blue-600"></i>
+                <span>Data Ayah</span>
               </div>
-              <div className="col-6">
-                <p><strong>Alamat Ayah:</strong> {siswa.ALAMAT_AYAH || "-"}</p>
-                <p><strong>No. Telp Ayah:</strong> {siswa.NO_TELP_AYAH || "-"}</p>
+            }
+            className="mb-3 shadow-2"
+          >
+            <div className="grid">
+              <div className="col-12 md:col-6">
+                <InfoItem label="Nama Ayah" value={siswa.NAMA_AYAH} />
+                <InfoItem label="Pekerjaan" value={siswa.PEKERJAAN_AYAH} />
+                <InfoItem label="Pendidikan" value={siswa.PENDIDIKAN_AYAH} />
+              </div>
+              <div className="col-12 md:col-6">
+                <InfoItem label="Alamat" value={siswa.ALAMAT_AYAH} />
+                <InfoItem label="No. Telepon" value={siswa.NO_TELP_AYAH} />
               </div>
             </div>
           </Card>
 
           {/* ====== DATA IBU ====== */}
-          <Card className="shadow-md border-round-lg mb-2">
-            <div className="grid text-sm p-3">
-              <div className="col-6">
-                <p><strong>Nama Ibu:</strong> {siswa.NAMA_IBU || "-"}</p>
-                <p><strong>Pekerjaan Ibu:</strong> {siswa.PEKERJAAN_IBU || "-"}</p>
-                <p><strong>Pendidikan Ibu:</strong> {siswa.PENDIDIKAN_IBU || "-"}</p>
+          <Card
+            title={
+              <div className="flex align-items-center gap-2">
+                <i className="pi pi-user text-pink-600"></i>
+                <span>Data Ibu</span>
               </div>
-              <div className="col-6">
-                <p><strong>Alamat Ibu:</strong> {siswa.ALAMAT_IBU || "-"}</p>
-                <p><strong>No. Telp Ibu:</strong> {siswa.NO_TELP_IBU || "-"}</p>
+            }
+            className="mb-3 shadow-2"
+          >
+            <div className="grid">
+              <div className="col-12 md:col-6">
+                <InfoItem label="Nama Ibu" value={siswa.NAMA_IBU} />
+                <InfoItem label="Pekerjaan" value={siswa.PEKERJAAN_IBU} />
+                <InfoItem label="Pendidikan" value={siswa.PENDIDIKAN_IBU} />
+              </div>
+              <div className="col-12 md:col-6">
+                <InfoItem label="Alamat" value={siswa.ALAMAT_IBU} />
+                <InfoItem label="No. Telepon" value={siswa.NO_TELP_IBU} />
               </div>
             </div>
           </Card>
 
           {/* ====== DATA WALI ====== */}
-          <Divider align="center">Data Wali</Divider>
-          <Card className="shadow-md border-round-lg">
-            <div className="grid text-sm p-3">
-              <div className="col-6">
-                <p><strong>Nama Wali:</strong> {siswa.NAMA_WALI || "-"}</p>
-                <p><strong>Pekerjaan Wali:</strong> {siswa.PEKERJAAN_WALI || "-"}</p>
-                <p><strong>Pendidikan Wali:</strong> {siswa.PENDIDIKAN_WALI || "-"}</p>
+          <Card
+            title={
+              <div className="flex align-items-center gap-2">
+                <i className="pi pi-user text-purple-600"></i>
+                <span>Data Wali</span>
               </div>
-              <div className="col-6">
-                <p><strong>Alamat Wali:</strong> {siswa.ALAMAT_WALI || "-"}</p>
-                <p><strong>No. Telp Wali:</strong> {siswa.NO_TELP_WALI || "-"}</p>
+            }
+            className="shadow-2"
+          >
+            <div className="grid">
+              <div className="col-12 md:col-6">
+                <InfoItem label="Nama Wali" value={siswa.NAMA_WALI} />
+                <InfoItem label="Pekerjaan" value={siswa.PEKERJAAN_WALI} />
+                <InfoItem label="Pendidikan" value={siswa.PENDIDIKAN_WALI} />
+              </div>
+              <div className="col-12 md:col-6">
+                <InfoItem label="Alamat" value={siswa.ALAMAT_WALI} />
+                <InfoItem label="No. Telepon" value={siswa.NO_TELP_WALI} />
               </div>
             </div>
           </Card>
-        </>
+        </div>
       ) : (
-        <p className="text-center text-gray-500">Memuat data siswa...</p>
+        <div className="text-center py-6">
+          <i className="pi pi-spin pi-spinner text-4xl text-primary mb-3"></i>
+          <p className="text-600">Memuat data siswa...</p>
+        </div>
       )}
     </Dialog>
   );

@@ -1,5 +1,5 @@
 /**
- * Migration: Create Transaksi Siswa ke Kelas
+ * Migration: Create Transaksi Siswa ke Kelas (pakai TINGKATAN_ID)
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
@@ -20,11 +20,11 @@ export async function up(knex) {
       .onDelete("CASCADE")
       .onUpdate("CASCADE");
 
-    // Langsung gunakan nilai enum TINGKATAN
+    // 🔹 Ganti enum jadi foreign key ke master_tingkatan
     table
-      .enu("TINGKATAN", ["X", "XI", "XII"])
+      .string("TINGKATAN_ID", 6)
       .notNullable()
-      .references("TINGKATAN")
+      .references("TINGKATAN_ID")
       .inTable("master_tingkatan")
       .onDelete("RESTRICT")
       .onUpdate("CASCADE");
@@ -68,7 +68,7 @@ export async function up(knex) {
     });
 
     // Index pencarian cepat
-    table.index(["NIS", "TINGKATAN", "JURUSAN_ID", "KELAS_ID"]);
+    table.index(["NIS", "TINGKATAN_ID", "JURUSAN_ID", "KELAS_ID"]);
   });
 }
 
