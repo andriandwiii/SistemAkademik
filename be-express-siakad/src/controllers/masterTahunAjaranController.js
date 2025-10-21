@@ -54,14 +54,7 @@ export const getTahunAjaranById = async (req, res) => {
  */
 export const addTahunAjaran = async (req, res) => {
   try {
-    const {
-      TAHUN_AJARAN_ID,
-      NAMA_TAHUN_AJARAN,
-      SEMESTER,
-      TANGGAL_MULAI,
-      TANGGAL_SELESAI,
-      STATUS,
-    } = req.body;
+    const { TAHUN_AJARAN_ID, NAMA_TAHUN_AJARAN, STATUS } = req.body;
 
     if (!TAHUN_AJARAN_ID || !NAMA_TAHUN_AJARAN) {
       return res.status(400).json({
@@ -73,10 +66,7 @@ export const addTahunAjaran = async (req, res) => {
     await TahunAjaranModel.addTahunAjaran({
       TAHUN_AJARAN_ID,
       NAMA_TAHUN_AJARAN,
-      SEMESTER,
-      TANGGAL_MULAI,
-      TANGGAL_SELESAI,
-      STATUS,
+      STATUS: STATUS || "Tidak Aktif",
     });
 
     res.status(201).json({
@@ -98,14 +88,7 @@ export const addTahunAjaran = async (req, res) => {
 export const updateTahunAjaran = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      TAHUN_AJARAN_ID,
-      NAMA_TAHUN_AJARAN,
-      SEMESTER,
-      TANGGAL_MULAI,
-      TANGGAL_SELESAI,
-      STATUS,
-    } = req.body;
+    const { TAHUN_AJARAN_ID, NAMA_TAHUN_AJARAN, STATUS } = req.body;
 
     const existing = await TahunAjaranModel.getTahunAjaranById(id);
     if (!existing) {
@@ -118,9 +101,6 @@ export const updateTahunAjaran = async (req, res) => {
     await TahunAjaranModel.updateTahunAjaran(id, {
       TAHUN_AJARAN_ID,
       NAMA_TAHUN_AJARAN,
-      SEMESTER,
-      TANGGAL_MULAI,
-      TANGGAL_SELESAI,
       STATUS,
     });
 

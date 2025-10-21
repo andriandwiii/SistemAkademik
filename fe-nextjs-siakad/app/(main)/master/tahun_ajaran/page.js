@@ -22,19 +22,19 @@ export default function MasterTahunAjaranPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  // 🔹 Ambil token dari localStorage
+  // Ambil token
   useEffect(() => {
     const t = localStorage.getItem("token");
     if (!t) window.location.href = "/";
     else setToken(t);
   }, []);
 
-  // 🔹 Fetch data
+  // Ambil data
   useEffect(() => {
     if (token) fetchTahunAjaran();
   }, [token]);
 
-  // 🔹 Cleanup
+  // Cleanup
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -42,7 +42,7 @@ export default function MasterTahunAjaranPage() {
     };
   }, []);
 
-  // 🔹 Ambil semua data tahun ajaran
+  // Fetch tahun ajaran
   const fetchTahunAjaran = async () => {
     setIsLoading(true);
     try {
@@ -61,18 +61,7 @@ export default function MasterTahunAjaranPage() {
     }
   };
 
-  // 🔹 Format tanggal jadi bahasa Indonesia
-  const formatTanggal = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
-  // 🔹 Search filter
+  // Filter pencarian
   const handleSearch = (term) => {
     setSearchTerm(term);
     if (!term.trim()) {
@@ -88,7 +77,7 @@ export default function MasterTahunAjaranPage() {
     setFilteredData(filtered);
   };
 
-  // 🔹 Tambah atau update tahun ajaran
+  // Tambah / Edit data
   const handleSubmit = async (data) => {
     if (!dialogMode) return;
 
@@ -120,29 +109,20 @@ export default function MasterTahunAjaranPage() {
       const result = await res.json();
 
       if (result.status === "00" || result.status === "success") {
-        toastRef.current?.showToast(
-          "00",
-          result.message || "Tahun ajaran berhasil disimpan"
-        );
+        toastRef.current?.showToast("00", "Tahun ajaran berhasil disimpan");
         await fetchTahunAjaran();
         setDialogMode(null);
         setSelectedTahunAjaran(null);
       } else {
-        toastRef.current?.showToast(
-          "01",
-          result.message || "Gagal menyimpan tahun ajaran"
-        );
+        toastRef.current?.showToast("01", "Gagal menyimpan tahun ajaran");
       }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast(
-        "01",
-        "Terjadi kesalahan saat menyimpan tahun ajaran"
-      );
+      toastRef.current?.showToast("01", "Terjadi kesalahan server");
     }
   };
 
-  // 🔹 Hapus tahun ajaran
+  // Hapus data
   const handleDelete = (rowData) => {
     confirmDialog({
       message: `Yakin ingin menghapus tahun ajaran "${rowData.NAMA_TAHUN_AJARAN}"?`,
@@ -173,23 +153,17 @@ export default function MasterTahunAjaranPage() {
               );
             }
           } else {
-            toastRef.current?.showToast(
-              "01",
-              result.message || "Gagal menghapus tahun ajaran"
-            );
+            toastRef.current?.showToast("01", "Gagal menghapus data");
           }
         } catch (err) {
           console.error(err);
-          toastRef.current?.showToast(
-            "01",
-            "Terjadi kesalahan saat menghapus tahun ajaran"
-          );
+          toastRef.current?.showToast("01", "Kesalahan koneksi ke server");
         }
       },
     });
   };
 
-  // 🔹 Tombol aksi
+  // Tombol Aksi
   const actionBodyTemplate = (rowData) => (
     <div className="flex gap-2 justify-content-center">
       <Button
@@ -214,34 +188,20 @@ export default function MasterTahunAjaranPage() {
     </div>
   );
 
-  // 🔹 Kolom tabel
+  // Kolom tabel sesuai struktur DB
   const tahunAjaranColumns = [
     { field: "ID", header: "ID", style: { width: "60px", textAlign: "center" } },
-    { field: "TAHUN_AJARAN_ID", header: "Kode", style: { width: "140px" } },
-    { field: "NAMA_TAHUN_AJARAN", header: "Nama Tahun Ajaran", filter: true },
-    { field: "SEMESTER", header: "Semester", style: { width: "120px" } },
-    {
-      field: "TANGGAL_MULAI",
-      header: "Mulai",
-      body: (rowData) => formatTanggal(rowData.TANGGAL_MULAI),
-      style: { width: "150px" },
-    },
-    {
-      field: "TANGGAL_SELESAI",
-      header: "Selesai",
-      body: (rowData) => formatTanggal(rowData.TANGGAL_SELESAI),
-      style: { width: "150px" },
-    },
+    { field: "TAHUN_AJARAN_ID", header: "Kode Tahun Ajaran", style: { width: "140px" } },
+    { field: "NAMA_TAHUN_AJARAN", header: "Nama Tahun Ajaran", style: { width: "200px" } },
     { field: "STATUS", header: "Status", style: { width: "120px" } },
     { header: "Aksi", body: actionBodyTemplate, style: { width: "120px" } },
   ];
 
-  // 🔹 Render UI
   return (
     <div className="card p-4 surface-card border-round-lg shadow-2">
       <div className="flex justify-content-between align-items-center mb-5">
         <h3 className="text-2xl font-bold text-black m-0">
-        Manajemen Tahun Ajaran
+          Manajemen Tahun Ajaran
         </h3>
 
         <div className="flex align-items-center gap-3 mt-8">
@@ -261,7 +221,11 @@ export default function MasterTahunAjaranPage() {
             icon="pi pi-plus"
             severity="info"
             className="p-button-sm font-semibold"
-            style={{ height: "38px", backgroundColor: "#007ad9", border: "none" }}
+            style={{
+              height: "38px",
+              backgroundColor: "#007ad9",
+              border: "none",
+            }}
             onClick={() => {
               setDialogMode("add");
               setSelectedTahunAjaran(null);
