@@ -1,27 +1,26 @@
-import { Router } from "express";
-import {
-  fetchAllKelas,
-  getKelasByIdController,
-  createNewKelas,
-  updateKelasController,
-  deleteKelasController,
-} from "../controllers/kelasController.js";
+import express from "express";
+import * as MasterKelasController from "../controllers/masterKelasController.js";
 
-const router = Router();
+const router = express.Router();
 
-// GET all kelas
-router.get("/", fetchAllKelas);
+/**
+ * ✅ Master Kelas Routes
+ * Base path: /master-kelas
+ */
 
-// GET kelas by ID
-router.get("/:id", getKelasByIdController);
+// Ambil semua data kelas
+router.get("/", MasterKelasController.getAllKelas);
 
-// POST new kelas
-router.post("/", createNewKelas);
+// Ambil 1 data kelas berdasarkan ID
+router.get("/:id", MasterKelasController.getKelasById);
 
-// PUT update kelas
-router.put("/:id", updateKelasController);
+// Tambah kelas baru
+router.post("/", MasterKelasController.createKelas);
 
-// DELETE kelas
-router.delete("/:id", deleteKelasController);
+// Update kelas berdasarkan ID
+router.put("/:id", MasterKelasController.updateKelas);
+
+// Hapus kelas berdasarkan ID
+router.delete("/:id", MasterKelasController.deleteKelas);
 
 export default router;

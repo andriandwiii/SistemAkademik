@@ -10,27 +10,27 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
-/**
- * 🔹 Komponen export laporan kelas
- * Dipakai untuk export PDF / Excel data master kelas
- */
-export default function AdjustPrintMarginLaporanKelas({
+export default function AdjustPrintMarginLaporan({
   adjustDialog,
   setAdjustDialog,
   dataKelas = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
+  dataAdjust,
+  setDataAdjust,
 }) {
   const [loadingExport, setLoadingExport] = useState(false)
-  const [dataAdjust, setDataAdjust] = useState({
+
+  // ✅ Default value biar gak error undefined
+  const currentAdjust = dataAdjust || {
     marginTop: 10,
     marginBottom: 10,
     marginRight: 10,
     marginLeft: 10,
     paperSize: 'A4',
     orientation: 'landscape',
-  })
+  }
 
   const paperSizes = [
     { name: 'A4', value: 'A4' },
@@ -43,27 +43,40 @@ export default function AdjustPrintMarginLaporanKelas({
     { label: 'Lanskap', value: 'landscape' },
   ]
 
+  // 🔹 Update nilai margin
   const onInputChangeNumber = (e, name) => {
-    setDataAdjust(prev => ({ ...prev, [name]: e.value || 0 }))
+    if (setDataAdjust) {
+      setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }))
+    }
   }
 
+  // 🔹 Update nilai dropdown
   const onInputChange = (e, name) => {
-    setDataAdjust(prev => ({ ...prev, [name]: e.value }))
+    if (setDataAdjust) {
+      setDataAdjust((prev) => ({ ...prev, [name]: e.value }))
+    }
   }
 
-  // 🔸 Header PDF
+  // 🔹 Header laporan
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width
 
     doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(41, 128, 185)
-    doc.text('SEKOLAH NEGERI 1 MADIUN', pageWidth / 2, marginTop + 5, { align: 'center' })
+    doc.text('SEKOLAH NEGERI 1 MADIUN', pageWidth / 2, marginTop + 5, {
+      align: 'center',
+    })
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
-    doc.text('Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur', pageWidth / 2, marginTop + 12, { align: 'center' })
+    doc.text(
+      'Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur',
+      pageWidth / 2,
+      marginTop + 12,
+      { align: 'center' }
+    )
 
     doc.setDrawColor(200, 200, 200)
     doc.setLineWidth(0.3)
@@ -75,7 +88,9 @@ export default function AdjustPrintMarginLaporanKelas({
     doc.text(title, pageWidth / 2, marginTop + 25, { align: 'center' })
 
     const today = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric', month: 'long', year: 'numeric'
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
     })
     doc.setFontSize(10)
     doc.setFont('helvetica', 'italic')
@@ -97,17 +112,23 @@ export default function AdjustPrintMarginLaporanKelas({
     const marginTop = parseFloat(adjustConfig.marginTop)
     const marginRight = parseFloat(adjustConfig.marginRight)
 
-    const startY = addHeader(doc, 'LAPORAN MASTER KELAS', marginLeft, marginTop, marginRight)
+    const startY = addHeader(
+      doc,
+      'LAPORAN MASTER KELAS SEKOLAH',
+      marginLeft,
+      marginTop,
+      marginRight
+    )
 
     autoTable(doc, {
-      startY: startY,
-      head: [['ID', 'Nama Kelas', 'Tingkatan', 'Jurusan', 'Gedung']],
-      body: dataKelas.map(k => [
-        k.KELAS_ID,
-        k.NAMA_RUANG || '-',
-        k.TINGKATAN || '-',
-        k.NAMA_JURUSAN || '-',
+      startY,
+      head: [['ID', 'Kode Kelas', 'Nama Gedung', 'Nama Ruang', 'Status']],
+      body: dataKelas.map((k) => [
+        k.ID,
+        k.KELAS_ID || '-',
         k.NAMA_GEDUNG || '-',
+        k.NAMA_RUANG || '-',
+        k.STATUS || '-',
       ]),
       margin: { left: marginLeft, right: marginRight },
       styles: { fontSize: 9, cellPadding: 2 },
@@ -120,24 +141,25 @@ export default function AdjustPrintMarginLaporanKelas({
 
   // 🔸 Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataKelas.map(k => ({
-      'ID': k.KELAS_ID,
-      'Nama Kelas': k.NAMA_RUANG,
-      'Tingkatan': k.TINGKATAN,
-      'Jurusan': k.NAMA_JURUSAN,
-      'Gedung': k.NAMA_GEDUNG
+    const dataForExcel = dataKelas.map((k) => ({
+      ID: k.ID,
+      'Kode Kelas': k.KELAS_ID,
+      'Nama Gedung': k.NAMA_GEDUNG,
+      'Nama Ruang': k.NAMA_RUANG,
+      Status: k.STATUS,
     }))
+
     const ws = XLSX.utils.json_to_sheet(dataForExcel)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Data Kelas')
     XLSX.writeFile(wb, 'Laporan_Master_Kelas.xlsx')
   }
 
-  // 🔸 Export PDF handler
+  // 🔸 Handle Export PDF
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true)
-      const pdfDataUrl = await exportPDF(dataAdjust)
+      const pdfDataUrl = await exportPDF(currentAdjust)
       setPdfUrl(pdfDataUrl)
       setFileName('Laporan_Master_Kelas')
       setAdjustDialog(false)
@@ -147,6 +169,7 @@ export default function AdjustPrintMarginLaporanKelas({
     }
   }
 
+  // 🔹 Footer Toolbar
   const footer = () => (
     <div className="flex flex-row gap-2">
       <Button
@@ -172,8 +195,10 @@ export default function AdjustPrintMarginLaporanKelas({
       header="Pengaturan Cetak Laporan Kelas"
       style={{ width: '50vw' }}
       modal
+      blockScroll
     >
       <div className="grid p-fluid">
+        {/* 🔹 Pengaturan Margin */} 
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -181,7 +206,7 @@ export default function AdjustPrintMarginLaporanKelas({
               <div className="col-6 field" key={label}>
                 <label>Margin {label}</label>
                 <InputNumber
-                  value={dataAdjust[`margin${label}`]}
+                  value={currentAdjust[`margin${label}`]}
                   onChange={(e) => onInputChangeNumber(e, `margin${label}`)}
                   min={0}
                   suffix=" mm"
@@ -194,13 +219,14 @@ export default function AdjustPrintMarginLaporanKelas({
           </div>
         </div>
 
+        {/* 🔹 Pengaturan Kertas */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>
             <div className="col-12 field">
               <label>Ukuran Kertas</label>
               <Dropdown
-                value={dataAdjust.paperSize}
+                value={currentAdjust.paperSize}
                 options={paperSizes}
                 onChange={(e) => onInputChange(e, 'paperSize')}
                 optionLabel="name"
@@ -210,7 +236,7 @@ export default function AdjustPrintMarginLaporanKelas({
             <div className="col-12 field">
               <label>Orientasi</label>
               <Dropdown
-                value={dataAdjust.orientation}
+                value={currentAdjust.orientation}
                 options={orientationOptions}
                 onChange={(e) => onInputChange(e, 'orientation')}
                 className="w-full"

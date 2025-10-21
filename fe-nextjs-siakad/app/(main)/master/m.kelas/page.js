@@ -5,43 +5,45 @@ import axios from 'axios';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { Dropdown } from 'primereact/dropdown';
 import ToastNotifier from '@/app/components/ToastNotifier';
 import CustomDataTable from '@/app/components/DataTable';
 import HeaderBar from '@/app/components/headerbar';
 import FormKelas from './components/FormKelas';
-import AdjustPrintMarginLaporanKelas from './print/AdjustPrintMarginLaporanKelas';
+import AdjustPrintMarginLaporan from './print/AdjustPrintMarginLaporan';
 import dynamic from 'next/dynamic';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Load PDFViewer secara dinamis hanya di client-side (sudah benar)
+// Viewer PDF (hanya jalan di client)
 const PDFViewer = dynamic(() => import('./print/PDFViewer'), {
   ssr: false,
   loading: () => <p>Memuat preview...</p>,
 });
 
-export default function KelasPage() {
+export default function MasterKelasPage() {
   const toastRef = useRef(null);
   const [token, setToken] = useState('');
-
-  const [originalData, setOriginalData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [kelasList, setKelasList] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
-  const [selectedKelas, setSelectedKelas] = useState(null);
-
-  // KUNCI 1: State untuk filter dan search dipisahkan
-  const [tingkatanFilter, setTingkatanFilter] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [tingkatanOptions, setTingkatanOptions] = useState([]);
 
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  // Ambil token & data awal
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: 'A4',
+    orientation: 'landscape',
+  });
+
+  // Ambil token & data
   useEffect(() => {
     const t = localStorage.getItem('token');
     if (!t) {
@@ -52,59 +54,40 @@ export default function KelasPage() {
     }
   }, []);
 
-  // Fetch data kelas
+  // Ambil data kelas + join gedung & ruang
   const fetchData = async (t) => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/master-kelas`, {
         headers: { Authorization: `Bearer ${t}` },
       });
-      const sorted = res.data.data.sort((a, b) => b.KELAS_ID - a.KELAS_ID);
-      setOriginalData(sorted);
-
-      const tingkatanSet = new Set(sorted.map((d) => d.TINGKATAN).filter(Boolean));
-      setTingkatanOptions([
-        { label: 'Semua Tingkatan', value: null }, // Tambah opsi untuk reset filter
-        ...Array.from(tingkatanSet).map((t) => ({ label: `Tingkatan ${t}`, value: t })),
-      ]);
+      setKelasList(res.data.data.sort((a, b) => a.ID - b.ID));
     } catch (err) {
-      console.error('Gagal ambil data kelas:', err);
+      console.error(err);
       toastRef.current?.showToast('01', 'Gagal memuat data kelas');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // KUNCI 2: Logika filter digabung dalam satu tempat menggunakan useMemo
-  // Ini memastikan search dan filter tingkatan bisa bekerja bersamaan tanpa bentrok
+  // Filter pencarian
   const filteredData = useMemo(() => {
-    let data = [...originalData];
+    if (!searchKeyword) return kelasList;
+    const lower = searchKeyword.toLowerCase();
+    return kelasList.filter(
+      (k) =>
+        k.KELAS_ID?.toLowerCase().includes(lower) ||
+        k.NAMA_GEDUNG?.toLowerCase().includes(lower) ||
+        k.NAMA_RUANG?.toLowerCase().includes(lower) ||
+        k.STATUS?.toLowerCase().includes(lower)
+    );
+  }, [kelasList, searchKeyword]);
 
-    // Terapkan filter pencarian
-    if (searchKeyword) {
-      const lowercasedKeyword = searchKeyword.toLowerCase();
-      data = data.filter(
-        (k) =>
-          k.NAMA_RUANG?.toLowerCase().includes(lowercasedKeyword) ||
-          k.TINGKATAN?.toLowerCase().includes(lowercasedKeyword) ||
-          k.NAMA_JURUSAN?.toLowerCase().includes(lowercasedKeyword) ||
-          k.NAMA_GEDUNG?.toLowerCase().includes(lowercasedKeyword)
-      );
-    }
-
-    // Terapkan filter tingkatan
-    if (tingkatanFilter) {
-      data = data.filter((k) => k.TINGKATAN === tingkatanFilter);
-    }
-
-    return data;
-  }, [originalData, searchKeyword, tingkatanFilter]);
-
-  // Simpan (Tambah/Edit)
-  const handleSubmit = async (data) => {
+  // Simpan (Add / Edit)
+  const handleSave = async (data) => {
     try {
-      if (selectedKelas) {
-        await axios.put(`${API_URL}/master-kelas/${selectedKelas.KELAS_ID}`, data, {
+      if (selectedItem) {
+        await axios.put(`${API_URL}/master-kelas/${selectedItem.ID}`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toastRef.current?.showToast('00', 'Kelas berhasil diperbarui');
@@ -112,117 +95,133 @@ export default function KelasPage() {
         await axios.post(`${API_URL}/master-kelas`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        toastRef.current?.showToast('00', 'Kelas baru berhasil ditambahkan');
+        toastRef.current?.showToast('00', 'Kelas berhasil ditambahkan');
       }
       fetchData(token);
       setDialogVisible(false);
-      setSelectedKelas(null);
+      setSelectedItem(null);
     } catch (err) {
-      console.error('Gagal simpan kelas:', err);
+      console.error(err);
       toastRef.current?.showToast('01', 'Gagal menyimpan data kelas');
     }
   };
 
-  // Edit
+  // Edit data
   const handleEdit = (row) => {
-    setSelectedKelas(row);
+    setSelectedItem(row);
     setDialogVisible(true);
   };
 
-  // Hapus
+  // Hapus data
   const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin ingin menghapus kelas "${row.NAMA_RUANG}"?`,
+      message: `Yakin ingin menghapus kelas ID: ${row.ID}?`,
       header: 'Konfirmasi Hapus',
       icon: 'pi pi-exclamation-triangle',
+      acceptClassName: 'p-button-danger',
       accept: async () => {
         try {
-          await axios.delete(`${API_URL}/master-kelas/${row.KELAS_ID}`, {
+          await axios.delete(`${API_URL}/master-kelas/${row.ID}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           toastRef.current?.showToast('00', 'Kelas berhasil dihapus');
           fetchData(token);
-        } catch (err) {
+        } catch {
           toastRef.current?.showToast('01', 'Gagal menghapus kelas');
         }
       },
     });
   };
 
-  // Kolom tabel
-  const columns = useMemo(() => [
-    { field: 'KELAS_ID', header: 'ID', sortable: true },
-    { field: 'NAMA_RUANG', header: 'Nama Kelas', sortable: true },
-    { field: 'TINGKATAN', header: 'Tingkatan', sortable: true },
-    { field: 'NAMA_JURUSAN', header: 'Jurusan', sortable: true },
-    { field: 'NAMA_GEDUNG', header: 'Gedung', sortable: true },
+  // Kolom tabel (tanpa created_at & updated_at)
+  const columns = [
+    { field: 'ID', header: 'ID', style: { width: '60px', textAlign: 'center' } },
+    { field: 'KELAS_ID', header: 'Kode Kelas', style: { width: '120px' } },
+    {
+      header: 'Nama Gedung',
+      body: (row) => row.NAMA_GEDUNG || '-',
+      style: { width: '180px' },
+    },
+    {
+      header: 'Nama Ruang',
+      body: (row) => row.NAMA_RUANG || '-',
+      style: { width: '180px' },
+    },
+    {
+      field: 'STATUS',
+      header: 'Status',
+      style: { width: '120px', textAlign: 'center' },
+    },
     {
       header: 'Aksi',
       body: (row) => (
         <div className="flex gap-2">
-          <Button icon="pi pi-pencil" size="small" severity="warning" onClick={() => handleEdit(row)} />
-          <Button icon="pi pi-trash" size="small" severity="danger" onClick={() => handleDelete(row)} />
+          <Button
+            icon="pi pi-pencil"
+            size="small"
+            severity="warning"
+            onClick={() => handleEdit(row)}
+          />
+          <Button
+            icon="pi pi-trash"
+            size="small"
+            severity="danger"
+            onClick={() => handleDelete(row)}
+          />
         </div>
       ),
-      style: { width: '120px' },
+      style: { width: '120px', textAlign: 'center' },
     },
-  ], []);
+  ];
 
   return (
-    <div className="card">
+    <div className="card p-4">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
       <h3 className="text-xl font-semibold mb-3">Master Kelas</h3>
 
-      {/* KUNCI 3: Perbaikan struktur JSX dan tata letak filter */}
-      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-3">
-        <Dropdown
-          value={tingkatanFilter}
-          options={tingkatanOptions}
-          onChange={(e) => setTingkatanFilter(e.value)}
-          placeholder="Filter berdasarkan tingkatan"
-          className="w-full md:w-auto"
+      <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
+        <Button
+          icon="pi pi-print"
+          severity="warning"
+          tooltip="Atur & Cetak Laporan"
+          onClick={() => setAdjustDialog(true)}
         />
-        <div className="flex items-center w-full md:w-auto">
-          <Button
-            icon="pi pi-print"
-            className="p-button-warning mt-4"
-            tooltip="Atur & Cetak Laporan"
-            onClick={() => setAdjustDialog(true)} // Langsung buka dialog, data sudah terfilter
-          />
-          <HeaderBar
-            title=""
-            placeholder="Cari kelas..."
-            onSearch={setSearchKeyword} // Langsung update state search
-            onAddClick={() => {
-              setSelectedKelas(null);
-              setDialogVisible(true);
-            }}
-          />
-        </div>
+
+        <HeaderBar
+          title=""
+          placeholder="Cari kelas..."
+          onSearch={setSearchKeyword}
+          onAddClick={() => {
+            setSelectedItem(null);
+            setDialogVisible(true);
+          }}
+        />
       </div>
 
-      <CustomDataTable data={filteredData} columns={columns} loading={isLoading} />
+      <CustomDataTable data={filteredData} loading={loading} columns={columns} />
 
       <FormKelas
         visible={dialogVisible}
         onHide={() => {
           setDialogVisible(false);
-          setSelectedKelas(null);
+          setSelectedItem(null);
         }}
-        onSave={handleSubmit}
-        selectedKelas={selectedKelas}
+        selectedKelas={selectedItem}
+        onSave={handleSave}
         token={token}
       />
 
-      <AdjustPrintMarginLaporanKelas
+      <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
-        dataKelas={filteredData} // Kirim data yang sudah terfilter untuk dicetak
+        dataKelas={filteredData}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        dataAdjust={dataAdjust}
+        setDataAdjust={setDataAdjust}
       />
 
       <Dialog
@@ -232,7 +231,7 @@ export default function KelasPage() {
         style={{ width: '90vw', height: '90vh' }}
         header="Preview Laporan Kelas"
       >
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
       </Dialog>
     </div>
   );

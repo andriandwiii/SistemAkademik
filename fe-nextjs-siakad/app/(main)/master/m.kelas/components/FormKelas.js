@@ -3,148 +3,134 @@
 import { useState, useEffect } from "react";
 import { Dialog } from "primereact/dialog";
 import { Dropdown } from "primereact/dropdown";
+import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 
 /**
- * Komponen FormKelas — digunakan untuk menambah atau mengedit data kelas.
- * Mengambil data dropdown dari API (ruang, jurusan, gedung, tingkatan).
+ * FormKelas — tambah / edit kelas
+ * Sesuai struktur tabel: KELAS_ID, GEDUNG_ID, RUANG_ID, STATUS
  */
 const FormKelas = ({ visible, onHide, onSave, selectedKelas, token }) => {
-  // State utama form
-  const [ruangId, setRuangId] = useState(null);
-  const [tingkatanId, setTingkatanId] = useState(null);
-  const [jurusanId, setJurusanId] = useState(null);
+  // state utama
+  const [kelasId, setKelasId] = useState("");
   const [gedungId, setGedungId] = useState(null);
+  const [ruangId, setRuangId] = useState(null);
+  const [status, setStatus] = useState("Aktif");
 
-  // List dropdown
-  const [jurusanList, setJurusanList] = useState([]);
+  // list dropdown
   const [gedungList, setGedungList] = useState([]);
-  const [tingkatanList, setTingkatanList] = useState([]);
   const [ruangList, setRuangList] = useState([]);
 
-  // Loading state (biar UX lebih halus)
+  // loading
   const [loading, setLoading] = useState(false);
 
-  // Ambil URL dari .env.local
+  // base URL API
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  // Reset atau isi ulang form saat dialog dibuka
-  useEffect(() => {
-    if (selectedKelas) {
-      setRuangId(selectedKelas.RUANG_ID || null);
-      setTingkatanId(selectedKelas.TINGKATAN_ID || null);
-      setJurusanId(selectedKelas.JURUSAN_ID || null);
-      setGedungId(selectedKelas.GEDUNG_ID || null);
-    } else if (visible) {
-      setRuangId(null);
-      setTingkatanId(null);
-      setJurusanId(null);
-      setGedungId(null);
-    }
-  }, [selectedKelas, visible]);
+  // kosongkan form
+  const clearForm = () => {
+    setKelasId("");
+    setGedungId(null);
+    setRuangId(null);
+    setStatus("Aktif");
+  };
 
-  // Fetch semua data dropdown saat token tersedia
-  useEffect(() => {
-    if (token) {
-      fetchAllDropdowns();
-    }
-  }, [token]);
-
-  // Fungsi untuk ambil semua data dropdown paralel (lebih cepat)
-  const fetchAllDropdowns = async () => {
+  // ambil data dropdown dari API master-gedung dan master-ruang
+  const fetchDropdownData = async () => {
     try {
       setLoading(true);
 
-      const [ruangRes, jurusanRes, gedungRes, tingkatanRes] = await Promise.all([
-        fetch(`${API_URL}/master-ruang`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/master-jurusan`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/master-gedung`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/master-tingkatan`, { headers: { Authorization: `Bearer ${token}` } }),
+      const [gedungRes, ruangRes] = await Promise.all([
+        fetch(`${API_URL}/master-gedung`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_URL}/master-ruang`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
-      const [ruangJson, jurusanJson, gedungJson, tingkatanJson] = await Promise.all([
-        ruangRes.json(),
-        jurusanRes.json(),
-        gedungRes.json(),
-        tingkatanRes.json(),
-      ]);
+      const gedungJson = await gedungRes.json();
+      const ruangJson = await ruangRes.json();
 
-      setRuangList(ruangJson.data || []);
-      setJurusanList(jurusanJson.data || []);
       setGedungList(gedungJson.data || []);
-      setTingkatanList(tingkatanJson.data || []);
+      setRuangList(ruangJson.data || []);
     } catch (error) {
-      console.error("Gagal mengambil data dropdown:", error);
+      console.error("❌ Gagal mengambil data dropdown:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Kirim data ke parent saat simpan
+  // fetch data saat dialog dibuka
+  useEffect(() => {
+    if (visible && token) {
+      fetchDropdownData();
+    }
+  }, [visible, token]);
+
+  // isi data kalau edit
+  useEffect(() => {
+    if (selectedKelas) {
+      setKelasId(selectedKelas.KELAS_ID || "");
+      setGedungId(selectedKelas.GEDUNG_ID || null);
+      setRuangId(selectedKelas.RUANG_ID || null);
+      setStatus(selectedKelas.STATUS || "Aktif");
+    } else if (visible) {
+      clearForm();
+    }
+  }, [selectedKelas, visible]);
+
+  // handle simpan
   const handleSubmit = () => {
     const data = {
-      ruang_id: ruangId,
-      jurusan_id: jurusanId,
-      gedung_id: gedungId,
-      tingkatan_id: tingkatanId,
+      KELAS_ID: kelasId,
+      GEDUNG_ID: gedungId,
+      RUANG_ID: ruangId,
+      STATUS: status,
     };
     onSave(data);
+    clearForm();
   };
+
+  // opsi status
+  const statusOptions = [
+    { label: "Aktif", value: "Aktif" },
+    { label: "Tidak Aktif", value: "Tidak Aktif" },
+  ];
 
   return (
     <Dialog
       header={selectedKelas ? "Edit Kelas" : "Tambah Kelas"}
       visible={visible}
-      style={{ width: "30vw" }}
+      style={{ width: "35vw" }}
       modal
-      onHide={onHide}
+      onHide={() => {
+        clearForm();
+        onHide();
+      }}
       dismissableMask
     >
       <div className="p-fluid">
-        {/* Nama Kelas */}
+        {/* KELAS_ID */}
         <div className="field">
-          <label htmlFor="ruang">Nama Kelas</label>
-          <Dropdown
-            id="ruang"
-            value={ruangId}
-            options={ruangList.map((r) => ({
-              label: r.NAMA_RUANG,
-              value: r.RUANG_ID,
-            }))}
-            onChange={(e) => setRuangId(e.value)}
-            placeholder="Pilih Nama Kelas"
-            filter
-            showClear
-            loading={loading}
+          <label htmlFor="kelasId">Kode Kelas</label>
+          <InputText
+            id="kelasId"
+            value={kelasId}
+            onChange={(e) => setKelasId(e.target.value)}
+            placeholder="Masukkan Kode Kelas (mis. K001)"
+            disabled={!!selectedKelas} // disable kalau edit
           />
         </div>
 
-        {/* Jurusan */}
-        <div className="field">
-          <label htmlFor="jurusan">Jurusan</label>
-          <Dropdown
-            id="jurusan"
-            value={jurusanId}
-            options={jurusanList.map((j) => ({
-              label: j.NAMA_JURUSAN,
-              value: j.JURUSAN_ID,
-            }))}
-            onChange={(e) => setJurusanId(e.value)}
-            placeholder="Pilih Jurusan"
-            filter
-            showClear
-            loading={loading}
-          />
-        </div>
-
-        {/* Gedung */}
+        {/* GEDUNG_ID */}
         <div className="field">
           <label htmlFor="gedung">Gedung</label>
           <Dropdown
             id="gedung"
             value={gedungId}
             options={gedungList.map((g) => ({
-              label: g.NAMA_GEDUNG,
+              label: `${g.NAMA_GEDUNG} (${g.GEDUNG_ID})`,
               value: g.GEDUNG_ID,
             }))}
             onChange={(e) => setGedungId(e.value)}
@@ -152,24 +138,39 @@ const FormKelas = ({ visible, onHide, onSave, selectedKelas, token }) => {
             filter
             showClear
             loading={loading}
+            className="w-full"
           />
         </div>
 
-        {/* Tingkatan */}
+        {/* RUANG_ID */}
         <div className="field">
-          <label htmlFor="tingkatan">Tingkatan</label>
+          <label htmlFor="ruang">Ruang</label>
           <Dropdown
-            id="tingkatan"
-            value={tingkatanId}
-            options={tingkatanList.map((t) => ({
-              label: t.TINGKATAN,
-              value: t.TINGKATAN_ID,
+            id="ruang"
+            value={ruangId}
+            options={ruangList.map((r) => ({
+              label: `${r.NAMA_RUANG} (${r.RUANG_ID})`,
+              value: r.RUANG_ID,
             }))}
-            onChange={(e) => setTingkatanId(e.value)}
-            placeholder="Pilih Tingkatan"
+            onChange={(e) => setRuangId(e.value)}
+            placeholder="Pilih Ruang"
             filter
             showClear
             loading={loading}
+            className="w-full"
+          />
+        </div>
+
+        {/* STATUS */}
+        <div className="field">
+          <label htmlFor="status">Status</label>
+          <Dropdown
+            id="status"
+            value={status}
+            options={statusOptions}
+            onChange={(e) => setStatus(e.value)}
+            placeholder="Pilih Status"
+            className="w-full"
           />
         </div>
 
@@ -179,13 +180,16 @@ const FormKelas = ({ visible, onHide, onSave, selectedKelas, token }) => {
             label="Batal"
             icon="pi pi-times"
             className="p-button-text"
-            onClick={onHide}
+            onClick={() => {
+              clearForm();
+              onHide();
+            }}
           />
           <Button
             label="Simpan"
             icon="pi pi-check"
             onClick={handleSubmit}
-            disabled={loading || !ruangId || !jurusanId || !gedungId || !tingkatanId}
+            disabled={loading || !gedungId || !ruangId}
           />
         </div>
       </div>
