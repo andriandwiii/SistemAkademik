@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import logger from "morgan";
+import path from "path";
 
 import { setResponseHeader } from "./middleware/set-headers.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -34,6 +35,8 @@ import masterRuangRouter from "./routes/masterRuangKelasRoutes.js";
 
 
 const app = express();
+
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 const allowedOrigins = ["http://localhost:3000"];
 

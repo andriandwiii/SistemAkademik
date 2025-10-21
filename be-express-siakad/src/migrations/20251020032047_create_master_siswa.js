@@ -28,6 +28,16 @@ export const up = async function (knex) {
     table.text('ALAMAT');
     table.string('NO_TELP', 20);
 
+    // Status siswa
+    table.enu('STATUS', ['Aktif', 'Lulus', 'Pindah', 'Nonaktif']).defaultTo('Aktif');
+
+    // Data tambahan
+    table.string('GOL_DARAH', 5);
+    table.integer('TINGGI'); // cm
+    table.integer('BERAT');  // kg
+    table.string('KEBUTUHAN_KHUSUS', 120);
+    table.string('FOTO', 255);
+
     // Data orang tua / wali
     table.string('NAMA_AYAH', 120);
     table.string('PEKERJAAN_AYAH', 100);
@@ -46,16 +56,6 @@ export const up = async function (knex) {
     table.string('PENDIDIKAN_WALI', 100);
     table.string('ALAMAT_WALI');
     table.string('NO_TELP_WALI', 20);
-
-    // Status siswa
-    table.enu('STATUS', ['Aktif', 'Lulus', 'Pindah', 'Nonaktif']).defaultTo('Aktif');
-
-    // Data tambahan
-    table.string('GOL_DARAH', 5);
-    table.integer('TINGGI'); // cm
-    table.integer('BERAT');  // kg
-    table.string('KEBUTUHAN_KHUSUS', 120);
-    table.string('FOTO', 255);
 
     // Data sistem
     table.timestamp('created_at').defaultTo(knex.fn.now());

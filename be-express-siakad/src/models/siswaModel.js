@@ -1,12 +1,14 @@
 import { db } from "../core/config/knex.js"; // Pastikan path knex.js benar
 
-// Ambil semua siswa + data user
+/**
+ * 🔹 Ambil semua siswa beserta data user-nya
+ */
 export const getAllSiswaWithUser = async () => {
-  const siswaList = await db("m_siswa as s")
-    .leftJoin("users as u", "s.user_id", "u.id")
+  const siswaList = await db("master_siswa as s")
+    .leftJoin("users as u", "s.EMAIL", "u.email")
     .select(
       "s.SISWA_ID",
-      "s.user_id",
+      "s.EMAIL",
       "s.NIS",
       "s.NISN",
       "s.NAMA",
@@ -16,37 +18,43 @@ export const getAllSiswaWithUser = async () => {
       "s.AGAMA",
       "s.ALAMAT",
       "s.NO_TELP",
-      "s.EMAIL",
       "s.STATUS",
       "s.GOL_DARAH",
       "s.TINGGI",
       "s.BERAT",
       "s.KEBUTUHAN_KHUSUS",
       "s.FOTO",
+      "s.NAMA_AYAH",
+      "s.PEKERJAAN_AYAH",
+      "s.PENDIDIKAN_AYAH",
+      "s.ALAMAT_AYAH",
+      "s.NO_TELP_AYAH",
+      "s.NAMA_IBU",
+      "s.PEKERJAAN_IBU",
+      "s.PENDIDIKAN_IBU",
+      "s.ALAMAT_IBU",
+      "s.NO_TELP_IBU",
+      "s.NAMA_WALI",
+      "s.PEKERJAAN_WALI",
+      "s.PENDIDIKAN_WALI",
+      "s.ALAMAT_WALI",
+      "s.NO_TELP_WALI",
       "u.name as user_name",
-      "u.email as user_email",
       "u.role as user_role"
     );
-
-  // Tambahkan orang_tua untuk setiap siswa
-  for (const siswa of siswaList) {
-    const orangTua = await db("m_orangtua_wali")
-      .where("SISWA_ID", siswa.SISWA_ID)
-      .select("JENIS", "NAMA", "PEKERJAAN", "PENDIDIKAN", "ALAMAT", "NO_HP");
-
-    siswa.orang_tua = orangTua;
-  }
 
   return siswaList;
 };
 
-// Ambil siswa by ID + data user + orang tua/wali
+/**
+ * 🔹 Ambil siswa berdasarkan ID
+ */
 export const getSiswaByIdWithUser = async (id) => {
-  const siswa = await db("m_siswa as s")
-    .leftJoin("users as u", "s.user_id", "u.id")
+  const siswa = await db("master_siswa as s")
+    .leftJoin("users as u", "s.EMAIL", "u.email")
     .select(
       "s.SISWA_ID",
-      "s.user_id",
+      "s.EMAIL",
       "s.NIS",
       "s.NISN",
       "s.NAMA",
@@ -56,96 +64,128 @@ export const getSiswaByIdWithUser = async (id) => {
       "s.AGAMA",
       "s.ALAMAT",
       "s.NO_TELP",
-      "s.EMAIL",
       "s.STATUS",
       "s.GOL_DARAH",
       "s.TINGGI",
       "s.BERAT",
       "s.KEBUTUHAN_KHUSUS",
       "s.FOTO",
+      "s.NAMA_AYAH",
+      "s.PEKERJAAN_AYAH",
+      "s.PENDIDIKAN_AYAH",
+      "s.ALAMAT_AYAH",
+      "s.NO_TELP_AYAH",
+      "s.NAMA_IBU",
+      "s.PEKERJAAN_IBU",
+      "s.PENDIDIKAN_IBU",
+      "s.ALAMAT_IBU",
+      "s.NO_TELP_IBU",
+      "s.NAMA_WALI",
+      "s.PEKERJAAN_WALI",
+      "s.PENDIDIKAN_WALI",
+      "s.ALAMAT_WALI",
+      "s.NO_TELP_WALI",
       "u.name as user_name",
-      "u.email as user_email",
       "u.role as user_role"
     )
     .where("s.SISWA_ID", id)
     .first();
 
-  if (!siswa) return null;
-
-  const orangTua = await db("m_orangtua_wali")
-    .where("SISWA_ID", id)
-    .select("JENIS", "NAMA", "PEKERJAAN", "PENDIDIKAN", "ALAMAT", "NO_HP");
-
-  siswa.orang_tua = orangTua;
-
-  return siswa;
+  return siswa || null;
 };
 
-// Tambah siswa baru
-export const addSiswa = async (data) => {
-  const [id] = await db("m_siswa").insert({
-    user_id: data.user_id,
-    NIS: data.NIS,
-    NISN: data.NISN,
-    NAMA: data.NAMA,
-    GENDER: data.GENDER,
-    TEMPAT_LAHIR: data.TEMPAT_LAHIR,
-    TGL_LAHIR: data.TGL_LAHIR,
-    AGAMA: data.AGAMA,
-    ALAMAT: data.ALAMAT,
-    NO_TELP: data.NO_TELP,
-    EMAIL: data.EMAIL,
-    STATUS: data.STATUS,
-    GOL_DARAH: data.GOL_DARAH,
-    TINGGI: data.TINGGI,
-    BERAT: data.BERAT,
-    KEBUTUHAN_KHUSUS: data.KEBUTUHAN_KHUSUS,
-    FOTO: data.FOTO,
-  });
+/**
+ * 🔹 Tambah siswa baru (mapping array orang_tua langsung ke kolom)
+ */
+export const addSiswa = async (data, trx = null) => {
+  const query = trx ? trx("master_siswa") : db("master_siswa");
 
-  return getSiswaByIdWithUser(id);
-};
+  // Mapping array orang_tua ke kolom
+  let namaAyah = null, pekerjaanAyah = null, pendidikanAyah = null, alamatAyah = null, noTelpAyah = null;
+  let namaIbu = null, pekerjaanIbu = null, pendidikanIbu = null, alamatIbu = null, noTelpIbu = null;
+  let namaWali = null, pekerjaanWali = null, pendidikanWali = null, alamatWali = null, noTelpWali = null;
 
-// Update siswa
-export const updateSiswa = async (id, data) => {
-  await db("m_siswa").where({ SISWA_ID: id }).update({
-    NIS: data.NIS,
-    NISN: data.NISN,
-    NAMA: data.NAMA,
-    GENDER: data.GENDER,
-    TEMPAT_LAHIR: data.TEMPAT_LAHIR,
-    TGL_LAHIR: data.TGL_LAHIR,
-    AGAMA: data.AGAMA,
-    ALAMAT: data.ALAMAT,
-    NO_TELP: data.NO_TELP,
-    EMAIL: data.EMAIL,
-    STATUS: data.STATUS,
-    GOL_DARAH: data.GOL_DARAH,
-    TINGGI: data.TINGGI,
-    BERAT: data.BERAT,
-    KEBUTUHAN_KHUSUS: data.KEBUTUHAN_KHUSUS,
-    FOTO: data.FOTO,
-    updated_at: db.fn.now(),
-  });
-
-  return getSiswaByIdWithUser(id);
-};
-
-// Hapus siswa beserta user dan orang tua/wali
-export const deleteSiswa = async (id) => {
-  const siswa = await db("m_siswa").where("SISWA_ID", id).first();
-  if (!siswa) return null;
-
-  // Hapus data orang tua/wali
-  await db("m_orangtua_wali").where("SISWA_ID", id).del();
-
-  // Hapus data siswa
-  await db("m_siswa").where("SISWA_ID", id).del();
-
-  // Hapus user login
-  if (siswa.user_id) {
-    await db("users").where("id", siswa.user_id).del();
+  if (Array.isArray(data.orang_tua)) {
+    data.orang_tua.forEach((ortu) => {
+      switch (ortu.jenis) {
+        case "Ayah":
+          namaAyah = ortu.nama;
+          pekerjaanAyah = ortu.pekerjaan || null;
+          pendidikanAyah = ortu.pendidikan || null;
+          alamatAyah = ortu.alamat || null;
+          noTelpAyah = ortu.no_hp || null;
+          break;
+        case "Ibu":
+          namaIbu = ortu.nama;
+          pekerjaanIbu = ortu.pekerjaan || null;
+          pendidikanIbu = ortu.pendidikan || null;
+          alamatIbu = ortu.alamat || null;
+          noTelpIbu = ortu.no_hp || null;
+          break;
+        case "Wali":
+          namaWali = ortu.nama;
+          pekerjaanWali = ortu.pekerjaan || null;
+          pendidikanWali = ortu.pendidikan || null;
+          alamatWali = ortu.alamat || null;
+          noTelpWali = ortu.no_hp || null;
+          break;
+      }
+    });
   }
+
+  const [id] = await query.insert({
+    EMAIL: data.EMAIL,
+    NIS: data.NIS,
+    NISN: data.NISN,
+    NAMA: data.NAMA,
+    GENDER: data.GENDER,
+    TEMPAT_LAHIR: data.TEMPAT_LAHIR,
+    TGL_LAHIR: data.TGL_LAHIR,
+    AGAMA: data.AGAMA,
+    ALAMAT: data.ALAMAT,
+    NO_TELP: data.NO_TELP,
+    STATUS: data.STATUS || "Aktif",
+    GOL_DARAH: data.GOL_DARAH,
+    TINGGI: data.TINGGI,
+    BERAT: data.BERAT,
+    KEBUTUHAN_KHUSUS: data.KEBUTUHAN_KHUSUS,
+    FOTO: data.FOTO,
+    NAMA_AYAH: namaAyah,
+    PEKERJAAN_AYAH: pekerjaanAyah,
+    PENDIDIKAN_AYAH: pendidikanAyah,
+    ALAMAT_AYAH: alamatAyah,
+    NO_TELP_AYAH: noTelpAyah,
+    NAMA_IBU: namaIbu,
+    PEKERJAAN_IBU: pekerjaanIbu,
+    PENDIDIKAN_IBU: pendidikanIbu,
+    ALAMAT_IBU: alamatIbu,
+    NO_TELP_IBU: noTelpIbu,
+    NAMA_WALI: namaWali,
+    PEKERJAAN_WALI: pekerjaanWali,
+    PENDIDIKAN_WALI: pendidikanWali,
+    ALAMAT_WALI: alamatWali,
+    NO_TELP_WALI: noTelpWali,
+  });
+
+  return getSiswaByIdWithUser(id);
+};
+
+/**
+ * 🔹 Update data siswa
+ */
+export const updateSiswa = async (id, data) => {
+  return addSiswa({ ...data, EMAIL: data.EMAIL }, db.transaction()); // Bisa reuse logika mapping
+};
+
+/**
+ * 🔹 Hapus siswa dan user terkait
+ */
+export const deleteSiswa = async (id) => {
+  const siswa = await db("master_siswa").where("SISWA_ID", id).first();
+  if (!siswa) return null;
+
+  await db("master_siswa").where("SISWA_ID", id).del();
+  await db("users").where("email", siswa.EMAIL).del();
 
   return siswa;
 };

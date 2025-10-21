@@ -9,7 +9,6 @@ import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
 import HeaderBar from "../../../components/headerbar";
 import FilterTanggal from "../../../components/filterTanggal";
-import TabelSiswa from "./components/tabelSiswa";
 import FormSiswa from "./components/SiswaDetailDialog";
 import AdjustPrintMarginLaporan from "./print/AdjustPrintMarginLaporan";
 import dynamic from "next/dynamic";
@@ -97,26 +96,41 @@ export default function SiswaPage() {
     setDataSiswa(originalData);
   };
 
-  // 💾 Simpan siswa (Tambah/Edit)
-  const handleSubmit = async (data) => {
+  // 💾 Simpan siswa (Tambah/Edit) - menggunakan FormData
+  const handleSubmit = async (formData) => {
     try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      };
+
       if (selectedSiswa) {
-        await axios.put(`${API_URL}/siswa/${selectedSiswa.SISWA_ID}`, data, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Edit siswa
+        await axios.put(`${API_URL}/siswa/${selectedSiswa.SISWA_ID}`, formData, config);
         toastRef.current?.showToast("00", "Data siswa berhasil diperbarui");
       } else {
-        await axios.post(`${API_URL}/auth/register-siswa`, data, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // Tambah siswa
+        const res = await axios.post(`${API_URL}/auth/register-siswa`, formData, config);
         toastRef.current?.showToast("00", "Siswa baru berhasil ditambahkan");
+
+        // Bisa langsung update data lokal dengan response terbaru
+        if (res.data.siswa_id) {
+          fetchData(token);
+        }
       }
-      fetchData(token);
+
       setDialogVisible(false);
       setSelectedSiswa(null);
     } catch (err) {
       console.error("Gagal simpan siswa:", err);
-      toastRef.current?.showToast("01", "Gagal menyimpan data siswa");
+      if (err.response?.data?.errors) {
+        const messages = err.response.data.errors.map((e) => `${e.field}: ${e.message}`).join("\n");
+        toastRef.current?.showToast("01", messages);
+      } else {
+        toastRef.current?.showToast("01", "Gagal menyimpan data siswa");
+      }
     }
   };
 
@@ -150,48 +164,71 @@ export default function SiswaPage() {
     });
   };
 
-  // 🔹 Kolom tabel (gunakan komponen tabel siswa yang sudah ada)
+  // 🔹 Kolom tabel
   const columns = [
-    { field: "SISWA_ID", header: "ID" },
-    { field: "NIS", header: "NIS" },
-    { field: "NISN", header: "NISN" },
-    { field: "NAMA", header: "Nama" },
-    {
-      field: "GENDER",
-      header: "Jenis Kelamin",
-      body: (row) => (row.GENDER === "L" ? "Laki-laki" : "Perempuan"),
-    },
-    {
-      field: "TGL_LAHIR",
-      header: "Tanggal Lahir",
-      body: (row) =>
-        row.TGL_LAHIR
-          ? new Date(row.TGL_LAHIR).toLocaleDateString("id-ID")
-          : "-",
-    },
-    { field: "EMAIL", header: "Email" },
-    { field: "STATUS", header: "Status" },
-    {
-      header: "Aksi",
-      body: (row) => (
-        <div className="flex gap-2">
-          <Button
-            icon="pi pi-pencil"
-            size="small"
-            severity="warning"
-            onClick={() => handleEdit(row)}
-          />
-          <Button
-            icon="pi pi-trash"
-            size="small"
-            severity="danger"
-            onClick={() => handleDelete(row)}
-          />
-        </div>
+  { field: "NIS", header: "NIS", style: { minWidth: "120px" } },
+  { field: "NISN", header: "NISN", style: { minWidth: "120px" } },
+  { field: "NAMA", header: "Nama", style: { minWidth: "200px" } },
+  {
+    field: "GENDER",
+    header: "Jenis Kelamin",
+    style: { minWidth: "120px" },
+    body: (row) => (row.GENDER === "L" ? "Laki-laki" : "Perempuan"),
+  },
+  {
+    field: "TGL_LAHIR",
+    header: "Tanggal Lahir",
+    style: { minWidth: "120px" },
+    body: (row) => (row.TGL_LAHIR ? new Date(row.TGL_LAHIR).toLocaleDateString("id-ID") : "-"),
+  },
+  { field: "TEMPAT_LAHIR", header: "Tempat Lahir", style: { minWidth: "150px" } },
+  { field: "AGAMA", header: "Agama", style: { minWidth: "100px" } },
+  { field: "ALAMAT", header: "Alamat", style: { minWidth: "200px" } },
+  { field: "NO_TELP", header: "No. Telp", style: { minWidth: "120px" } },
+  { field: "STATUS", header: "Status", style: { minWidth: "100px" } },
+  {
+    field: "FOTO",
+    header: "Foto",
+    style: { minWidth: "80px" },
+    body: (row) =>
+      row.FOTO ? (
+        <img
+          src={`${API_URL}${row.FOTO}`}
+          alt={row.NAMA}
+          className="w-12 h-12 rounded-full object-cover"
+        />
+      ) : (
+        <span>-</span>
       ),
-      style: { width: "120px" },
-    },
-  ];
+  },
+  {
+    header: "Aksi",
+    body: (row) => (
+      <div className="flex gap-2">
+        <Button
+          icon="pi pi-search"
+          size="small"
+          severity="info"
+          onClick={() => handleDetail(row)}
+        />
+        <Button
+          icon="pi pi-pencil"
+          size="small"
+          severity="warning"
+          onClick={() => onEdit(row)}
+        />
+        <Button
+          icon="pi pi-trash"
+          size="small"
+          severity="danger"
+          onClick={() => onDelete(row)}
+        />
+      </div>
+    ),
+    style: { width: "150px" },
+  },
+];
+
 
   return (
     <div className="card">
@@ -200,7 +237,7 @@ export default function SiswaPage() {
 
       <h3 className="text-xl font-semibold mb-3">Master Siswa</h3>
 
-      {/* 🔹 Filter tanggal & Toolbar atas */}
+      {/* Filter tanggal & Toolbar atas */}
       <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4">
         <FilterTanggal
           startDate={startDate}
@@ -248,7 +285,7 @@ export default function SiswaPage() {
         token={token}
       />
 
-      {/* 🔹 Dialog Print Margin */}
+      {/* Dialog Print Margin */}
       <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
@@ -258,7 +295,7 @@ export default function SiswaPage() {
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
       />
 
-      {/* 🔹 PDF Preview */}
+      {/* PDF Preview */}
       <Dialog
         visible={jsPdfPreviewOpen}
         onHide={() => setJsPdfPreviewOpen(false)}
