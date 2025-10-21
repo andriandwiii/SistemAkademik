@@ -22,15 +22,22 @@ const FormTingkatan = ({ visible, onHide, onSave, selectedTingkatan }) => {
     { label: "Tidak Aktif", value: "Tidak Aktif" },
   ];
 
+  // ✅ Fungsi untuk reset semua field
+  const clearForm = () => {
+    setTingkatanId("");
+    setTingkatan("");
+    setStatus("Aktif");
+  };
+
   useEffect(() => {
     if (selectedTingkatan) {
+      // Mode edit: isi field dari data yang dipilih
       setTingkatanId(selectedTingkatan.TINGKATAN_ID || "");
       setTingkatan(selectedTingkatan.TINGKATAN || "");
       setStatus(selectedTingkatan.STATUS || "Aktif");
     } else {
-      setTingkatanId("");
-      setTingkatan("");
-      setStatus("Aktif");
+      // Mode tambah baru: kosongkan semua field
+      clearForm();
     }
   }, [selectedTingkatan]);
 
@@ -40,7 +47,11 @@ const FormTingkatan = ({ visible, onHide, onSave, selectedTingkatan }) => {
       TINGKATAN: tingkatan,
       STATUS: status,
     };
+
     onSave(data);
+
+    // ✅ Kosongkan form setelah simpan
+    clearForm();
   };
 
   return (
@@ -49,19 +60,24 @@ const FormTingkatan = ({ visible, onHide, onSave, selectedTingkatan }) => {
       visible={visible}
       style={{ width: "30vw" }}
       modal
-      onHide={onHide}
+      onHide={() => {
+        clearForm(); // ✅ Kosongkan juga saat ditutup
+        onHide();
+      }}
     >
       <div className="p-fluid">
+        {/* TINGKATAN_ID */}
         <div className="field">
           <label htmlFor="tingkatanId">Kode Tingkatan</label>
           <InputText
             id="tingkatanId"
             value={tingkatanId}
             onChange={(e) => setTingkatanId(e.target.value)}
-            disabled={!!selectedTingkatan} // nonaktif saat edit
+            disabled={!!selectedTingkatan} // Nonaktif kalau mode edit
           />
         </div>
 
+        {/* TINGKATAN */}
         <div className="field">
           <label htmlFor="tingkatan">Tingkatan</label>
           <Dropdown
@@ -73,6 +89,7 @@ const FormTingkatan = ({ visible, onHide, onSave, selectedTingkatan }) => {
           />
         </div>
 
+        {/* STATUS */}
         <div className="field">
           <label htmlFor="status">Status</label>
           <Dropdown
@@ -84,14 +101,22 @@ const FormTingkatan = ({ visible, onHide, onSave, selectedTingkatan }) => {
           />
         </div>
 
+        {/* Tombol Aksi */}
         <div className="flex justify-content-end gap-2 mt-3">
           <Button
             label="Batal"
             icon="pi pi-times"
             className="p-button-text"
-            onClick={onHide}
+            onClick={() => {
+              clearForm(); // ✅ Reset field saat batal
+              onHide();
+            }}
           />
-          <Button label="Simpan" icon="pi pi-check" onClick={handleSubmit} />
+          <Button
+            label="Simpan"
+            icon="pi pi-check"
+            onClick={handleSubmit}
+          />
         </div>
       </div>
     </Dialog>

@@ -45,10 +45,10 @@ export default function MasterMapelPage() {
   const fetchMapel = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/master-mapel`);
+      const res = await fetch(`${API_URL}/master-mata-pelajaran`);
       const json = await res.json();
       if (!isMounted.current) return;
-      const sorted = json.data?.sort((a, b) => b.MAPEL_ID - a.MAPEL_ID) || [];
+      const sorted = json.data?.sort((a, b) => b.ID - a.ID) || [];
       setMapelList(sorted);
       setOriginalData(sorted);
     } catch (err) {
@@ -62,19 +62,19 @@ export default function MasterMapelPage() {
   const handleSave = async (data) => {
     try {
       if (dialogMode === "add") {
-        await fetch(`${API_URL}/master-mapel`, {
+        await fetch(`${API_URL}/master-mata-pelajaran`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Mapel berhasil ditambahkan");
+        toastRef.current?.showToast("00", "Mata pelajaran berhasil ditambahkan");
       } else if (dialogMode === "edit" && selectedMapel) {
-        await fetch(`${API_URL}/master-mapel/${selectedMapel.MAPEL_ID}`, {
+        await fetch(`${API_URL}/master-mata-pelajaran/${selectedMapel.ID}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Mapel berhasil diperbarui");
+        toastRef.current?.showToast("00", "Mata pelajaran berhasil diperbarui");
       }
 
       if (isMounted.current) {
@@ -84,7 +84,7 @@ export default function MasterMapelPage() {
       }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Gagal menyimpan mapel");
+      toastRef.current?.showToast("01", "Gagal menyimpan mata pelajaran");
     }
   };
 
@@ -95,12 +95,12 @@ export default function MasterMapelPage() {
       icon: "pi pi-exclamation-triangle",
       accept: async () => {
         try {
-          await fetch(`${API_URL}/master-mapel/${row.MAPEL_ID}`, { method: "DELETE" });
-          toastRef.current?.showToast("00", "Mapel berhasil dihapus");
+          await fetch(`${API_URL}/master-mata-pelajaran/${row.ID}`, { method: "DELETE" });
+          toastRef.current?.showToast("00", "Mata pelajaran berhasil dihapus");
           if (isMounted.current) await fetchMapel();
         } catch (err) {
           console.error(err);
-          toastRef.current?.showToast("01", "Gagal menghapus mapel");
+          toastRef.current?.showToast("01", "Gagal menghapus mata pelajaran");
         }
       },
       rejectLabel: "Batal",
@@ -146,7 +146,7 @@ export default function MasterMapelPage() {
   );
 
   const columns = [
-    { field: "MAPEL_ID", header: "ID", style: { width: "60px" } },
+    { field: "ID", header: "ID", style: { width: "60px" } },
     { field: "KODE_MAPEL", header: "Kode Mapel" },
     { field: "NAMA_MAPEL", header: "Nama Mapel" },
     { field: "KATEGORI", header: "Kategori" },
@@ -161,14 +161,12 @@ export default function MasterMapelPage() {
 
       {/* 🔹 BARIS UTAMA: Print | Search | Tambah Mapel */}
       <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
-        {/* Tombol Print */}
         <Button
           icon="pi pi-print"
           severity="warning"
           onClick={() => setAdjustDialog(true)}
         />
 
-        {/* Search Bar */}
         <span className="p-input-icon-left">
           <i className="pi pi-search" />
           <InputText
@@ -179,7 +177,6 @@ export default function MasterMapelPage() {
           />
         </span>
 
-        {/* Tombol Tambah */}
         <Button
           label="Tambah Mapel"
           icon="pi pi-plus"

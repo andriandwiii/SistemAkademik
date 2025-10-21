@@ -24,13 +24,16 @@ import ortuRoutes from "./routes/orangtuaRoutes.js";
 import masterJurusanRoutes from './routes/masterJurusanRoutes.js';
 import masterGedungRoutes from "./routes/masterGedungRoutes.js";
 import transaksiSiswaRoutes from "./routes/transaksiSiswaRoutes.js";
-import masterHariRoutes from "./routes/masterHariRoutes.js";
+import masterHariRoutes from "./routes/M.HariRoutes.js";
 import mapelKelasRoutes from "./routes/mapelKelasRoutes.js";
 import jadwalRoutes from "./routes/jadwalRoutes.js";
 import absensiRoutes from "./routes/absensiRoutes.js";
 import masterinfosekolahRoutes from "./routes/masterInfoSekolahRoutes.js";
 import masterTingkatanRoutes from "./routes/masterTingkatanRoutes.js";
 import masterRuangRouter from "./routes/masterRuangKelasRoutes.js";
+import masterTahunAjaranRoutes from "./routes/masterTahunAjaranRoutes.js";
+import masterMataPelajaranRoutes from "./routes/masterMataPelajaranRoutes.js";
+
 
 
 
@@ -97,5 +100,7 @@ app.use("/api/absensi", absensiRoutes);
 app.use("/api/master-infosekolah", masterinfosekolahRoutes);
 app.use("/api/master-tingkatan", masterTingkatanRoutes);
 app.use("/api/master-ruang", masterRuangRouter);
+app.use("/api/master-tahun-ajaran", masterTahunAjaranRoutes);
+app.use("/api/master-mata-pelajaran", masterMataPelajaranRoutes);
 
 export default app;
