@@ -1,21 +1,19 @@
-import express from "express";
-import * as GedungController from "../controllers/gedungController.js";
+import express from 'express';
+import {
+  getAllGedung,
+  getGedungById,
+  createGedung,
+  updateGedung,
+  deleteGedung
+} from '../controllers/masterGedungController.js';
 
 const router = express.Router();
 
-// GET semua gedung
-router.get("/", GedungController.getAllGedung);
-
-// GET gedung berdasarkan ID
-router.get("/:id", GedungController.getGedungById);
-
-// POST tambah gedung baru
-router.post("/", GedungController.createGedung);
-
-// PUT update gedung berdasarkan ID
-router.put("/:id", GedungController.updateGedung);
-
-// DELETE hapus gedung berdasarkan ID
-router.delete("/:id", GedungController.deleteGedung);
+// Endpoint untuk master_gedung
+router.get('/', getAllGedung);
+router.get('/:id', getGedungById);
+router.post('/', createGedung);
+router.put('/:id', updateGedung);
+router.delete('/:id', deleteGedung);
 
 export default router;

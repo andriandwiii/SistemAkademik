@@ -1,66 +1,183 @@
-import * as TingkatanModel from "../models/masterTingkatanModel.js";
+import * as MasterTingkatanModel from "../models/masterTingkatanModel.js";
 
-/** Ambil semua tingkatan */
+/**
+ * GET semua tingkatan
+ */
 export const getAllTingkatan = async (req, res) => {
   try {
-    const data = await TingkatanModel.getAllTingkatan();
-    res.status(200).json({ status: "success", data });
+    const tingkatan = await MasterTingkatanModel.getAllTingkatan();
+
+    return res.status(200).json({
+      status: "00",
+      message: tingkatan.length > 0 ? "Data tingkatan berhasil diambil" : "Belum ada data tingkatan",
+      data: tingkatan.map((item) => ({
+        id: item.id,
+        TINGKATAN_ID: item.TINGKATAN_ID,
+        TINGKATAN: item.TINGKATAN,
+        STATUS: item.STATUS,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      })),
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    return res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat mengambil data tingkatan",
+      error: err.message,
+    });
   }
 };
 
-/** Ambil tingkatan by ID */
+/**
+ * GET tingkatan by ID
+ */
 export const getTingkatanById = async (req, res) => {
   try {
-    const data = await TingkatanModel.getTingkatanById(req.params.id);
-    if (!data) return res.status(404).json({ status: "error", message: "Tingkatan tidak ditemukan" });
-    res.status(200).json({ status: "success", data });
+    const { id } = req.params;
+    const tingkatan = await MasterTingkatanModel.getTingkatanById(id);
+
+    if (!tingkatan) {
+      return res.status(404).json({
+        status: "04",
+        message: "Tingkatan tidak ditemukan",
+      });
+    }
+
+    return res.status(200).json({
+      status: "00",
+      message: "Data tingkatan berhasil diambil",
+      data: tingkatan,
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    return res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat mengambil data tingkatan",
+      error: err.message,
+    });
   }
 };
 
-/** Tambah tingkatan */
+/**
+ * CREATE tingkatan baru
+ */
 export const createTingkatan = async (req, res) => {
   try {
-    const { TINGKATAN, STATUS } = req.body;
+    let { TINGKATAN_ID, TINGKATAN, STATUS } = req.body;
+
     if (!TINGKATAN) {
-      return res.status(400).json({ status: "error", message: "Field wajib diisi" });
+      return res.status(400).json({
+        status: "01",
+        message: "TINGKATAN wajib diisi",
+      });
     }
-    const tingkatan = await TingkatanModel.createTingkatan({ TINGKATAN, STATUS });
-    res.status(201).json({ status: "success", data: tingkatan });
+
+    // Auto-generate TINGKATAN_ID jika tidak dikirim
+    if (!TINGKATAN_ID) {
+      const lastTingkatan = await MasterTingkatanModel.getLastTingkatan();
+      const nextNumber = lastTingkatan
+        ? parseInt(lastTingkatan.TINGKATAN_ID.replace("T", "")) + 1
+        : 1;
+      TINGKATAN_ID = "T" + nextNumber.toString().padStart(4, "0");
+    }
+
+    // Cek duplikat TINGKATAN_ID
+    const existing = await MasterTingkatanModel.getTingkatanByKode(TINGKATAN_ID);
+    if (existing) {
+      return res.status(409).json({
+        status: "02",
+        message: `TINGKATAN_ID ${TINGKATAN_ID} sudah terdaftar`,
+      });
+    }
+
+    const newTingkatan = await MasterTingkatanModel.createTingkatan({
+      TINGKATAN_ID,
+      TINGKATAN,
+      STATUS,
+    });
+
+    return res.status(201).json({
+      status: "00",
+      message: "Tingkatan berhasil ditambahkan",
+      data: newTingkatan,
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    return res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat menambahkan tingkatan",
+      error: err.message,
+    });
   }
 };
 
-/** Update tingkatan */
+/**
+ * UPDATE tingkatan
+ */
 export const updateTingkatan = async (req, res) => {
   try {
-    const { TINGKATAN, STATUS } = req.body;
     const { id } = req.params;
+    const { TINGKATAN_ID, TINGKATAN, STATUS } = req.body;
 
     if (!TINGKATAN) {
-      return res.status(400).json({ status: "error", message: "Field wajib diisi" });
+      return res.status(400).json({
+        status: "01",
+        message: "TINGKATAN wajib diisi",
+      });
     }
 
-    const tingkatan = await TingkatanModel.updateTingkatan(id, { TINGKATAN, STATUS });
-    if (!tingkatan) return res.status(404).json({ status: "error", message: "Tingkatan tidak ditemukan" });
+    const existing = await MasterTingkatanModel.getTingkatanById(id);
+    if (!existing) {
+      return res.status(404).json({
+        status: "04",
+        message: "Tingkatan tidak ditemukan untuk diperbarui",
+      });
+    }
 
-    res.status(200).json({ status: "success", data: tingkatan });
+    const updatedTingkatan = await MasterTingkatanModel.updateTingkatan(id, {
+      TINGKATAN_ID,
+      TINGKATAN,
+      STATUS,
+    });
+
+    return res.status(200).json({
+      status: "00",
+      message: "Tingkatan berhasil diperbarui",
+      data: updatedTingkatan,
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    return res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat memperbarui tingkatan",
+      error: err.message,
+    });
   }
 };
 
-/** Hapus tingkatan */
+/**
+ * DELETE tingkatan
+ */
 export const deleteTingkatan = async (req, res) => {
   try {
-    const deleted = await TingkatanModel.deleteTingkatan(req.params.id);
-    if (!deleted) return res.status(404).json({ status: "error", message: "Tingkatan tidak ditemukan" });
-    res.status(200).json({ status: "success", message: "Tingkatan berhasil dihapus" });
+    const { id } = req.params;
+    const existing = await MasterTingkatanModel.getTingkatanById(id);
+
+    if (!existing) {
+      return res.status(404).json({
+        status: "04",
+        message: "Tingkatan tidak ditemukan untuk dihapus",
+      });
+    }
+
+    await MasterTingkatanModel.deleteTingkatan(id);
+
+    return res.status(200).json({
+      status: "00",
+      message: "Tingkatan berhasil dihapus",
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    return res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat menghapus tingkatan",
+      error: err.message,
+    });
   }
 };

@@ -1,66 +1,182 @@
-import * as RuangModel from "../models/masterRuangKelasModel.js";
+import * as MasterRuangModel from "../models/masterRuangKelasModel.js";
 
-/** Ambil semua ruang kelas */
+/**
+ * GET semua ruang
+ */
 export const getAllRuang = async (req, res) => {
   try {
-    const data = await RuangModel.getAllRuang();
-    res.status(200).json({ status: "success", data });
+    const ruang = await MasterRuangModel.getAllRuang();
+
+    if (!ruang || ruang.length === 0) {
+      return res.status(200).json({
+        status: "00",
+        message: "Belum ada data ruang",
+        data: [],
+      });
+    }
+
+    res.status(200).json({
+      status: "00",
+      message: "Data ruang berhasil diambil",
+      data: ruang.map((r) => ({
+        id: r.id,
+        RUANG_ID: r.RUANG_ID,
+        NAMA_RUANG: r.NAMA_RUANG,
+        DESKRIPSI: r.DESKRIPSI,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      })),
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat mengambil data ruang",
+      error: err.message,
+    });
   }
 };
 
-/** Ambil ruang kelas by ID */
+/**
+ * GET ruang by ID
+ */
 export const getRuangById = async (req, res) => {
   try {
-    const data = await RuangModel.getRuangById(req.params.id);
-    if (!data) return res.status(404).json({ status: "error", message: "Ruang tidak ditemukan" });
-    res.status(200).json({ status: "success", data });
+    const { id } = req.params;
+    const ruang = await MasterRuangModel.getRuangById(id);
+
+    if (!ruang) {
+      return res.status(404).json({
+        status: "04",
+        message: "Ruang tidak ditemukan",
+      });
+    }
+
+    res.status(200).json({
+      status: "00",
+      message: "Data ruang berhasil diambil",
+      data: ruang,
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat mengambil data ruang",
+      error: err.message,
+    });
   }
 };
 
-/** Tambah ruang kelas */
+/**
+ * CREATE ruang baru
+ */
 export const createRuang = async (req, res) => {
   try {
-    const { NAMA_RUANG, DESKRIPSI } = req.body;
-    if (!NAMA_RUANG) {
-      return res.status(400).json({ status: "error", message: "Field wajib diisi" });
+    const { RUANG_ID, NAMA_RUANG, DESKRIPSI } = req.body;
+
+    if (!RUANG_ID || !NAMA_RUANG) {
+      return res.status(400).json({
+        status: "01",
+        message: "RUANG_ID dan NAMA_RUANG wajib diisi",
+      });
     }
-    const ruang = await RuangModel.createRuang({ NAMA_RUANG, DESKRIPSI });
-    res.status(201).json({ status: "success", data: ruang });
+
+    // Cek apakah RUANG_ID sudah ada
+    const existing = await MasterRuangModel.getRuangByKode(RUANG_ID);
+    if (existing) {
+      return res.status(409).json({
+        status: "02",
+        message: `RUANG_ID ${RUANG_ID} sudah terdaftar`,
+      });
+    }
+
+    const newRuang = await MasterRuangModel.createRuang({
+      RUANG_ID,
+      NAMA_RUANG,
+      DESKRIPSI,
+    });
+
+    res.status(201).json({
+      status: "00",
+      message: "Ruang berhasil ditambahkan",
+      data: newRuang,
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat menambahkan ruang",
+      error: err.message,
+    });
   }
 };
 
-/** Update ruang kelas */
+/**
+ * UPDATE ruang
+ */
 export const updateRuang = async (req, res) => {
   try {
-    const { NAMA_RUANG, DESKRIPSI } = req.body;
     const { id } = req.params;
+    const { RUANG_ID, NAMA_RUANG, DESKRIPSI } = req.body;
 
     if (!NAMA_RUANG) {
-      return res.status(400).json({ status: "error", message: "Field wajib diisi" });
+      return res.status(400).json({
+        status: "01",
+        message: "NAMA_RUANG wajib diisi",
+      });
     }
 
-    const ruang = await RuangModel.updateRuang(id, { NAMA_RUANG, DESKRIPSI });
-    if (!ruang) return res.status(404).json({ status: "error", message: "Ruang tidak ditemukan" });
+    const existing = await MasterRuangModel.getRuangById(id);
+    if (!existing) {
+      return res.status(404).json({
+        status: "04",
+        message: "Ruang tidak ditemukan untuk diperbarui",
+      });
+    }
 
-    res.status(200).json({ status: "success", data: ruang });
+    const updatedRuang = await MasterRuangModel.updateRuang(id, {
+      RUANG_ID,
+      NAMA_RUANG,
+      DESKRIPSI,
+    });
+
+    res.status(200).json({
+      status: "00",
+      message: "Ruang berhasil diperbarui",
+      data: updatedRuang,
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat memperbarui ruang",
+      error: err.message,
+    });
   }
 };
 
-/** Hapus ruang kelas */
+/**
+ * DELETE ruang
+ */
 export const deleteRuang = async (req, res) => {
   try {
-    const deleted = await RuangModel.deleteRuang(req.params.id);
-    if (!deleted) return res.status(404).json({ status: "error", message: "Ruang tidak ditemukan" });
-    res.status(200).json({ status: "success", message: "Ruang berhasil dihapus" });
+    const { id } = req.params;
+    const existing = await MasterRuangModel.getRuangById(id);
+
+    if (!existing) {
+      return res.status(404).json({
+        status: "04",
+        message: "Ruang tidak ditemukan untuk dihapus",
+      });
+    }
+
+    await MasterRuangModel.deleteRuang(id);
+
+    res.status(200).json({
+      status: "00",
+      message: "Ruang berhasil dihapus",
+    });
   } catch (err) {
-    res.status(500).json({ status: "error", message: err.message });
+    res.status(500).json({
+      status: "99",
+      message: "Terjadi kesalahan saat menghapus ruang",
+      error: err.message,
+    });
   }
 };

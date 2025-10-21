@@ -1,66 +1,94 @@
-"use client";
+'use client'
 
 import { useEffect, useState, useRef } from "react";
 import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Dialog } from "primereact/dialog";
 import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
 import FormJurusan from "./components/FormJurusan";
+import dynamic from "next/dynamic";
 
-export default function JurusanPage() {
+// 2. Buat KEDUANYA dinamis dengan SSR: FALSE
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const AdjustPrintMarginLaporan = dynamic(
+  () => import("./print/AdjustPrintMarginLaporan"),
+  {
+    ssr: false,
+  }
+);
+
+export default function MasterJurusanPage() {
   const toastRef = useRef(null);
-  const isMounted = useRef(true);
-
-  const [jurusan, setJurusan] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedJurusan, setSelectedJurusan] = useState(null);
+  const [jurusanList, setJurusanList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [dialogMode, setDialogMode] = useState(null);
-  const [token, setToken] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
+
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
+
+  // 1. PINDAHKAN STATE 'dataAdjust' KE SINI
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: 'A4',
+    orientation: 'portrait',
+  });
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
 
-  // Ambil token dari localStorage
+  // 🔹 Ambil token dari localStorage
   useEffect(() => {
-    const t = localStorage.getItem("token");
-    if (!t) window.location.href = "/";
-    else setToken(t);
-  }, []);
+    if (!token) window.location.href = "/";
+    else fetchJurusan();
+  }, [token]); // Tambahkan token sebagai dependensi
 
-  // Fetch data jurusan kalau token tersedia
-  useEffect(() => {
-    if (token) fetchJurusan();
-  }, [token]);
-
-  // Cleanup saat unmount
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      toastRef.current = null;
-    };
-  }, []);
-
-  // Ambil semua data jurusan
+  // 🔹 Fetch data
   const fetchJurusan = async () => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/master-jurusan`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      if (!isMounted.current) return;
-      setJurusan(json.data || []);
+      setJurusanList(json.data || []);
     } catch (err) {
       console.error(err);
       toastRef.current?.showToast("01", "Gagal memuat data jurusan");
     } finally {
-      if (isMounted.current) setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Tambah atau update jurusan
-  const handleSubmit = async (data) => {
-    if (!dialogMode) return;
+  // 🔍 Search filter
+  const handleSearch = (keyword) => {
+    setSearchKeyword(keyword);
+    // Pencarian seharusnya dilakukan di sisi client dari data yang sudah di-fetch
+    // Jika ingin search ke DB, harusnya panggil API
+    if (!keyword) {
+      fetchJurusan(); // Reset jika search kosong
+    } else {
+      const filtered = jurusanList.filter(
+        (j) =>
+          j.NAMA_JURUSAN?.toLowerCase().includes(keyword.toLowerCase()) ||
+          j.DESKRIPSI?.toLowerCase().includes(keyword.toLowerCase())
+      );
+      setJurusanList(filtered); // Ini hanya filter di client
+    }
+  };
 
+
+  // 💾 Save handler
+  const handleSave = async (data) => {
+    setLoading(true); // Tambahkan loading
     try {
       let res;
       if (dialogMode === "add") {
@@ -72,8 +100,9 @@ export default function JurusanPage() {
           },
           body: JSON.stringify(data),
         });
-      } else if (dialogMode === "edit" && selectedJurusan) {
-        res = await fetch(`${API_URL}/master-jurusan/${selectedJurusan.JURUSAN_ID}`, {
+        toastRef.current?.showToast("00", "Jurusan berhasil ditambahkan");
+      } else if (dialogMode === "edit" && selectedItem) {
+        await fetch(`${API_URL}/master-jurusan/${selectedItem.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -81,127 +110,156 @@ export default function JurusanPage() {
           },
           body: JSON.stringify(data),
         });
+        toastRef.current?.showToast("00", "Jurusan berhasil diubah"); // Pesan lebih spesifik
       }
-
-      const result = await res.json();
-
-      // 🔹 Cek status dari backend
-      if (result.status === "00" || result.status === "success") {
-        toastRef.current?.showToast("00", result.message || "Jurusan berhasil disimpan");
-        await fetchJurusan();
-        setDialogMode(null);
-        setSelectedJurusan(null);
-      } else {
-        toastRef.current?.showToast("01", result.message || "Gagal menyimpan jurusan");
-      }
+      fetchJurusan();
+      setDialogMode(null);
+      setSelectedItem(null);
     } catch (err) {
       console.error(err);
       toastRef.current?.showToast("01", "Terjadi kesalahan saat menyimpan jurusan");
+    } finally {
+      setLoading(false); // Matikan loading
     }
   };
 
-  // Hapus jurusan
-  const handleDelete = (rowData) => {
+  // ❌ Delete handler
+  const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin ingin menghapus jurusan "${rowData.NAMA_JURUSAN}"?`,
+      message: `Yakin ingin menghapus jurusan "${row.NAMA_JURUSAN}"?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
       acceptLabel: "Hapus",
       rejectLabel: "Batal",
       acceptClassName: "p-button-danger",
       accept: async () => {
+        setLoading(true); // Tambahkan loading
         try {
-          const res = await fetch(`${API_URL}/master-jurusan/${rowData.JURUSAN_ID}`, {
+          await fetch(`${API_URL}/master-jurusan/${row.id}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
           });
-          const result = await res.json();
-
-          if (result.status === "00" || result.status === "success") {
-            toastRef.current?.showToast("00", "Jurusan berhasil dihapus");
-            if (isMounted.current) {
-              setJurusan((prev) =>
-                prev.filter((j) => j.JURUSAN_ID !== rowData.JURUSAN_ID)
-              );
-            }
-          } else {
-            toastRef.current?.showToast("01", result.message || "Gagal menghapus jurusan");
-          }
+          toastRef.current?.showToast("00", "Jurusan berhasil dihapus");
+          fetchJurusan();
         } catch (err) {
           console.error(err);
           toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus jurusan");
+        } finally {
+          setLoading(false); // Matikan loading
         }
       },
     });
   };
 
-  // Template tombol edit dan hapus
-  const actionBodyTemplate = (rowData) => (
-    <div className="flex gap-2">
-      <Button
-        icon="pi pi-pencil"
-        size="small"
-        severity="warning"
-        onClick={() => {
-          setSelectedJurusan(rowData);
-          setDialogMode("edit");
-        }}
-      />
-      <Button
-        icon="pi pi-trash"
-        size="small"
-        severity="danger"
-        onClick={() => handleDelete(rowData)}
-      />
-    </div>
-  );
-
-  // Kolom tabel
-  const jurusanColumns = [
-    { field: "JURUSAN_ID", header: "ID", style: { width: "60px" } },
-    { field: "NAMA_JURUSAN", header: "Nama Jurusan", filter: true },
-    { field: "DESKRIPSI", header: "Deskripsi", filter: true },
-    {
+ const columns = [
+  { field: "id", header: "ID", style: { width: "60px", textAlign: "center" } },
+  { field: "JURUSAN_ID", header: "Kode Jurusan", style: { width: "200px" } },
+  { field: "NAMA_JURUSAN", header: "Nama Jurusan", style: { width: "250px" } },
+  { field: "DESKRIPSI", header: "Deskripsi", style: { minWidth: "250px" } },
+{
       header: "Actions",
-      body: actionBodyTemplate,
+      body: (row) => (
+        <div className="flex gap-2">
+          <Button
+            icon="pi pi-pencil"
+            size="small"
+            severity="warning"
+            onClick={() => {
+              setSelectedItem(row);
+              setDialogMode("edit");
+            }}
+          />
+          <Button
+            icon="pi pi-trash"
+            size="small"
+            severity="danger"
+            onClick={() => handleDelete(row)}
+          />
+        </div>
+      ),
       style: { width: "120px" },
     },
   ];
 
   return (
     <div className="card p-4">
-      <h3 className="text-xl font-semibold mb-4">Manage Jurusan</h3>
+      <ToastNotifier ref={toastRef} />
+      <ConfirmDialog />
 
-      <div className="flex justify-content-end mb-3">
+      <h3 className="text-xl font-semibold mb-4">Master Jurusan</h3>
+
+      {/* 🔹 Toolbar atas: Print | Search | Tambah */}
+      <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
+        <Button
+          icon="pi pi-print"
+          severity="warning"
+          onClick={() => setAdjustDialog(true)}
+        />
+
+        <span className="p-input-icon-left">
+          <i className="pi pi-search" />
+          <InputText
+            value={searchKeyword}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Cari nama atau deskripsi..."
+            className="w-64"
+          />
+        </span>
+
         <Button
           label="Tambah Jurusan"
           icon="pi pi-plus"
+          severity="info"
           onClick={() => {
             setDialogMode("add");
-            setSelectedJurusan(null);
+            setSelectedItem(null);
           }}
         />
       </div>
 
-      <CustomDataTable
-        data={jurusan}
-        loading={isLoading}
-        columns={jurusanColumns}
-      />
+      {/* 🔹 Tabel */}
+      <CustomDataTable data={jurusanList} loading={loading} columns={columns} />
 
-      <ConfirmDialog />
-
+      {/* 🔹 Form */}
       <FormJurusan
         visible={dialogMode !== null}
         onHide={() => {
           setDialogMode(null);
-          setSelectedJurusan(null);
+          setSelectedItem(null);
         }}
-        selectedJurusan={selectedJurusan}
-        onSave={handleSubmit}
+        selectedJurusan={selectedItem}
+        onSave={handleSave}
       />
 
-      <ToastNotifier ref={toastRef} />
+      {/* 🔹 Print dialog */}
+      <AdjustPrintMarginLaporan
+        adjustDialog={adjustDialog}
+        setAdjustDialog={setAdjustDialog}
+        dataJurusan={jurusanList}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        
+        // 3. KIRIM STATE DAN SETTER-NYA SEBAGAI PROPS
+        dataAdjust={dataAdjust}
+        setDataAdjust={setDataAdjust}
+      />
+
+      {/* 🔹 PDF Preview */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={() => setJsPdfPreviewOpen(false)}
+        modal
+        style={{ width: "90vw", height: "90vh" }}
+        header="Preview Laporan Jurusan"
+        blockScroll
+      >
+        {/* 4. SEKARANG 'dataAdjust' VALID DAN BISA DIGUNAKAN */}
+        <PDFViewer 
+          pdfUrl={pdfUrl} 
+          fileName={fileName} 
+        />
+      </Dialog>
     </div>
   );
 }

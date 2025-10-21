@@ -8,10 +8,14 @@ import { Dialog } from "primereact/dialog";
 import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
 import FormGedung from "./components/FormGedung";
-import AdjustPrintMarginLaporanGedung from "./print/AdjustPrintMarginLaporanGedung";
 import dynamic from "next/dynamic";
 
+// 🔹 Buat komponen print dinamis tanpa SSR
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const AdjustPrintMarginLaporan = dynamic(
+  () => import("./print/AdjustPrintMarginLaporan"),
+  { ssr: false }
+);
 
 export default function MasterGedungPage() {
   const toastRef = useRef(null);
@@ -26,16 +30,26 @@ export default function MasterGedungPage() {
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: "A4",
+    orientation: "portrait",
+  });
 
-  // 🔹 Ambil token dari localStorage
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : "";
+
+  // 🔹 Ambil token dan fetch data
   useEffect(() => {
     if (!token) window.location.href = "/";
     else fetchGedung();
-  }, []);
+  }, [token]);
 
-  // 🔹 Fetch data
+  // 🔹 Fetch semua data gedung
   const fetchGedung = async () => {
     setLoading(true);
     try {
@@ -69,10 +83,10 @@ export default function MasterGedungPage() {
 
   // 💾 Save handler
   const handleSave = async (data) => {
+    setLoading(true);
     try {
-      let res;
       if (dialogMode === "add") {
-        res = await fetch(`${API_URL}/master-gedung`, {
+        await fetch(`${API_URL}/master-gedung`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -82,7 +96,7 @@ export default function MasterGedungPage() {
         });
         toastRef.current?.showToast("00", "Gedung berhasil ditambahkan");
       } else if (dialogMode === "edit" && selectedItem) {
-        await fetch(`${API_URL}/master-gedung/${selectedItem.GEDUNG_ID}`, {
+        await fetch(`${API_URL}/master-gedung/${selectedItem.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -90,6 +104,7 @@ export default function MasterGedungPage() {
           },
           body: JSON.stringify(data),
         });
+        toastRef.current?.showToast("00", "Gedung berhasil diubah");
       }
       fetchGedung();
       setDialogMode(null);
@@ -97,6 +112,8 @@ export default function MasterGedungPage() {
     } catch (err) {
       console.error(err);
       toastRef.current?.showToast("01", "Terjadi kesalahan saat menyimpan gedung");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,8 +127,9 @@ export default function MasterGedungPage() {
       rejectLabel: "Batal",
       acceptClassName: "p-button-danger",
       accept: async () => {
+        setLoading(true);
         try {
-          await fetch(`${API_URL}/master-gedung/${row.GEDUNG_ID}`, {
+          await fetch(`${API_URL}/master-gedung/${row.id}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -120,15 +138,19 @@ export default function MasterGedungPage() {
         } catch (err) {
           console.error(err);
           toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus gedung");
+        } finally {
+          setLoading(false);
         }
       },
     });
   };
 
+  // 🧩 Kolom tabel
   const columns = [
-    { field: "GEDUNG_ID", header: "ID", style: { width: "60px" } },
-    { field: "NAMA_GEDUNG", header: "Nama Gedung" },
-    { field: "LOKASI", header: "Lokasi" },
+    { field: "id", header: "ID", style: { width: "60px", textAlign: "center" } },
+    { field: "GEDUNG_ID", header: "Kode Gedung", style: { width: "200px" } },
+    { field: "NAMA_GEDUNG", header: "Nama Gedung", style: { width: "250px" } },
+    { field: "LOKASI", header: "Lokasi", style: { minWidth: "250px" } },
     {
       header: "Actions",
       body: (row) => (
@@ -154,13 +176,6 @@ export default function MasterGedungPage() {
     },
   ];
 
-  // 🔹 Filter hasil pencarian
-  const filteredGedung = gedung.filter(
-    (g) =>
-      g.NAMA_GEDUNG.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      g.LOKASI.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <div className="card p-4">
       <ToastNotifier ref={toastRef} />
@@ -168,7 +183,7 @@ export default function MasterGedungPage() {
 
       <h3 className="text-xl font-semibold mb-4">Master Gedung</h3>
 
-      {/* 🔹 Toolbar atas: Print | Search | Tambah */}
+      {/* 🔹 Toolbar atas */}
       <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
         <Button
           icon="pi pi-print"
@@ -197,7 +212,7 @@ export default function MasterGedungPage() {
         />
       </div>
 
-      {/* 🔹 Tabel */}
+      {/* 🔹 DataTable */}
       <CustomDataTable data={gedungList} loading={loading} columns={columns} />
 
       {/* 🔹 Form */}
@@ -211,14 +226,16 @@ export default function MasterGedungPage() {
         onSave={handleSave}
       />
 
-      {/* 🔹 Print dialog */}
-      <AdjustPrintMarginLaporanGedung
+      {/* 🔹 Print Dialog */}
+      <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
         dataGedung={gedungList}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        dataAdjust={dataAdjust}
+        setDataAdjust={setDataAdjust}
       />
 
       {/* 🔹 PDF Preview */}
@@ -228,8 +245,9 @@ export default function MasterGedungPage() {
         modal
         style={{ width: "90vw", height: "90vh" }}
         header="Preview Laporan Gedung"
+        blockScroll
       >
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
       </Dialog>
     </div>
   );

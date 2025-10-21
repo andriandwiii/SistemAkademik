@@ -1,21 +1,19 @@
-import express from "express";
-import * as MasterTingkatanController from "../controllers/masterTingkatanController.js";
+import express from 'express';
+import {
+  getAllTingkatan,
+  getTingkatanById,
+  createTingkatan,
+  updateTingkatan,
+  deleteTingkatan
+} from '../controllers/masterTingkatanController.js';
 
 const router = express.Router();
 
-// Ambil semua tingkatan
-router.get("/", MasterTingkatanController.getAllTingkatan);
-
-// Ambil tingkatan by ID
-router.get("/:id", MasterTingkatanController.getTingkatanById);
-
-// Tambah tingkatan
-router.post("/", MasterTingkatanController.createTingkatan);
-
-// Update tingkatan
-router.put("/:id", MasterTingkatanController.updateTingkatan);
-
-// Hapus tingkatan
-router.delete("/:id", MasterTingkatanController.deleteTingkatan);
+// Endpoint untuk master_tingkatan
+router.get('/', getAllTingkatan);
+router.get('/:id', getTingkatanById);
+router.post('/', createTingkatan);
+router.put('/:id', updateTingkatan);
+router.delete('/:id', deleteTingkatan);
 
 export default router;
