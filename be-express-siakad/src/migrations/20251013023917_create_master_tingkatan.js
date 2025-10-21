@@ -5,11 +5,13 @@
  */
 export async function up(knex) {
   return knex.schema.createTable("master_tingkatan", (table) => {
-    table.increments("TINGKATAN_ID").primary(); 
+    table.increments("id").primary(); // Kolom id utama (auto increment)
+    table.increments("TINGKATAN_ID"); // Masih tetap ada jika kamu butuh ID tambahan
 
-    table.enu("TINGKATAN", ["X", "XI", "XII"])
+    table
+      .enu("TINGKATAN", ["X", "XI", "XII"])
       .notNullable()
-      .unique(); 
+      .unique();
 
     table.enu("STATUS", ["Aktif", "Tidak Aktif"]).defaultTo("Aktif");
 
