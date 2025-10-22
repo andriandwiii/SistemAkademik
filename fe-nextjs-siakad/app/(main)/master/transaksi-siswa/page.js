@@ -24,8 +24,8 @@ export default function TransaksiPage() {
   const [selectedTransaksi, setSelectedTransaksi] = useState(null);
   const [dialogMode, setDialogMode] = useState(null);
   const [token, setToken] = useState("");
-  const [kelasFilter, setKelasFilter] = useState(null);
-  const [kelasOptions, setKelasOptions] = useState([]);
+  const [tingkatanFilter, setTingkatanFilter] = useState(null);
+  const [tingkatanOptions, setTingkatanOptions] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
 
   // Print
@@ -62,16 +62,18 @@ export default function TransaksiPage() {
 
       const data = json.data || [];
 
-      const kelasSet = new Set();
-      const processedData = data.map((t) => {
-        const kelasLabel = t.kelas?.fullName || "-";
-        if (kelasLabel !== "-") kelasSet.add(kelasLabel);
-        return { ...t, kelasLabel };
+      // Build tingkatan filter options
+      const tingkatanSet = new Set();
+      data.forEach((t) => {
+        const tingkatan = t.tingkatan?.TINGKATAN;
+        if (tingkatan) tingkatanSet.add(tingkatan);
       });
 
-      setTransaksi(processedData);
-      setFilteredTransaksi(processedData);
-      setKelasOptions(Array.from(kelasSet).map((k) => ({ label: k, value: k })));
+      setTransaksi(data);
+      setFilteredTransaksi(data);
+      setTingkatanOptions(
+        Array.from(tingkatanSet).map((t) => ({ label: t, value: t }))
+      );
     } catch (err) {
       console.error(err);
       toastRef.current?.showToast("01", "Gagal memuat data transaksi");
@@ -84,8 +86,8 @@ export default function TransaksiPage() {
   useEffect(() => {
     let filtered = transaksi;
 
-    if (kelasFilter) {
-      filtered = filtered.filter((t) => t.kelasLabel === kelasFilter);
+    if (tingkatanFilter) {
+      filtered = filtered.filter((t) => t.tingkatan?.TINGKATAN === tingkatanFilter);
     }
 
     if (searchKeyword.trim() !== "") {
@@ -97,13 +99,13 @@ export default function TransaksiPage() {
     }
 
     setFilteredTransaksi(filtered);
-  }, [kelasFilter, searchKeyword, transaksi]);
+  }, [tingkatanFilter, searchKeyword, transaksi]);
 
   const handleSubmit = async (data) => {
     if (!dialogMode) return;
     try {
       if (dialogMode === "add") {
-        await fetch(`${API_URL}/transaksi-siswa`, {
+        const res = await fetch(`${API_URL}/transaksi-siswa`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -111,9 +113,17 @@ export default function TransaksiPage() {
           },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Transaksi berhasil ditambahkan");
+        
+        const json = await res.json();
+        
+        if (res.ok && json.status === "00") {
+          toastRef.current?.showToast("00", "Transaksi berhasil ditambahkan");
+        } else {
+          toastRef.current?.showToast("01", json.message || "Gagal menambahkan transaksi");
+          return;
+        }
       } else if (dialogMode === "edit" && selectedTransaksi) {
-        await fetch(`${API_URL}/transaksi-siswa/${selectedTransaksi.ID}`, {
+        const res = await fetch(`${API_URL}/transaksi-siswa/${selectedTransaksi.ID}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -121,7 +131,15 @@ export default function TransaksiPage() {
           },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Transaksi berhasil diperbarui");
+        
+        const json = await res.json();
+        
+        if (res.ok && json.status === "00") {
+          toastRef.current?.showToast("00", "Transaksi berhasil diperbarui");
+        } else {
+          toastRef.current?.showToast("01", json.message || "Gagal memperbarui transaksi");
+          return;
+        }
       }
 
       if (isMounted.current) {
@@ -162,6 +180,11 @@ export default function TransaksiPage() {
   const transaksiColumns = [
     { field: "ID", header: "ID", style: { width: "60px" } },
     {
+      field: "TRANSAKSI_ID",
+      header: "ID Transaksi",
+      style: { minWidth: "140px" },
+    },
+    {
       field: "siswa.NAMA",
       header: "Nama Siswa",
       style: { minWidth: "160px" },
@@ -174,20 +197,28 @@ export default function TransaksiPage() {
       body: (row) => row.siswa?.NIS || "-",
     },
     {
-      field: "kelasLabel",
-      header: "Kelas",
-      style: { minWidth: "180px" },
-      body: (row) => row.kelasLabel || "-",
+      field: "tingkatan.TINGKATAN",
+      header: "Tingkatan",
+      style: { minWidth: "100px" },
+      body: (row) => row.tingkatan?.TINGKATAN || "-",
     },
     {
-      field: "TAHUN_AJARAN",
+      field: "jurusan.NAMA_JURUSAN",
+      header: "Jurusan",
+      style: { minWidth: "140px" },
+      body: (row) => row.jurusan?.NAMA_JURUSAN || "-",
+    },
+    {
+      field: "kelas.NAMA_RUANG",
+      header: "Kelas",
+      style: { minWidth: "120px" },
+      body: (row) => row.kelas?.NAMA_RUANG || "-",
+    },
+    {
+      field: "tahun_ajaran.NAMA_TAHUN_AJARAN",
       header: "Tahun Ajaran",
       style: { minWidth: "140px" },
-    },
-    {
-      field: "STATUS",
-      header: "Status",
-      style: { minWidth: "100px" },
+      body: (row) => row.tahun_ajaran?.NAMA_TAHUN_AJARAN || "-",
     },
     {
       header: "Aksi",
@@ -219,9 +250,9 @@ export default function TransaksiPage() {
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-4">Penempatan Siswa ke Kelas</h3>
+      <h3 className="text-xl font-semibold mb-4">Transaksi Penempatan Siswa</h3>
 
-      {/* 🔹 Toolbar atas: Print | Search | Filter Kelas | Tambah */}
+      {/* 🔹 Toolbar atas: Print | Search | Filter Tingkatan | Tambah */}
       <div className="flex flex-col md:flex-row justify-content-between align-items-center mb-3 gap-3 flex-wrap">
         <div className="flex flex-wrap gap-3 align-items-center w-full md:w-auto">
           <Button
@@ -241,10 +272,10 @@ export default function TransaksiPage() {
           </span>
 
           <Dropdown
-            value={kelasFilter}
-            options={kelasOptions}
-            onChange={(e) => setKelasFilter(e.value)}
-            placeholder="Pilih kelas"
+            value={tingkatanFilter}
+            options={tingkatanOptions}
+            onChange={(e) => setTingkatanFilter(e.value)}
+            placeholder="Filter tingkatan"
             className="w-60"
             showClear
           />
