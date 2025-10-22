@@ -10,15 +10,15 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
-export default function AdjustPrintMarginLaporanTahunAjaran({
+export default function AdjustPrintMarginLaporanAgama({
   adjustDialog,
   setAdjustDialog,
-  dataTahunAjaran = [],
+  dataAgama = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
 
-  // Props dari parent
+  // Ambil state dari parent
   dataAdjust,
   setDataAdjust,
 }) {
@@ -102,7 +102,7 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
 
     const startY = addHeader(
       doc,
-      'LAPORAN MASTER TAHUN AJARAN',
+      'LAPORAN MASTER AGAMA',
       marginLeft,
       marginTop,
       marginRight
@@ -110,13 +110,8 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
 
     autoTable(doc, {
       startY,
-      head: [['ID', 'Kode Tahun Ajaran', 'Nama Tahun Ajaran', 'Status']],
-      body: dataTahunAjaran.map((t) => [
-        t.id || '-',
-        t.KODE_TAHUN_AJARAN || '-',
-        t.NAMA_TAHUN_AJARAN || '-',
-        t.STATUS || '-',
-      ]),
+      head: [['ID', 'Nama Agama']],
+      body: dataAgama.map((a) => [a.IDAGAMA, a.NAMAAGAMA]),
       margin: { left: marginLeft, right: marginRight },
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
@@ -126,63 +121,17 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     return doc.output('datauristring')
   }
 
-  // 🔸 Export Excel (rapi dan lengkap)
+  // 🔸 Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataTahunAjaran.map((t) => ({
-      ID: t.id || '-',
-      'Kode Tahun Ajaran': t.KODE_TAHUN_AJARAN || '-',
-      'Nama Tahun Ajaran': t.NAMA_TAHUN_AJARAN || '-',
-      Status: t.STATUS || '-',
+    const dataForExcel = dataAgama.map((a) => ({
+      ID: a.IDAGAMA,
+      'Nama Agama': a.NAMAAGAMA,
     }))
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel)
-
-    // Auto width kolom
-    const colWidths = [
-      { wch: 8 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 15 },
-    ]
-    ws['!cols'] = colWidths
-
-    // Styling header (bold, tengah, warna)
-    const range = XLSX.utils.decode_range(ws['!ref'])
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C })
-      if (ws[cellAddress]) {
-        ws[cellAddress].s = {
-          font: { bold: true },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          fill: { fgColor: { rgb: "D9E1F2" } },
-          border: {
-            top: { style: "thin", color: { rgb: "000000" } },
-            bottom: { style: "thin", color: { rgb: "000000" } },
-            left: { style: "thin", color: { rgb: "000000" } },
-            right: { style: "thin", color: { rgb: "000000" } },
-          },
-        }
-      }
-    }
-
-    // Border seluruh tabel
-    for (let R = 0; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
-        if (!ws[cellAddress]) continue
-        if (!ws[cellAddress].s) ws[cellAddress].s = {}
-        ws[cellAddress].s.border = {
-          top: { style: "thin", color: { rgb: "000000" } },
-          bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } },
-        }
-      }
-    }
-
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Data Tahun Ajaran')
-    XLSX.writeFile(wb, 'Laporan_Master_Tahun_Ajaran.xlsx')
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Agama')
+    XLSX.writeFile(wb, 'Laporan_Master_Agama.xlsx')
   }
 
   // 🔸 Handle Export PDF
@@ -191,7 +140,7 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
       setLoadingExport(true)
       const pdfDataUrl = await exportPDF(dataAdjust)
       setPdfUrl(pdfDataUrl)
-      setFileName('Laporan_Master_Tahun_Ajaran')
+      setFileName('Laporan_Master_Agama')
       setAdjustDialog(false)
       setJsPdfPreviewOpen(true)
     } finally {
@@ -222,7 +171,7 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     <Dialog
       visible={adjustDialog}
       onHide={() => setAdjustDialog(false)}
-      header="Pengaturan Cetak Laporan Tahun Ajaran"
+      header="Pengaturan Cetak Laporan Agama"
       style={{ width: '50vw' }}
       modal
       blockScroll

@@ -1,145 +1,277 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import axios from "axios";
-import Cookies from "js-cookie";
-import { useRouter } from "next/navigation";
-import HeaderBar from "@/app/components/headerbar";
-import TabelAgama from "./components/tabelAgama";
-import FormDialogAgama from "./components/formDialogAgama";
-import ToastNotifier from "@/app/components/ToastNotifier";
+import { useEffect, useState, useRef } from "react";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Dialog } from "primereact/dialog";
+import ToastNotifier from "../../../components/ToastNotifier";
+import CustomDataTable from "../../../components/DataTable";
+import FormAgama from "./components/FormAgama";
+import dynamic from "next/dynamic";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// Komponen cetak dinamis
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const AdjustPrintMarginLaporan = dynamic(
+  () => import("./print/AdjustPrintMarginLaporan"),
+  { ssr: false }
+);
 
-const Page = () => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [form, setForm] = useState({ NAMAAGAMA: "" });
-  const [errors, setErrors] = useState({});
+export default function MasterAgamaPage() {
   const toastRef = useRef(null);
-  const router = useRouter();
+  const [agamaList, setAgamaList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [dialogMode, setDialogMode] = useState(null);
+  const [searchKeyword, setSearchKeyword] = useState("");
 
-  // Only fetch data on initial load, not on route change
+  // Cetak / Print
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
+
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: "A4",
+    orientation: "portrait",
+  });
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+
+  // Load data awal
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!token) window.location.href = "/";
+    else fetchAgama();
+  }, [token]);
 
-  const fetchData = async () => {
+  // Ambil data
+  const fetchAgama = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/agama`);
-      setData(res.data.data);
+      const res = await fetch(`${API_URL}/agama`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      setAgamaList(json.data || []);
     } catch (err) {
-      console.error("Gagal ambil data:", err);
-      toastRef.current?.showToast("01", "Gagal mengambil data agama");
+      console.error(err);
+      toastRef.current?.showToast("01", "Gagal memuat data agama");
     } finally {
       setLoading(false);
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!form.NAMAAGAMA.trim())
-      newErrors.NAMAAGAMA = "Nama agama wajib diisi";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    const isEdit = !!form.IDAGAMA;
-    const url = isEdit
-      ? `${API_URL}/agama/${form.IDAGAMA}`
-      : `${API_URL}/agama`;
-
-    try {
-      if (isEdit) {
-        await axios.put(url, form);
-        toastRef.current?.showToast("00", "Data agama berhasil diperbarui");
-      } else {
-        await axios.post(url, form);
-        toastRef.current?.showToast("00", "Data agama berhasil ditambahkan");
-      }
-      fetchData();
-      setDialogVisible(false);
-      setForm({ NAMAAGAMA: "" });
-    } catch (err) {
-      console.error("Gagal simpan data:", err);
-      toastRef.current?.showToast("01", "Gagal menyimpan data");
+  // Pencarian
+  const handleSearch = (keyword) => {
+    setSearchKeyword(keyword);
+    if (!keyword) {
+      fetchAgama();
+    } else {
+      const filtered = agamaList.filter((a) =>
+        a.NAMAAGAMA?.toLowerCase().includes(keyword.toLowerCase())
+      );
+      setAgamaList(filtered);
     }
   };
 
-  const handleEdit = (row) => {
-    setForm(row);
-    setDialogVisible(true);
+  // Tambah/Edit
+  const handleSave = async (data) => {
+    setLoading(true);
+    try {
+      // === CEK DUPLIKAT DI FRONTEND ===
+      const isDuplicate = agamaList.some(
+        (a) => a.NAMAAGAMA?.toLowerCase() === data.NAMAAGAMA?.toLowerCase()
+      );
+
+      if (dialogMode === "add" && isDuplicate) {
+        toastRef.current?.showToast("01", "Nama agama sudah ada!");
+        setLoading(false);
+        return;
+      }
+
+      if (dialogMode === "add") {
+        const res = await fetch(`${API_URL}/agama`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+
+        // === CEK DUPLIKAT DARI BACKEND ===
+        if (
+          json.code === "23505" ||
+          json.message?.toLowerCase().includes("duplicate") ||
+          json.message?.toLowerCase().includes("sudah ada")
+        ) {
+          toastRef.current?.showToast("01", "Nama agama sudah ada di database!");
+          setLoading(false);
+          return;
+        }
+
+        toastRef.current?.showToast("00", "Agama berhasil ditambahkan");
+      } else if (dialogMode === "edit" && selectedItem) {
+        await fetch(`${API_URL}/agama/${selectedItem.IDAGAMA}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+        toastRef.current?.showToast("00", "Agama berhasil diperbarui");
+      }
+
+      fetchAgama();
+      setDialogMode(null);
+      setSelectedItem(null);
+    } catch (err) {
+      console.error(err);
+      toastRef.current?.showToast("01", "Terjadi kesalahan saat menyimpan agama");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Hapus
   const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin hapus '${row.NAMAAGAMA}'?`,
+      message: `Yakin ingin menghapus agama "${row.NAMAAGAMA}"?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
-      acceptLabel: "Ya",
+      acceptLabel: "Hapus",
       rejectLabel: "Batal",
+      acceptClassName: "p-button-danger",
       accept: async () => {
+        setLoading(true);
         try {
-          await axios.delete(`${API_URL}/agama/${row.IDAGAMA}`);
-          fetchData();
-          toastRef.current?.showToast("00", "Data berhasil dihapus");
+          await fetch(`${API_URL}/agama/${row.IDAGAMA}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          toastRef.current?.showToast("00", "Agama berhasil dihapus");
+          fetchAgama();
         } catch (err) {
-          console.error("Gagal hapus data:", err);
-          toastRef.current?.showToast("01", "Gagal menghapus data");
+          console.error(err);
+          toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus agama");
+        } finally {
+          setLoading(false);
         }
       },
     });
   };
 
+  // Kolom tabel
+  const columns = [
+    { field: "IDAGAMA", header: "ID", style: { width: "10px", textAlign: "left" } },
+    { field: "NAMAAGAMA", header: "Nama Agama", style: { width: "250px" } },
+    
+{
+      header: "Actions",
+      body: (row) => (
+        <div className="flex gap-2">
+          <Button
+            icon="pi pi-pencil"
+            size="small"
+            severity="warning"
+            onClick={() => {
+              setSelectedItem(row);
+              setDialogMode("edit");
+            }}
+          />
+          <Button
+            icon="pi pi-trash"
+            size="small"
+            severity="danger"
+            onClick={() => handleDelete(row)}
+          />
+        </div>
+      ),
+      style: { width: "120px" },
+    },
+
+  ];
+
   return (
-    <div className="card">
+    <div className="card p-4">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-3">Master Agama</h3>
+      <h3 className="text-xl font-semibold mb-4">Master Agama</h3>
 
-      <HeaderBar
-        title=""
-        placeholder="Cari nama agama"
-        onSearch={(keyword) => {
-          if (!keyword) return fetchData();
-          const filtered = data.filter((item) =>
-            item.NAMAAGAMA.toLowerCase().includes(keyword.toLowerCase())
-          );
-          setData(filtered);
-        }}
-        onAddClick={() => {
-          setForm({ NAMAAGAMA: "" });
-          setDialogVisible(true);
-        }}
-      />
+      {/* Toolbar atas */}
+      <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
+        <Button
+          icon="pi pi-print"
+          severity="warning"
+          onClick={() => setAdjustDialog(true)}
+        />
 
-      <TabelAgama
-        data={data}
-        loading={loading}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+        <span className="p-input-icon-left">
+          <i className="pi pi-search" />
+          <InputText
+            value={searchKeyword}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Cari nama agama..."
+            className="w-64"
+          />
+        </span>
 
-      <FormDialogAgama
-        visible={dialogVisible}
+        <Button
+          label="Tambah Agama"
+          icon="pi pi-plus"
+          severity="info"
+          onClick={() => {
+            setDialogMode("add");
+            setSelectedItem(null);
+          }}
+        />
+      </div>
+
+      {/* Tabel */}
+      <CustomDataTable data={agamaList} loading={loading} columns={columns} />
+
+      {/* Form Tambah/Edit */}
+      <FormAgama
+        visible={dialogMode !== null}
         onHide={() => {
-          setDialogVisible(false);
-          setForm({ NAMAAGAMA: "" });
+          setDialogMode(null);
+          setSelectedItem(null);
         }}
-        onSubmit={handleSubmit}
-        form={form}
-        setForm={setForm}
-        errors={errors}
+        selectedAgama={selectedItem}
+        onSave={handleSave}
       />
+
+      {/* Dialog Print */}
+      <AdjustPrintMarginLaporan
+        adjustDialog={adjustDialog}
+        setAdjustDialog={setAdjustDialog}
+        dataAgama={agamaList}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        dataAdjust={dataAdjust}
+        setDataAdjust={setDataAdjust}
+      />
+
+      {/* Preview PDF */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={() => setJsPdfPreviewOpen(false)}
+        modal
+        style={{ width: "90vw", height: "90vh" }}
+        header="Preview Laporan Agama"
+        blockScroll
+      >
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
+      </Dialog>
     </div>
   );
-};
-
-export default Page;
+}
