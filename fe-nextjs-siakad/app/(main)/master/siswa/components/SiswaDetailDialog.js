@@ -22,9 +22,11 @@ const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
         .get(API_TRANSAKSI)
         .then((res) => {
           const data = res.data.data;
+          // Cari transaksi berdasarkan NIS
           const transaksiSiswa = data.find(
-            (item) => item.siswa && item.siswa.SISWA_ID === siswa.SISWA_ID
+            (item) => item.siswa && item.siswa.NIS === siswa.NIS
           );
+          console.log("Transaksi siswa ditemukan:", transaksiSiswa); // Debug
           setTransaksi(transaksiSiswa || null);
         })
         .catch((err) => {
@@ -180,30 +182,51 @@ const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
               </div>
             ) : transaksi ? (
               <div className="grid">
-                <div className="col-12 md:col-4">
+                <div className="col-12 md:col-3">
                   <InfoItem
-                    label="Kelas"
-                    value={
-                      transaksi.kelas
-                        ? `${transaksi.kelas.TINGKATAN} ${transaksi.kelas.NAMA_KELAS}`
-                        : "-"
-                    }
+                    label="Tingkatan"
+                    value={transaksi.tingkatan?.TINGKATAN}
                   />
                 </div>
-                <div className="col-12 md:col-4">
+                <div className="col-12 md:col-3">
                   <InfoItem
                     label="Jurusan"
-                    value={transaksi.kelas?.NAMA_JURUSAN}
+                    value={transaksi.jurusan?.NAMA_JURUSAN}
                   />
                 </div>
-                <div className="col-12 md:col-4">
-                  <InfoItem label="Tahun Masuk" value={transaksi.TAHUN_AJARAN} />
+                <div className="col-12 md:col-3">
+                  <InfoItem
+                    label="Kelas"
+                    value={transaksi.kelas?.NAMA_RUANG}
+                  />
+                </div>
+                <div className="col-12 md:col-3">
+                  <InfoItem
+                    label="Tahun Ajaran"
+                    value={transaksi.tahun_ajaran?.NAMA_TAHUN_AJARAN}
+                  />
+                </div>
+                <div className="col-12">
+                  <div className="surface-100 border-round p-3 mt-2">
+                    <div className="flex align-items-center gap-2">
+                      <i className="pi pi-info-circle text-blue-500"></i>
+                      <span className="text-700">
+                        <strong>ID Transaksi:</strong> {transaksi.TRANSAKSI_ID}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
-              <p className="text-center text-600 my-3">
-                Data akademik tidak tersedia
-              </p>
+              <div className="text-center py-4">
+                <i className="pi pi-inbox text-4xl text-400 mb-3 block"></i>
+                <p className="text-600 font-medium">
+                  Siswa belum ditempatkan di kelas
+                </p>
+                <p className="text-500 text-sm">
+                  Silakan tambahkan data transaksi penempatan kelas
+                </p>
+              </div>
             )}
           </Card>
 
@@ -217,7 +240,6 @@ const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
           <Card
             title={
               <div className="flex align-items-center gap-2">
-                <i className="pi pi-user text-blue-600"></i>
                 <span>Data Ayah</span>
               </div>
             }
@@ -240,7 +262,6 @@ const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
           <Card
             title={
               <div className="flex align-items-center gap-2">
-                <i className="pi pi-user text-pink-600"></i>
                 <span>Data Ibu</span>
               </div>
             }
@@ -263,7 +284,6 @@ const SiswaDetailDialog = ({ visible, onHide, siswa }) => {
           <Card
             title={
               <div className="flex align-items-center gap-2">
-                <i className="pi pi-user text-purple-600"></i>
                 <span>Data Wali</span>
               </div>
             }

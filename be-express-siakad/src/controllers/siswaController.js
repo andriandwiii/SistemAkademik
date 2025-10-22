@@ -92,16 +92,16 @@ export const addSiswa = async (req, res) => {
     }
 
     // Insert user login
-    const [userId] = await trx("users").insert({
+    await trx("users").insert({
       name,
       email,
       password: await hashPassword(password),
       role: "SISWA",
     });
 
-    // Insert siswa
-    const [siswaId] = await trx("m_siswa").insert({
-      user_id: userId,
+    // Insert siswa dengan data orang tua
+    const siswaData = {
+      EMAIL: email,
       NIS: nis,
       NISN: nisn,
       NAMA: nama,
@@ -111,59 +111,46 @@ export const addSiswa = async (req, res) => {
       AGAMA: agama,
       ALAMAT: alamat,
       NO_TELP: no_telp,
-      EMAIL: email,
-      STATUS: status,
+      STATUS: status || "Aktif",
       GOL_DARAH: gol_darah,
       TINGGI: tinggi,
       BERAT: berat,
       KEBUTUHAN_KHUSUS: kebutuhan_khusus,
       FOTO: foto,
+      orang_tua: orang_tua,
+    };
+
+    const newSiswa = await SiswaModel.addSiswa(siswaData, trx);
+
+    await trx.commit();
+
+    res.status(201).json({
+      status: "00",
+      message: "Siswa dan Orang Tua berhasil ditambahkan",
+      datetime: new Date().toISOString(),
+      data: {
+        siswa_id: newSiswa.SISWA_ID,
+        user: {
+          name: name,
+          email: email,
+          role: "SISWA",
+        },
+      },
     });
-
-    // Insert orang tua
-    if (orang_tua && orang_tua.length > 0) {
-      for (const ortu of orang_tua) {
-        await trx("m_orangtua_wali").insert({
-          SISWA_ID: siswaId,
-          JENIS: ortu.jenis,
-          NAMA: ortu.nama,
-          PEKERJAAN: ortu.pekerjaan,
-          PENDIDIKAN: ortu.pendidikan,
-          ALAMAT: ortu.alamat,
-          NO_HP: ortu.no_hp,
-        });
-      }
-    }
-
-await trx.commit();
-
-  res.status(201).json({
-    status: "00",
-    message: "Siswa dan Orang Tua berhasil ditambahkan",
-    datetime: new Date().toISOString(),
-    data: {
-      siswa_id: siswaId,
-      user: {
-        id: userId,
-        name: req.body.name,    // ambil dari input request
-        email: req.body.email,  
-        role: "SISWA"
-      }
-    }
-  });
   } catch (err) {
     await trx.rollback();
     res.status(500).json({
       status: "99",
       message: "Terjadi kesalahan saat menambahkan siswa",
       datetime: new Date().toISOString(),
-      error: err.message
+      error: err.message,
     });
-}};
-
+  }
+};
 
 // UPDATE siswa
 export const updateSiswa = async (req, res) => {
+  const trx = await db.transaction();
   try {
     const siswa = await SiswaModel.getSiswaByIdWithUser(req.params.id);
     if (!siswa) {
@@ -178,52 +165,97 @@ export const updateSiswa = async (req, res) => {
       name,
       email,
       password,
-      NIS,
-      NISN,
-      NAMA,
-      GENDER,
-      TEMPAT_LAHIR,
-      TGL_LAHIR,
-      AGAMA,
-      ALAMAT,
-      NO_TELP,
-      STATUS,
-      GOL_DARAH,
-      TINGGI,
-      BERAT,
-      KEBUTUHAN_KHUSUS,
-      FOTO,
+      nis,
+      nisn,
+      nama,
+      gender,
+      tempat_lahir,
+      tgl_lahir,
+      agama,
+      alamat,
+      no_telp,
+      status,
+      gol_darah,
+      tinggi,
+      berat,
+      kebutuhan_khusus,
+      foto,
+      orang_tua,
     } = req.body;
 
-    // update user login
+    // Update user login jika ada perubahan
     const updateUser = {};
     if (name) updateUser.name = name;
     if (email) updateUser.email = email;
     if (password) updateUser.password = await hashPassword(password);
 
     if (Object.keys(updateUser).length > 0) {
-      await db("users").where({ id: siswa.user_id }).update(updateUser);
+      await trx("users").where({ email: siswa.EMAIL }).update(updateUser);
     }
 
-    // update siswa
-    const updatedSiswa = await SiswaModel.updateSiswa(req.params.id, {
-      NIS,
-      NISN,
-      NAMA,
-      GENDER,
-      TEMPAT_LAHIR,
-      TGL_LAHIR,
-      AGAMA,
-      ALAMAT,
-      NO_TELP,
-      EMAIL: email,
-      STATUS,
-      GOL_DARAH,
-      TINGGI,
-      BERAT,
-      KEBUTUHAN_KHUSUS,
-      FOTO,
-    });
+    // Mapping array orang_tua ke kolom
+    let updateData = {
+      EMAIL: email || siswa.EMAIL,
+      NIS: nis,
+      NISN: nisn,
+      NAMA: nama,
+      GENDER: gender,
+      TEMPAT_LAHIR: tempat_lahir,
+      TGL_LAHIR: tgl_lahir,
+      AGAMA: agama,
+      ALAMAT: alamat,
+      NO_TELP: no_telp,
+      STATUS: status,
+      GOL_DARAH: gol_darah,
+      TINGGI: tinggi,
+      BERAT: berat,
+      KEBUTUHAN_KHUSUS: kebutuhan_khusus,
+      FOTO: foto,
+    };
+
+    // Hapus undefined values
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key]
+    );
+
+    // Proses data orang tua jika ada
+    if (Array.isArray(orang_tua)) {
+      orang_tua.forEach((ortu) => {
+        switch (ortu.jenis) {
+          case "Ayah":
+            updateData.NAMA_AYAH = ortu.nama;
+            updateData.PEKERJAAN_AYAH = ortu.pekerjaan || null;
+            updateData.PENDIDIKAN_AYAH = ortu.pendidikan || null;
+            updateData.ALAMAT_AYAH = ortu.alamat || null;
+            updateData.NO_TELP_AYAH = ortu.no_hp || null;
+            break;
+          case "Ibu":
+            updateData.NAMA_IBU = ortu.nama;
+            updateData.PEKERJAAN_IBU = ortu.pekerjaan || null;
+            updateData.PENDIDIKAN_IBU = ortu.pendidikan || null;
+            updateData.ALAMAT_IBU = ortu.alamat || null;
+            updateData.NO_TELP_IBU = ortu.no_hp || null;
+            break;
+          case "Wali":
+            updateData.NAMA_WALI = ortu.nama;
+            updateData.PEKERJAAN_WALI = ortu.pekerjaan || null;
+            updateData.PENDIDIKAN_WALI = ortu.pendidikan || null;
+            updateData.ALAMAT_WALI = ortu.alamat || null;
+            updateData.NO_TELP_WALI = ortu.no_hp || null;
+            break;
+        }
+      });
+    }
+
+    // Update siswa
+    await trx("master_siswa")
+      .where("SISWA_ID", req.params.id)
+      .update(updateData);
+
+    await trx.commit();
+
+    // Ambil data terbaru
+    const updatedSiswa = await SiswaModel.getSiswaByIdWithUser(req.params.id);
 
     res.status(200).json({
       status: "00",
@@ -232,6 +264,7 @@ export const updateSiswa = async (req, res) => {
       data: updatedSiswa,
     });
   } catch (err) {
+    await trx.rollback();
     res.status(500).json({
       status: "99",
       message: "Terjadi kesalahan saat memperbarui data siswa",
@@ -255,7 +288,7 @@ export const deleteSiswa = async (req, res) => {
 
     res.status(200).json({
       status: "00",
-      message: "Siswa berhasil dihapus beserta data orang tua dan user login",
+      message: "Siswa berhasil dihapus beserta data user login",
       datetime: new Date().toISOString(),
     });
   } catch (err) {
