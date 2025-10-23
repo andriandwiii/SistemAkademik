@@ -25,6 +25,6 @@
             "@/*": ["./*"]
         }
     },
-    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/(main)/superadmin/menu/users/components/UserTable.js", "app/components/ToastNotifier.js", "app/(main)/guru/dashboard/page.js", "layout/AppConfig.js", "layout/AppFooter.js", "layout/AppMenu.js", "layout/AppMenuitem.js", "layout/AppSidebar.js", "layout/AppTopbar.js", "layout/layout.js", "layout/context/layoutcontext.js", "app/components/DataTable.js", "layout/context/menucontext.js", "app/layout.js"],
+    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/(main)/superadmin/menu/users/components/UserTable.js", "app/components/ToastNotifier.js", "app/(main)/guru/dashboard/page.js", "layout/AppConfig.js", "layout/AppFooter.js", "layout/AppMenu.js", "layout/AppMenuitem.js", "layout/AppSidebar.js", "layout/AppTopbar.js", "layout/layout.js", "layout/context/layoutcontext.js", "app/components/DataTable.js", "layout/context/menucontext.js", "app/layout.js", "app/(auth)/auth/register/siswa/page.tsx"],
     "exclude": ["node_modules"]
 }

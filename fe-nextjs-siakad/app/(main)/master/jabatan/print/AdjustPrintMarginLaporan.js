@@ -1,28 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
-import { Button } from "primereact/button";
+import { useState } from "react";
 import { Dialog } from "primereact/dialog";
-import { Dropdown } from "primereact/dropdown";
+import { Button } from "primereact/button";
 import { InputNumber } from "primereact/inputnumber";
+import { Dropdown } from "primereact/dropdown";
 import { Toolbar } from "primereact/toolbar";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
-export default function AdjustPrintMarginLaporanAgama({
+export default function AdjustPrintMarginJabatan({
   adjustDialog,
   setAdjustDialog,
-  dataAgama = [],
+  dataJabatan = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
-
-  // State from parent component
-  dataAdjust,
-  setDataAdjust,
 }) {
   const [loadingExport, setLoadingExport] = useState(false);
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: "A4",
+    orientation: "landscape",
+  });
 
   const paperSizes = [
     { name: "A4", value: "A4" },
@@ -35,17 +39,15 @@ export default function AdjustPrintMarginLaporanAgama({
     { label: "Lanskap", value: "landscape" },
   ];
 
-  // 🔹 Handle input changes for numbers
   const onInputChangeNumber = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }));
   };
 
-  // 🔹 Handle input changes for dropdowns
   const onInputChange = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value }));
   };
 
-  // 🔹 Add header to the PDF
+  // Header laporan
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width;
 
@@ -90,8 +92,8 @@ export default function AdjustPrintMarginLaporanAgama({
     return marginTop + 38;
   };
 
-  // 🔸 Export PDF
-  async function exportPDF(adjustConfig) {
+  // Export PDF
+  const exportPDF = async (adjustConfig) => {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
       unit: "mm",
@@ -104,7 +106,7 @@ export default function AdjustPrintMarginLaporanAgama({
 
     const startY = addHeader(
       doc,
-      "LAPORAN MASTER AGAMA",
+      "LAPORAN DATA JABATAN",
       marginLeft,
       marginTop,
       marginRight
@@ -112,45 +114,72 @@ export default function AdjustPrintMarginLaporanAgama({
 
     autoTable(doc, {
       startY,
-      head: [["ID", "Nama Agama"]],
-      body: dataAgama.map((a) => [a.IDAGAMA, a.NAMAAGAMA]),
+      head: [
+        [
+          "No",
+          "Kode Jabatan",
+          "Nama Jabatan",
+          "Status",
+        ],
+      ],
+      body: dataJabatan.map((jabatan, index) => [
+        index + 1,
+        jabatan.KODE_JABATAN || "-",
+        jabatan.NAMA_JABATAN || "-",
+        jabatan.STATUS || "-",
+      ]),
       margin: { left: marginLeft, right: marginRight },
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
     });
 
-    return doc.output("datauristring");
-  }
+    // Generate blob URL
+    const pdfBlob = doc.output("blob");
+    const url = URL.createObjectURL(pdfBlob);
+    return url;
+  };
 
-  // 🔸 Export Excel
+  // Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataAgama.map((a) => ({
-      ID: a.IDAGAMA,
-      "Nama Agama": a.NAMAAGAMA,
+    const dataForExcel = dataJabatan.map((jabatan, index) => ({
+      No: index + 1,
+      "Kode Jabatan": jabatan.KODE_JABATAN || "-",
+      "Nama Jabatan": jabatan.NAMA_JABATAN || "-",
+      Status: jabatan.STATUS || "-",
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data Agama");
-    XLSX.writeFile(wb, "Laporan_Master_Agama.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Data Jabatan");
+
+    // Set column widths
+    ws["!cols"] = [
+      { wch: 5 },
+      { wch: 18 },
+      { wch: 25 },
+      { wch: 18 },
+    ];
+
+    XLSX.writeFile(wb, "Laporan_Data_Jabatan.xlsx");
   };
 
-  // 🔸 Handle PDF export
+  // Handle Export PDF
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true);
-      const pdfDataUrl = await exportPDF(dataAdjust);
-      setPdfUrl(pdfDataUrl);
-      setFileName("Laporan_Master_Agama");
+      const pdfUrl = await exportPDF(dataAdjust);
+      setPdfUrl(pdfUrl);
+      setFileName("Laporan_Data_Jabatan");
       setAdjustDialog(false);
       setJsPdfPreviewOpen(true);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
     } finally {
       setLoadingExport(false);
     }
   };
 
-  // 🔹 Footer toolbar with export options
   const footer = () => (
     <div className="flex flex-row gap-2">
       <Button
@@ -173,13 +202,22 @@ export default function AdjustPrintMarginLaporanAgama({
     <Dialog
       visible={adjustDialog}
       onHide={() => setAdjustDialog(false)}
-      header="Pengaturan Cetak Laporan Agama"
+      header="Pengaturan Cetak Laporan Data Jabatan"
       style={{ width: "50vw" }}
       modal
-      blockScroll
     >
       <div className="grid p-fluid">
-        {/* 🔹 Pengaturan Margin */}
+        {/* Info */}
+        <div className="col-12 mb-3">
+          <div className="p-3 bg-blue-50 border-round">
+            <p className="text-sm text-blue-800 m-0">
+              <i className="pi pi-info-circle mr-2"></i>
+              Total Data: <strong>{dataJabatan.length} Jabatan</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Margin Settings */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -190,6 +228,7 @@ export default function AdjustPrintMarginLaporanAgama({
                   value={dataAdjust[`margin${label}`]}
                   onChange={(e) => onInputChangeNumber(e, `margin${label}`)}
                   min={0}
+                  max={50}
                   suffix=" mm"
                   showButtons
                   className="w-full"
@@ -200,7 +239,7 @@ export default function AdjustPrintMarginLaporanAgama({
           </div>
         </div>
 
-        {/* 🔹 Pengaturan Kertas */}
+        {/* Paper Settings */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>
@@ -226,6 +265,7 @@ export default function AdjustPrintMarginLaporanAgama({
           </div>
         </div>
       </div>
+
       <Toolbar className="py-2 justify-content-end" end={footer} />
     </Dialog>
   );

@@ -56,7 +56,7 @@ export default function SiswaPage() {
       const res = await axios.get(`${API_URL}/siswa`, {
         headers: { Authorization: `Bearer ${t}` },
       });
-      const sorted = res.data.data.sort((a, b) => b.SISWA_ID - a.SISWA_ID);
+      const sorted = res.data.data.sort((a, b) => a.SISWA_ID - b.SISWA_ID);
       setDataSiswa(sorted);
       setOriginalData(sorted);
     } catch (err) {
