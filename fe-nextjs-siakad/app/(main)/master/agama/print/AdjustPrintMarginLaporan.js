@@ -10,23 +10,19 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
-export default function AdjustPrintMarginLaporanMapel({
+export default function AdjustPrintMarginLaporanAgama({
   adjustDialog,
   setAdjustDialog,
-  dataMapel = [],
+  dataAgama = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
+
+  // Ambil state dari parent
+  dataAdjust,
+  setDataAdjust,
 }) {
   const [loadingExport, setLoadingExport] = useState(false)
-  const [dataAdjust, setDataAdjust] = useState({
-    marginTop: 10,
-    marginBottom: 10,
-    marginRight: 10,
-    marginLeft: 10,
-    paperSize: 'A4',
-    orientation: 'landscape',
-  })
 
   const paperSizes = [
     { name: 'A4', value: 'A4' },
@@ -39,15 +35,17 @@ export default function AdjustPrintMarginLaporanMapel({
     { label: 'Lanskap', value: 'landscape' },
   ]
 
+  // 🔹 Perubahan input number
   const onInputChangeNumber = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }))
   }
 
+  // 🔹 Perubahan dropdown
   const onInputChange = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value }))
   }
 
-  // 🏫 Header Laporan
+  // 🔹 Header laporan
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width
 
@@ -61,9 +59,12 @@ export default function AdjustPrintMarginLaporanMapel({
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
-    doc.text('Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur', pageWidth / 2, marginTop + 12, {
-      align: 'center',
-    })
+    doc.text(
+      'Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur',
+      pageWidth / 2,
+      marginTop + 12,
+      { align: 'center' }
+    )
 
     doc.setDrawColor(200, 200, 200)
     doc.setLineWidth(0.3)
@@ -87,7 +88,7 @@ export default function AdjustPrintMarginLaporanMapel({
     return marginTop + 38
   }
 
-  // 📄 Export PDF
+  // 🔸 Export PDF
   async function exportPDF(adjustConfig) {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
@@ -99,21 +100,20 @@ export default function AdjustPrintMarginLaporanMapel({
     const marginTop = parseFloat(adjustConfig.marginTop)
     const marginRight = parseFloat(adjustConfig.marginRight)
 
-    const startY = addHeader(doc, 'LAPORAN MASTER MATA PELAJARAN', marginLeft, marginTop, marginRight)
+    const startY = addHeader(
+      doc,
+      'LAPORAN MASTER AGAMA',
+      marginLeft,
+      marginTop,
+      marginRight
+    )
 
     autoTable(doc, {
-      startY: startY,
-      head: [['ID', 'Mapel ID', 'Nama Mapel', 'Kategori', 'Deskripsi', 'Status']],
-      body: dataMapel.map((m) => [
-        m.ID || '-',          // ✅ ID asli dari database
-        m.MAPEL_ID || '-',    // ✅ Mapel ID
-        m.NAMA_MAPEL || '-',
-        m.KATEGORI || '-',
-        m.DESKRIPSI || '-',
-        m.STATUS || '-',
-      ]),
+      startY,
+      head: [['ID', 'Nama Agama']],
+      body: dataAgama.map((a) => [a.IDAGAMA, a.NAMAAGAMA]),
       margin: { left: marginLeft, right: marginRight },
-      styles: { fontSize: 8, cellPadding: 2 },
+      styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
     })
@@ -121,30 +121,26 @@ export default function AdjustPrintMarginLaporanMapel({
     return doc.output('datauristring')
   }
 
-  // 📊 Export Excel
+  // 🔸 Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataMapel.map((m) => ({
-      ID: m.ID, // ✅ ID asli
-      'Mapel ID': m.MAPEL_ID,
-      'Nama Mapel': m.NAMA_MAPEL,
-      Kategori: m.KATEGORI,
-      Deskripsi: m.DESKRIPSI,
-      Status: m.STATUS,
+    const dataForExcel = dataAgama.map((a) => ({
+      ID: a.IDAGAMA,
+      'Nama Agama': a.NAMAAGAMA,
     }))
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Data Mapel')
-    XLSX.writeFile(wb, 'Laporan_Master_Mapel.xlsx')
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Agama')
+    XLSX.writeFile(wb, 'Laporan_Master_Agama.xlsx')
   }
 
-  // 🔘 Tombol Export PDF handler
+  // 🔸 Handle Export PDF
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true)
       const pdfDataUrl = await exportPDF(dataAdjust)
       setPdfUrl(pdfDataUrl)
-      setFileName('Laporan_Master_Mapel')
+      setFileName('Laporan_Master_Agama')
       setAdjustDialog(false)
       setJsPdfPreviewOpen(true)
     } finally {
@@ -152,6 +148,7 @@ export default function AdjustPrintMarginLaporanMapel({
     }
   }
 
+  // 🔹 Footer Toolbar
   const footer = () => (
     <div className="flex flex-row gap-2">
       <Button
@@ -174,11 +171,13 @@ export default function AdjustPrintMarginLaporanMapel({
     <Dialog
       visible={adjustDialog}
       onHide={() => setAdjustDialog(false)}
-      header="Pengaturan Cetak Laporan Mapel"
+      header="Pengaturan Cetak Laporan Agama"
       style={{ width: '50vw' }}
       modal
+      blockScroll
     >
       <div className="grid p-fluid">
+        {/* 🔹 Pengaturan Margin */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -199,6 +198,7 @@ export default function AdjustPrintMarginLaporanMapel({
           </div>
         </div>
 
+        {/* 🔹 Pengaturan Kertas */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>

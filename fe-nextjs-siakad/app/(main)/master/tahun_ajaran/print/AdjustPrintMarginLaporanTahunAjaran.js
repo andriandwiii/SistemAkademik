@@ -10,19 +10,23 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
 
-export default function AdjustPrintMarginTahunAjaran({
+export default function AdjustPrintMarginLaporanTahunAjaran({
   adjustDialog,
   setAdjustDialog,
   dataTahunAjaran = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
-
-  // Props dari parent
-  dataAdjust,
-  setDataAdjust,
 }) {
   const [loadingExport, setLoadingExport] = useState(false)
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: 'A4',
+    orientation: 'landscape',
+  })
 
   const paperSizes = [
     { name: 'A4', value: 'A4' },
@@ -35,7 +39,6 @@ export default function AdjustPrintMarginTahunAjaran({
     { label: 'Lanskap', value: 'landscape' },
   ]
 
-  // 🔹 Update nilai margin dan setting kertas
   const onInputChangeNumber = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }))
   }
@@ -44,7 +47,7 @@ export default function AdjustPrintMarginTahunAjaran({
     setDataAdjust((prev) => ({ ...prev, [name]: e.value }))
   }
 
-  // 🔹 Header laporan
+  // 🏫 Header Laporan
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width
 
@@ -58,12 +61,9 @@ export default function AdjustPrintMarginTahunAjaran({
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
-    doc.text(
-      'Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur',
-      pageWidth / 2,
-      marginTop + 12,
-      { align: 'center' }
-    )
+    doc.text('Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur', pageWidth / 2, marginTop + 12, {
+      align: 'center',
+    })
 
     doc.setDrawColor(200, 200, 200)
     doc.setLineWidth(0.3)
@@ -87,7 +87,7 @@ export default function AdjustPrintMarginTahunAjaran({
     return marginTop + 38
   }
 
-  // 🔸 Export PDF
+  // 📄 Export PDF
   async function exportPDF(adjustConfig) {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
@@ -108,16 +108,16 @@ export default function AdjustPrintMarginTahunAjaran({
     )
 
     autoTable(doc, {
-      startY,
-      head: [['ID', 'Kode Tahun Ajaran', 'Nama Tahun Ajaran', 'Status']],
+      startY: startY,
+      head: [['ID', 'Kode Tahun', 'Nama Tahun Ajaran', 'Status']],
       body: dataTahunAjaran.map((t) => [
-        t.id,
-        t.TAHUN_AJARAN_ID || '-',
-        t.NAMA_TAHUN_AJARAN || '-',
-        t.STATUS || '-',
+        t.ID || '-', // ✅ ID asli dari database
+        t.TAHUN_AJARAN_ID || '-', // ✅ Kode Tahun Ajaran
+        t.NAMA_TAHUN_AJARAN || '-', // ✅ Nama Tahun Ajaran
+        t.STATUS || '-', // ✅ Status
       ]),
       margin: { left: marginLeft, right: marginRight },
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
     })
@@ -125,11 +125,11 @@ export default function AdjustPrintMarginTahunAjaran({
     return doc.output('datauristring')
   }
 
-  // 🔸 Export Excel
+  // 📊 Export Excel
   const exportExcel = () => {
     const dataForExcel = dataTahunAjaran.map((t) => ({
-      ID: t.id,
-      'Kode Tahun Ajaran': t.TAHUN_AJARAN_ID,
+      ID: t.ID,
+      'Kode Tahun': t.TAHUN_AJARAN_ID,
       'Nama Tahun Ajaran': t.NAMA_TAHUN_AJARAN,
       Status: t.STATUS,
     }))
@@ -140,7 +140,7 @@ export default function AdjustPrintMarginTahunAjaran({
     XLSX.writeFile(wb, 'Laporan_Master_Tahun_Ajaran.xlsx')
   }
 
-  // 🔸 Handle Export PDF
+  // 🔘 Tombol Export PDF handler
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true)
@@ -179,10 +179,8 @@ export default function AdjustPrintMarginTahunAjaran({
       header="Pengaturan Cetak Laporan Tahun Ajaran"
       style={{ width: '50vw' }}
       modal
-      blockScroll
     >
       <div className="grid p-fluid">
-        {/* 🔹 Pengaturan Margin */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -203,7 +201,6 @@ export default function AdjustPrintMarginTahunAjaran({
           </div>
         </div>
 
-        {/* 🔹 Pengaturan Kertas */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>

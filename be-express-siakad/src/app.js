@@ -10,7 +10,6 @@ import kelasRoutes from "./routes/kelasRoutes.js";
 import masterGuruRoutes from "./routes/masterGuruRoutes.js";
 import mapelRoutes from "./routes/mapelRoutes.js";
 import masterKurikulumRoutes from "./routes/masterKurikulumRoutes.js";
-import masterAgamaRoutes from "./routes/masterAgamaRoutes.js";
 import masterMapelRoutes from "./routes/masterMapelRoutes.js";
 import masterAsetSekolahRoutes from "./routes/masterAsetSekolahRoutes.js";
 import dashboardRoutes from './routes/dashboardRoutes.js';
@@ -34,8 +33,7 @@ import masterRuangRouter from "./routes/masterRuangKelasRoutes.js";
 import masterTahunAjaranRoutes from "./routes/masterTahunAjaranRoutes.js";
 import masterMataPelajaranRoutes from "./routes/masterMataPelajaranRoutes.js";
 import masterJabatanRoutes from "./routes/masterJabatanRoute.js";
-
-
+import agamaRoutes from './routes/agamaRoutes.js';
 
 
 const app = express();
@@ -103,5 +101,6 @@ app.use("/api/master-tingkatan", masterTingkatanRoutes);
 app.use("/api/master-ruang", masterRuangRouter);
 app.use("/api/master-tahun-ajaran", masterTahunAjaranRoutes);
 app.use("/api/master-mata-pelajaran", masterMataPelajaranRoutes);
+app.use("/api/agama", agamaRoutes);
 
 export default app;

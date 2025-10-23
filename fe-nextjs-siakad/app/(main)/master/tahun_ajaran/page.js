@@ -2,120 +2,104 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Button } from "primereact/button";
-import { InputText } from "primereact/inputtext";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { InputText } from "primereact/inputtext";
 import { Dialog } from "primereact/dialog";
-import ToastNotifier from "../../../components/ToastNotifier";
-import CustomDataTable from "../../../components/DataTable";
-import FormTahunAjaran from "./components/FormTahunAjaran";
 import dynamic from "next/dynamic";
 
-// 🔹 Komponen Print (tanpa SSR)
+import CustomDataTable from "../../../components/DataTable";
+import ToastNotifier from "../../../components/ToastNotifier";
+import FormTahunAjaran from "./components/FormTahunAjaran";
+import AdjustPrintMarginLaporanTahunAjaran from "./print/AdjustPrintMarginLaporanTahunAjaran";
+
+// Import PDF Viewer tanpa SSR
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
-const AdjustPrintMarginLaporan = dynamic(
-  () => import("./print/AdjustPrintMarginLaporan"),
-  { ssr: false }
-);
 
 export default function MasterTahunAjaranPage() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const toastRef = useRef(null);
-  const [tahunList, setTahunList] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [dialogMode, setDialogMode] = useState(null);
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const isMounted = useRef(true);
 
+  const [tahunList, setTahunList] = useState([]);
+  const [originalData, setOriginalData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedTahun, setSelectedTahun] = useState(null);
+  const [dialogMode, setDialogMode] = useState(null);
+
+  // 🔹 Print
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  const [dataAdjust, setDataAdjust] = useState({
-    marginTop: 10,
-    marginBottom: 10,
-    marginRight: 10,
-    marginLeft: 10,
-    paperSize: "A4",
-    orientation: "portrait",
-  });
+  // 🔹 Search
+  const [searchKeyword, setSearchKeyword] = useState("");
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : "";
-
-  // 🔹 Fetch data awal
   useEffect(() => {
-    if (!token) window.location.href = "/";
-    else fetchTahunAjaran();
-  }, [token]);
+    fetchTahunAjaran();
+    return () => {
+      isMounted.current = false;
+      toastRef.current = null;
+    };
+  }, []);
 
+  // 🔹 Ambil data dari API
   const fetchTahunAjaran = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/master-tahun-ajaran`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API_URL}/master-tahun-ajaran`);
       const json = await res.json();
-      setTahunList(json.data || []);
+      if (!isMounted.current) return;
+      const sorted = json.data?.sort((a, b) => a.ID - b.ID) || [];
+      setTahunList(sorted);
+      setOriginalData(sorted);
     } catch (err) {
       console.error(err);
       toastRef.current?.showToast("01", "Gagal memuat data Tahun Ajaran");
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
-  // 🔍 Pencarian
-  const handleSearch = (keyword) => {
-    setSearchKeyword(keyword);
-    if (!keyword) {
-      fetchTahunAjaran();
-    } else {
-      const filtered = tahunList.filter(
-        (t) =>
-          t.NAMA_TAHUN_AJARAN?.toLowerCase().includes(keyword.toLowerCase()) ||
-          t.STATUS?.toLowerCase().includes(keyword.toLowerCase())
-      );
-      setTahunList(filtered);
-    }
-  };
-
-  // 💾 Simpan data
+  // ✅ Simpan data (Tambah / Edit)
   const handleSave = async (data) => {
-    setLoading(true);
+    if (
+      !data.TAHUN_AJARAN_ID ||
+      !data.NAMA_TAHUN_AJARAN ||
+      !data.STATUS ||
+      data.TAHUN_AJARAN_ID.trim() === "" ||
+      data.NAMA_TAHUN_AJARAN.trim() === "" ||
+      data.STATUS.trim() === ""
+    ) {
+      toastRef.current?.showToast("01", "Harap isi semua field sebelum menyimpan");
+      return;
+    }
+
     try {
       if (dialogMode === "add") {
         await fetch(`${API_URL}/master-tahun-ajaran`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
         toastRef.current?.showToast("00", "Tahun Ajaran berhasil ditambahkan");
-      } else if (dialogMode === "edit" && selectedItem) {
-        await fetch(`${API_URL}/master-tahun-ajaran/${selectedItem.ID}`, {
+      } else if (dialogMode === "edit" && selectedTahun) {
+        await fetch(`${API_URL}/master-tahun-ajaran/${selectedTahun.ID}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Tahun Ajaran berhasil diubah");
+        toastRef.current?.showToast("00", "Tahun Ajaran berhasil diperbarui");
       }
-      fetchTahunAjaran();
-      setDialogMode(null);
-      setSelectedItem(null);
+
+      if (isMounted.current) {
+        await fetchTahunAjaran();
+        setDialogMode(null);
+        setSelectedTahun(null);
+      }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast(
-        "01",
-        "Terjadi kesalahan saat menyimpan Tahun Ajaran"
-      );
-    } finally {
-      setLoading(false);
+      toastRef.current?.showToast("01", "Gagal menyimpan data Tahun Ajaran");
     }
   };
 
@@ -125,70 +109,71 @@ export default function MasterTahunAjaranPage() {
       message: `Yakin ingin menghapus Tahun Ajaran "${row.NAMA_TAHUN_AJARAN}"?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
-      acceptLabel: "Hapus",
-      rejectLabel: "Batal",
-      acceptClassName: "p-button-danger",
       accept: async () => {
-        setLoading(true);
         try {
-          await fetch(`${API_URL}/master-tahun-ajaran/${row.ID}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          await fetch(`${API_URL}/master-tahun-ajaran/${row.ID}`, { method: "DELETE" });
           toastRef.current?.showToast("00", "Tahun Ajaran berhasil dihapus");
-          fetchTahunAjaran();
+          if (isMounted.current) await fetchTahunAjaran();
         } catch (err) {
           console.error(err);
-          toastRef.current?.showToast(
-            "01",
-            "Terjadi kesalahan saat menghapus Tahun Ajaran"
-          );
-        } finally {
-          setLoading(false);
+          toastRef.current?.showToast("01", "Gagal menghapus data Tahun Ajaran");
         }
       },
+      rejectLabel: "Batal",
+      acceptLabel: "Hapus",
+      acceptClassName: "p-button-danger",
     });
   };
 
-  // 📋 Kolom tabel
+  // 🔍 Search
+  const handleSearch = (keyword) => {
+    setSearchKeyword(keyword);
+    if (!keyword) {
+      setTahunList(originalData);
+    } else {
+      const filtered = originalData.filter(
+        (t) =>
+          t.NAMA_TAHUN_AJARAN.toLowerCase().includes(keyword.toLowerCase()) ||
+          t.TAHUN_AJARAN_ID.toLowerCase().includes(keyword.toLowerCase()) ||
+          t.STATUS.toLowerCase().includes(keyword.toLowerCase())
+      );
+      setTahunList(filtered);
+    }
+  };
+
+  const actionBodyTemplate = (row) => (
+    <div className="flex gap-2">
+      <Button
+        icon="pi pi-pencil"
+        size="small"
+        severity="warning"
+        onClick={() => {
+          setSelectedTahun(row);
+          setDialogMode("edit");
+        }}
+      />
+      <Button
+        icon="pi pi-trash"
+        size="small"
+        severity="danger"
+        onClick={() => handleDelete(row)}
+      />
+    </div>
+  );
+
   const columns = [
-    { field: "ID", header: "ID", style: { width: "60px", textAlign: "center" } },
-    { field: "TAHUN_AJARAN_ID", header: "Kode Tahun", style: { width: "120px" } },
-    { field: "NAMA_TAHUN_AJARAN", header: "Nama Tahun Ajaran", style: { width: "200px" } },
-    { field: "STATUS", header: "Status", style: { width: "150px" } },
-    {
-      header: "Actions",
-      body: (row) => (
-        <div className="flex gap-2">
-          <Button
-            icon="pi pi-pencil"
-            size="small"
-            severity="warning"
-            onClick={() => {
-              setSelectedItem(row);
-              setDialogMode("edit");
-            }}
-          />
-          <Button
-            icon="pi pi-trash"
-            size="small"
-            severity="danger"
-            onClick={() => handleDelete(row)}
-          />
-        </div>
-      ),
-      style: { width: "120px" },
-    },
+    { field: "ID", header: "ID", style: { width: "60px" } },
+    { field: "TAHUN_AJARAN_ID", header: "Kode Tahun" },
+    { field: "NAMA_TAHUN_AJARAN", header: "Nama Tahun Ajaran" },
+    { field: "STATUS", header: "Status" },
+    { header: "Actions", body: actionBodyTemplate, style: { width: "120px" } },
   ];
 
   return (
     <div className="card p-4">
-      <ToastNotifier ref={toastRef} />
-      <ConfirmDialog />
-
       <h3 className="text-xl font-semibold mb-4">Master Tahun Ajaran</h3>
 
-      {/* 🔹 Toolbar */}
+      {/* 🔹 Toolbar: Print | Search | Tambah */}
       <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
         <Button
           icon="pi pi-print"
@@ -201,7 +186,7 @@ export default function MasterTahunAjaranPage() {
           <InputText
             value={searchKeyword}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Cari Tahun Ajaran atau Status..."
+            placeholder="Cari Tahun Ajaran..."
             className="w-64"
           />
         </span>
@@ -209,51 +194,50 @@ export default function MasterTahunAjaranPage() {
         <Button
           label="Tambah Tahun Ajaran"
           icon="pi pi-plus"
-          severity="info"
           onClick={() => {
             setDialogMode("add");
-            setSelectedItem(null);
+            setSelectedTahun(null);
           }}
         />
       </div>
 
-      {/* 🔹 DataTable */}
+      {/* 🔹 Data Table */}
       <CustomDataTable data={tahunList} loading={loading} columns={columns} />
 
-      {/* 🔹 Form */}
+      <ConfirmDialog />
+
+      {/* 🔹 Form Input Tahun Ajaran */}
       <FormTahunAjaran
         visible={dialogMode !== null}
         onHide={() => {
           setDialogMode(null);
-          setSelectedItem(null);
+          setSelectedTahun(null);
         }}
-        selectedTahunAjaran={selectedItem}
+        selectedTahunAjaran={selectedTahun}
         onSave={handleSave}
       />
 
-      {/* 🔹 Print */}
-      <AdjustPrintMarginLaporan
+      {/* 🔹 Print & PDF Preview */}
+      <AdjustPrintMarginLaporanTahunAjaran
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
-        dataGedung={tahunList}
+        dataTahunAjaran={tahunList}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
-        dataAdjust={dataAdjust}
-        setDataAdjust={setDataAdjust}
       />
 
-      {/* 🔹 PDF Preview */}
       <Dialog
         visible={jsPdfPreviewOpen}
         onHide={() => setJsPdfPreviewOpen(false)}
         modal
         style={{ width: "90vw", height: "90vh" }}
         header="Preview Laporan Tahun Ajaran"
-        blockScroll
       >
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
       </Dialog>
+
+      <ToastNotifier ref={toastRef} />
     </div>
   );
 }

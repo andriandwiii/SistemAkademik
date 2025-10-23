@@ -8,7 +8,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Button } from "primereact/button";
 
 const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
-  const [kodeMapel, setKodeMapel] = useState("");
+  const [mapelId, setMapelId] = useState("");
   const [namaMapel, setNamaMapel] = useState("");
   const [kategori, setKategori] = useState("Wajib");
   const [deskripsi, setDeskripsi] = useState("");
@@ -16,13 +16,13 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
 
   useEffect(() => {
     if (selectedMapel) {
-      setKodeMapel(selectedMapel.KODE_MAPEL || "");
+      setMapelId(selectedMapel.MAPEL_ID || "");
       setNamaMapel(selectedMapel.NAMA_MAPEL || "");
       setKategori(selectedMapel.KATEGORI || "Wajib");
       setDeskripsi(selectedMapel.DESKRIPSI || "");
       setStatus(selectedMapel.STATUS || "Aktif");
     } else {
-      setKodeMapel("");
+      setMapelId("");
       setNamaMapel("");
       setKategori("Wajib");
       setDeskripsi("");
@@ -31,8 +31,14 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
   }, [selectedMapel, visible]);
 
   const handleSubmit = () => {
-    if (!kodeMapel || !namaMapel || !kategori) return alert("Lengkapi semua field wajib!");
-    onSave({ KODE_MAPEL: kodeMapel, NAMA_MAPEL: namaMapel, KATEGORI: kategori, DESKRIPSI: deskripsi, STATUS: status });
+    if (!mapelId || !namaMapel || !kategori) return alert("Lengkapi semua field wajib!");
+    onSave({
+      MAPEL_ID: mapelId,
+      NAMA_MAPEL: namaMapel,
+      KATEGORI: kategori,
+      DESKRIPSI: deskripsi,
+      STATUS: status
+    });
   };
 
   return (
@@ -45,12 +51,12 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
     >
       <div className="p-fluid">
         <div className="field">
-          <label htmlFor="kodeMapel">Kode Mapel</label>
+          <label htmlFor="mapelId">Mapel ID</label>
           <InputText
-            id="kodeMapel"
-            value={kodeMapel}
-            onChange={(e) => setKodeMapel(e.target.value)}
-            placeholder="Contoh: BIO-01"
+            id="mapelId"
+            value={mapelId}
+            onChange={(e) => setMapelId(e.target.value)}
+            placeholder="Contoh: MTK0011"
           />
         </div>
 
@@ -60,7 +66,7 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
             id="namaMapel"
             value={namaMapel}
             onChange={(e) => setNamaMapel(e.target.value)}
-            placeholder="Contoh: Biologi"
+            placeholder="Contoh: Matematika"
           />
         </div>
 
