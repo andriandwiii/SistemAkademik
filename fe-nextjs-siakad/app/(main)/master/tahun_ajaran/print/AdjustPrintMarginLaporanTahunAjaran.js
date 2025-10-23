@@ -17,12 +17,16 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
-
-  // Props dari parent
-  dataAdjust,
-  setDataAdjust,
 }) {
   const [loadingExport, setLoadingExport] = useState(false)
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: 'A4',
+    orientation: 'landscape',
+  })
 
   const paperSizes = [
     { name: 'A4', value: 'A4' },
@@ -35,17 +39,15 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     { label: 'Lanskap', value: 'landscape' },
   ]
 
-  // 🔹 Perubahan input number
   const onInputChangeNumber = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }))
   }
 
-  // 🔹 Perubahan dropdown
   const onInputChange = (e, name) => {
     setDataAdjust((prev) => ({ ...prev, [name]: e.value }))
   }
 
-  // 🔹 Header laporan
+  // 🏫 Header Laporan
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width
 
@@ -59,12 +61,9 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(80, 80, 80)
-    doc.text(
-      'Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur',
-      pageWidth / 2,
-      marginTop + 12,
-      { align: 'center' }
-    )
+    doc.text('Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur', pageWidth / 2, marginTop + 12, {
+      align: 'center',
+    })
 
     doc.setDrawColor(200, 200, 200)
     doc.setLineWidth(0.3)
@@ -88,7 +87,7 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     return marginTop + 38
   }
 
-  // 🔸 Export PDF
+  // 📄 Export PDF
   async function exportPDF(adjustConfig) {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
@@ -109,16 +108,16 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     )
 
     autoTable(doc, {
-      startY,
-      head: [['ID', 'Kode Tahun Ajaran', 'Nama Tahun Ajaran', 'Status']],
+      startY: startY,
+      head: [['ID', 'Kode Tahun', 'Nama Tahun Ajaran', 'Status']],
       body: dataTahunAjaran.map((t) => [
-        t.id || '-',
-        t.KODE_TAHUN_AJARAN || '-',
-        t.NAMA_TAHUN_AJARAN || '-',
-        t.STATUS || '-',
+        t.ID || '-', // ✅ ID asli dari database
+        t.TAHUN_AJARAN_ID || '-', // ✅ Kode Tahun Ajaran
+        t.NAMA_TAHUN_AJARAN || '-', // ✅ Nama Tahun Ajaran
+        t.STATUS || '-', // ✅ Status
       ]),
       margin: { left: marginLeft, right: marginRight },
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
     })
@@ -126,66 +125,22 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     return doc.output('datauristring')
   }
 
-  // 🔸 Export Excel (rapi dan lengkap)
+  // 📊 Export Excel
   const exportExcel = () => {
     const dataForExcel = dataTahunAjaran.map((t) => ({
-      ID: t.id || '-',
-      'Kode Tahun Ajaran': t.KODE_TAHUN_AJARAN || '-',
-      'Nama Tahun Ajaran': t.NAMA_TAHUN_AJARAN || '-',
-      Status: t.STATUS || '-',
+      ID: t.ID,
+      'Kode Tahun': t.TAHUN_AJARAN_ID,
+      'Nama Tahun Ajaran': t.NAMA_TAHUN_AJARAN,
+      Status: t.STATUS,
     }))
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel)
-
-    // Auto width kolom
-    const colWidths = [
-      { wch: 8 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 15 },
-    ]
-    ws['!cols'] = colWidths
-
-    // Styling header (bold, tengah, warna)
-    const range = XLSX.utils.decode_range(ws['!ref'])
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C })
-      if (ws[cellAddress]) {
-        ws[cellAddress].s = {
-          font: { bold: true },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          fill: { fgColor: { rgb: "D9E1F2" } },
-          border: {
-            top: { style: "thin", color: { rgb: "000000" } },
-            bottom: { style: "thin", color: { rgb: "000000" } },
-            left: { style: "thin", color: { rgb: "000000" } },
-            right: { style: "thin", color: { rgb: "000000" } },
-          },
-        }
-      }
-    }
-
-    // Border seluruh tabel
-    for (let R = 0; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C })
-        if (!ws[cellAddress]) continue
-        if (!ws[cellAddress].s) ws[cellAddress].s = {}
-        ws[cellAddress].s.border = {
-          top: { style: "thin", color: { rgb: "000000" } },
-          bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } },
-          right: { style: "thin", color: { rgb: "000000" } },
-        }
-      }
-    }
-
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Data Tahun Ajaran')
     XLSX.writeFile(wb, 'Laporan_Master_Tahun_Ajaran.xlsx')
   }
 
-  // 🔸 Handle Export PDF
+  // 🔘 Tombol Export PDF handler
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true)
@@ -199,7 +154,6 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
     }
   }
 
-  // 🔹 Footer Toolbar
   const footer = () => (
     <div className="flex flex-row gap-2">
       <Button
@@ -225,10 +179,8 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
       header="Pengaturan Cetak Laporan Tahun Ajaran"
       style={{ width: '50vw' }}
       modal
-      blockScroll
     >
       <div className="grid p-fluid">
-        {/* 🔹 Pengaturan Margin */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -249,7 +201,6 @@ export default function AdjustPrintMarginLaporanTahunAjaran({
           </div>
         </div>
 
-        {/* 🔹 Pengaturan Kertas */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>

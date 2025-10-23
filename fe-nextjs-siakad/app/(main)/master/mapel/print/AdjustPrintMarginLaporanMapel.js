@@ -103,10 +103,10 @@ export default function AdjustPrintMarginLaporanMapel({
 
     autoTable(doc, {
       startY: startY,
-      head: [['ID', 'Kode Mapel', 'Nama Mapel', 'Kategori', 'Deskripsi', 'Status']],
+      head: [['ID', 'Mapel ID', 'Nama Mapel', 'Kategori', 'Deskripsi', 'Status']],
       body: dataMapel.map((m) => [
-        m.MAPEL_ID || '-',
-        m.KODE_MAPEL || '-',
+        m.ID || '-',          // ✅ ID asli dari database
+        m.MAPEL_ID || '-',    // ✅ Mapel ID
         m.NAMA_MAPEL || '-',
         m.KATEGORI || '-',
         m.DESKRIPSI || '-',
@@ -124,8 +124,8 @@ export default function AdjustPrintMarginLaporanMapel({
   // 📊 Export Excel
   const exportExcel = () => {
     const dataForExcel = dataMapel.map((m) => ({
-      ID: m.MAPEL_ID,
-      'Kode Mapel': m.KODE_MAPEL,
+      ID: m.ID, // ✅ ID asli
+      'Mapel ID': m.MAPEL_ID,
       'Nama Mapel': m.NAMA_MAPEL,
       Kategori: m.KATEGORI,
       Deskripsi: m.DESKRIPSI,
