@@ -59,7 +59,25 @@ export default function MasterMapelPage() {
     }
   };
 
+  // ✅ Fungsi simpan dengan validasi field wajib
   const handleSave = async (data) => {
+    // Pastikan field sesuai struktur form
+    if (
+      !data.MAPEL_ID ||
+      !data.NAMA_MAPEL ||
+      !data.KATEGORI ||
+      !data.DESKRIPSI ||
+      !data.STATUS ||
+      data.MAPEL_ID.trim() === "" ||
+      data.NAMA_MAPEL.trim() === "" ||
+      data.KATEGORI.trim() === "" ||
+      data.DESKRIPSI.trim() === "" ||
+      data.STATUS.trim() === ""
+    ) {
+      toastRef.current?.showToast("01", "Harap isi semua field sebelum menyimpan");
+      return;
+    }
+
     try {
       if (dialogMode === "add") {
         await fetch(`${API_URL}/master-mata-pelajaran`, {
@@ -118,7 +136,7 @@ export default function MasterMapelPage() {
       const filtered = originalData.filter(
         (m) =>
           m.NAMA_MAPEL.toLowerCase().includes(keyword.toLowerCase()) ||
-          m.KODE_MAPEL.toLowerCase().includes(keyword.toLowerCase()) ||
+          m.MAPEL_ID.toLowerCase().includes(keyword.toLowerCase()) ||
           m.KATEGORI.toLowerCase().includes(keyword.toLowerCase())
       );
       setMapelList(filtered);
@@ -147,7 +165,7 @@ export default function MasterMapelPage() {
 
   const columns = [
     { field: "ID", header: "ID", style: { width: "60px" } },
-    { field: "KODE_MAPEL", header: "Kode Mapel" },
+    { field: "MAPEL_ID", header: "Kode Mapel" },
     { field: "NAMA_MAPEL", header: "Nama Mapel" },
     { field: "KATEGORI", header: "Kategori" },
     { field: "DESKRIPSI", header: "Deskripsi" },
