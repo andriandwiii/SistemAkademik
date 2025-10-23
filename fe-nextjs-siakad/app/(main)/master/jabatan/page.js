@@ -7,7 +7,7 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Dialog } from "primereact/dialog";
 import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
-import FormKelas from "./components/FormKelas";
+import FormJabatan from "./components/FormJabatan";
 import dynamic from "next/dynamic";
 
 // 🔹 Buat komponen print dinamis tanpa SSR
@@ -17,9 +17,9 @@ const AdjustPrintMarginLaporan = dynamic(
   { ssr: false }
 );
 
-export default function MasterKelasPage() {
+export default function MasterJabatanPage() {
   const toastRef = useRef(null);
-  const [kelasList, setKelasList] = useState([]);
+  const [jabatanList, setJabatanList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [dialogMode, setDialogMode] = useState(null);
@@ -46,21 +46,21 @@ export default function MasterKelasPage() {
   // 🔹 Ambil token dan fetch data
   useEffect(() => {
     if (!token) window.location.href = "/";
-    else fetchKelas();
+    else fetchJabatan();
   }, [token]);
 
-  // 🔹 Fetch semua data kelas
-  const fetchKelas = async () => {
+  // 🔹 Fetch semua data jabatan
+  const fetchJabatan = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/master-kelas`, {
+      const res = await fetch(`${API_URL}/master-jabatan`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      setKelasList(json.data || []);
+      setJabatanList(json.data || []);
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Gagal memuat data kelas");
+      toastRef.current?.showToast("01", "Gagal memuat data jabatan");
     } finally {
       setLoading(false);
     }
@@ -70,14 +70,14 @@ export default function MasterKelasPage() {
   const handleSearch = (keyword) => {
     setSearchKeyword(keyword);
     if (!keyword) {
-      fetchKelas();
+      fetchJabatan();
     } else {
-      const filtered = kelasList.filter(
-        (k) =>
-          k.NAMA_KELAS?.toLowerCase().includes(keyword.toLowerCase()) ||
-          k.TINGKATAN?.toLowerCase().includes(keyword.toLowerCase())
+      const filtered = jabatanList.filter(
+        (j) =>
+          j.NAMA_JABATAN?.toLowerCase().includes(keyword.toLowerCase()) ||
+          j.KODE_JABATAN?.toLowerCase().includes(keyword.toLowerCase())
       );
-      setKelasList(filtered);
+      setJabatanList(filtered);
     }
   };
 
@@ -86,7 +86,7 @@ export default function MasterKelasPage() {
     setLoading(true);
     try {
       if (dialogMode === "add") {
-        await fetch(`${API_URL}/master-kelas`, {
+        await fetch(`${API_URL}/master-jabatan`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -94,9 +94,9 @@ export default function MasterKelasPage() {
           },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Kelas berhasil ditambahkan");
+        toastRef.current?.showToast("00", "Jabatan berhasil ditambahkan");
       } else if (dialogMode === "edit" && selectedItem) {
-        await fetch(`${API_URL}/master-kelas/${selectedItem.id}`, {
+        await fetch(`${API_URL}/master-jabatan/${selectedItem.id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -104,14 +104,14 @@ export default function MasterKelasPage() {
           },
           body: JSON.stringify(data),
         });
-        toastRef.current?.showToast("00", "Kelas berhasil diubah");
+        toastRef.current?.showToast("00", "Jabatan berhasil diubah");
       }
-      fetchKelas();
+      fetchJabatan();
       setDialogMode(null);
       setSelectedItem(null);
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Terjadi kesalahan saat menyimpan kelas");
+      toastRef.current?.showToast("01", "Terjadi kesalahan saat menyimpan jabatan");
     } finally {
       setLoading(false);
     }
@@ -120,7 +120,7 @@ export default function MasterKelasPage() {
   // ❌ Delete handler
   const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin ingin menghapus kelas "${row.NAMA_KELAS}"?`,
+      message: `Yakin ingin menghapus jabatan "${row.NAMA_JABATAN}"?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
       acceptLabel: "Hapus",
@@ -129,15 +129,15 @@ export default function MasterKelasPage() {
       accept: async () => {
         setLoading(true);
         try {
-          await fetch(`${API_URL}/master-kelas/${row.id}`, {
+          await fetch(`${API_URL}/master-jabatan/${row.id}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
           });
-          toastRef.current?.showToast("00", "Kelas berhasil dihapus");
-          fetchKelas();
+          toastRef.current?.showToast("00", "Jabatan berhasil dihapus");
+          fetchJabatan();
         } catch (err) {
           console.error(err);
-          toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus kelas");
+          toastRef.current?.showToast("01", "Terjadi kesalahan saat menghapus jabatan");
         } finally {
           setLoading(false);
         }
@@ -148,9 +148,9 @@ export default function MasterKelasPage() {
   // 🧩 Kolom tabel
   const columns = [
     { field: "id", header: "ID", style: { width: "60px", textAlign: "center" } },
-    { field: "KODE_KELAS", header: "Kode Kelas", style: { width: "200px" } },
-    { field: "NAMA_KELAS", header: "Nama Kelas", style: { width: "250px" } },
-    { field: "TINGKATAN", header: "Tingkatan", style: { minWidth: "250px" } },
+    { field: "KODE_JABATAN", header: "Kode Jabatan", style: { width: "200px" } },
+    { field: "NAMA_JABATAN", header: "Nama Jabatan", style: { width: "250px" } },
+    { field: "STATUS", header: "Status", style: { width: "150px" } },
     {
       header: "Actions",
       body: (row) => (
@@ -181,7 +181,7 @@ export default function MasterKelasPage() {
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-4">Master Kelas</h3>
+      <h3 className="text-xl font-semibold mb-4">Master Jabatan</h3>
 
       {/* 🔹 Toolbar atas */}
       <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
@@ -196,13 +196,13 @@ export default function MasterKelasPage() {
           <InputText
             value={searchKeyword}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Cari nama atau tingkatan..."
+            placeholder="Cari kode atau nama jabatan..."
             className="w-64"
           />
         </span>
 
         <Button
-          label="Tambah Kelas"
+          label="Tambah Jabatan"
           icon="pi pi-plus"
           severity="info"
           onClick={() => {
@@ -213,16 +213,16 @@ export default function MasterKelasPage() {
       </div>
 
       {/* 🔹 DataTable */}
-      <CustomDataTable data={kelasList} loading={loading} columns={columns} />
+      <CustomDataTable data={jabatanList} loading={loading} columns={columns} />
 
       {/* 🔹 Form */}
-      <FormKelas
+      <FormJabatan
         visible={dialogMode !== null}
         onHide={() => {
           setDialogMode(null);
           setSelectedItem(null);
         }}
-        selectedKelas={selectedItem}
+        selectedJabatan={selectedItem}
         onSave={handleSave}
       />
 
@@ -230,7 +230,7 @@ export default function MasterKelasPage() {
       <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
-        dataKelas={kelasList}
+        dataJabatan={jabatanList}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
@@ -244,7 +244,7 @@ export default function MasterKelasPage() {
         onHide={() => setJsPdfPreviewOpen(false)}
         modal
         style={{ width: "90vw", height: "90vh" }}
-        header="Preview Laporan Kelas"
+        header="Preview Laporan Jabatan"
         blockScroll
       >
         <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />

@@ -1,4 +1,7 @@
 'use client';
+
+// --- Imports Gabungan ---
+import React, { useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
@@ -52,12 +55,14 @@ const RegisterSiswaPage = () => {
   const fileUploadRef = useRef<any>(null);
 
   const [form, setForm] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
     nis: '',
     nisn: '',
     nama: '',
-    email: '',
-    password: '',
     gender: '',
+    tempat_lahir: '',
     tgl_lahir: null as Date | null,
     tempat_lahir: '',
     agama: '',
@@ -77,6 +82,7 @@ const RegisterSiswaPage = () => {
   ]);
 
   const [loading, setLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -146,15 +152,23 @@ const RegisterSiswaPage = () => {
         }
       );
 
+      // Logika Sukses
       toastRef.current?.showToast('00', 'Siswa berhasil didaftarkan');
       setTimeout(() => {
         router.push('/auth/login');
       }, 1500);
+
     } catch (err: any) {
-      toastRef.current?.showToast(
-        '99',
-        err.response?.data?.message || 'Terjadi kesalahan koneksi'
-      );
+      // Logika Error
+      console.error('Error:', err);
+      // Tampilkan error validasi dari Zod jika ada
+      let errorMessage = 'Gagal melakukan registrasi siswa';
+      if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+          errorMessage = err.response.data.errors.map((e: any) => `${e.field}: ${e.message}`).join('\n');
+      } else if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+      }
+      toastRef.current?.showToast('99', errorMessage);
     } finally {
       setLoading(false);
     }
