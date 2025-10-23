@@ -19,6 +19,7 @@ function PDFViewer({ pdfUrl, paperSize, fileName }) {
     const [pageHeight, setPageHeight] = useState(0);
     const [scale, setScale] = useState(1);
 
+
     const handleFirstPage = () => {
         if (currentPage !== 1) {
             setCurrentPage(1);

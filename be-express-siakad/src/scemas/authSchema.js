@@ -78,7 +78,14 @@ export const registerGuruSchema = z.object({
   nip: z.string().min(5, "NIP harus diisi"),
   nama: z.string().min(3, "Nama lengkap harus diisi"),
   pangkat: z.string().optional(),
-  jabatan: z.string().optional(),
+
+  // 🔹 ganti jabatan_id → kode_jabatan (sesuai field database)
+  kode_jabatan: z
+    .string()
+    .min(2, "KODE_JABATAN harus diisi")
+    .regex(/^[A-Z0-9]+$/, "KODE_JABATAN hanya boleh huruf besar dan angka")
+    .optional(),
+
   status_kepegawaian: z.enum(["Aktif", "Cuti", "Pensiun"]).default("Aktif"),
   gender: z.enum(["L", "P"]),
   tgl_lahir: z
@@ -90,7 +97,7 @@ export const registerGuruSchema = z.object({
   no_telp: z.string().optional(),
   alamat: z.string().optional(),
 
-  // Data pendidikan
+  // 🔹 Data pendidikan
   pendidikan_terakhir: z.string().optional(),
   tahun_lulus: z
     .string()
@@ -106,6 +113,7 @@ export const registerGuruSchema = z.object({
 
   password: z.string().min(8, "Password minimal 8 karakter"),
 });
+
 
 // Schema validasi untuk login
 export const loginSchema = z.object({

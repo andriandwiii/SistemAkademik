@@ -1,6 +1,18 @@
 import * as SiswaModel from "../models/siswaModel.js";
 import { db } from "../core/config/knex.js";
 import { hashPassword } from "../utils/hash.js";
+import fs from "fs";
+import path from "path";
+
+// Helper function untuk hapus foto
+const deleteFoto = (filename) => {
+  if (filename) {
+    const filepath = path.join("./uploads/foto_siswa", filename);
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+    }
+  }
+};
 
 // GET semua siswa
 export const getAllSiswa = async (req, res) => {
@@ -76,6 +88,9 @@ export const addSiswa = async (req, res) => {
       orang_tua,
     } = req.body;
 
+    // Ambil filename dari file upload (jika ada)
+    const fotoFilename = req.file ? req.file.filename : foto;
+
     // Validasi minimal
     if (!name || !email || !password || !nis) {
       return res.status(400).json({
@@ -91,7 +106,7 @@ export const addSiswa = async (req, res) => {
       });
     }
 
-    // Insert user login
+    // Insert user login terlebih dahulu
     await trx("users").insert({
       name,
       email,
@@ -99,8 +114,41 @@ export const addSiswa = async (req, res) => {
       role: "SISWA",
     });
 
-    // Insert siswa dengan data orang tua
-    const siswaData = {
+    // Mapping array orang_tua ke kolom
+    let namaAyah = null, pekerjaanAyah = null, pendidikanAyah = null, alamatAyah = null, noTelpAyah = null;
+    let namaIbu = null, pekerjaanIbu = null, pendidikanIbu = null, alamatIbu = null, noTelpIbu = null;
+    let namaWali = null, pekerjaanWali = null, pendidikanWali = null, alamatWali = null, noTelpWali = null;
+
+    if (Array.isArray(orang_tua)) {
+      orang_tua.forEach((ortu) => {
+        switch (ortu.jenis) {
+          case "Ayah":
+            namaAyah = ortu.nama;
+            pekerjaanAyah = ortu.pekerjaan || null;
+            pendidikanAyah = ortu.pendidikan || null;
+            alamatAyah = ortu.alamat || null;
+            noTelpAyah = ortu.no_hp || null;
+            break;
+          case "Ibu":
+            namaIbu = ortu.nama;
+            pekerjaanIbu = ortu.pekerjaan || null;
+            pendidikanIbu = ortu.pendidikan || null;
+            alamatIbu = ortu.alamat || null;
+            noTelpIbu = ortu.no_hp || null;
+            break;
+          case "Wali":
+            namaWali = ortu.nama;
+            pekerjaanWali = ortu.pekerjaan || null;
+            pendidikanWali = ortu.pendidikan || null;
+            alamatWali = ortu.alamat || null;
+            noTelpWali = ortu.no_hp || null;
+            break;
+        }
+      });
+    }
+
+    // Insert siswa ke tabel master_siswa
+    const [siswaId] = await trx("master_siswa").insert({
       EMAIL: email,
       NIS: nis,
       NISN: nisn,
@@ -116,25 +164,41 @@ export const addSiswa = async (req, res) => {
       TINGGI: tinggi,
       BERAT: berat,
       KEBUTUHAN_KHUSUS: kebutuhan_khusus,
-      FOTO: foto,
-      orang_tua: orang_tua,
-    };
-
-    const newSiswa = await SiswaModel.addSiswa(siswaData, trx);
+      FOTO: fotoFilename,
+      NAMA_AYAH: namaAyah,
+      PEKERJAAN_AYAH: pekerjaanAyah,
+      PENDIDIKAN_AYAH: pendidikanAyah,
+      ALAMAT_AYAH: alamatAyah,
+      NO_TELP_AYAH: noTelpAyah,
+      NAMA_IBU: namaIbu,
+      PEKERJAAN_IBU: pekerjaanIbu,
+      PENDIDIKAN_IBU: pendidikanIbu,
+      ALAMAT_IBU: alamatIbu,
+      NO_TELP_IBU: noTelpIbu,
+      NAMA_WALI: namaWali,
+      PEKERJAAN_WALI: pekerjaanWali,
+      PENDIDIKAN_WALI: pendidikanWali,
+      ALAMAT_WALI: alamatWali,
+      NO_TELP_WALI: noTelpWali,
+    });
 
     await trx.commit();
+
+    // Ambil data siswa yang baru dibuat
+    const newSiswa = await SiswaModel.getSiswaByIdWithUser(siswaId);
 
     res.status(201).json({
       status: "00",
       message: "Siswa dan Orang Tua berhasil ditambahkan",
       datetime: new Date().toISOString(),
       data: {
-        siswa_id: newSiswa.SISWA_ID,
+        siswa_id: siswaId,
         user: {
           name: name,
           email: email,
           role: "SISWA",
         },
+        siswa: newSiswa,
       },
     });
   } catch (err) {
@@ -183,6 +247,9 @@ export const updateSiswa = async (req, res) => {
       orang_tua,
     } = req.body;
 
+    // Ambil filename dari file upload (jika ada)
+    const fotoFilename = req.file ? req.file.filename : foto;
+
     // Update user login jika ada perubahan
     const updateUser = {};
     if (name) updateUser.name = name;
@@ -210,7 +277,7 @@ export const updateSiswa = async (req, res) => {
       TINGGI: tinggi,
       BERAT: berat,
       KEBUTUHAN_KHUSUS: kebutuhan_khusus,
-      FOTO: foto,
+      FOTO: fotoFilename,
     };
 
     // Hapus undefined values
@@ -247,6 +314,11 @@ export const updateSiswa = async (req, res) => {
       });
     }
 
+    // Hapus foto lama jika ada foto baru
+    if (req.file && siswa.FOTO) {
+      deleteFoto(siswa.FOTO);
+    }
+
     // Update siswa
     await trx("master_siswa")
       .where("SISWA_ID", req.params.id)
@@ -277,7 +349,9 @@ export const updateSiswa = async (req, res) => {
 // DELETE siswa
 export const deleteSiswa = async (req, res) => {
   try {
-    const siswa = await SiswaModel.deleteSiswa(req.params.id);
+    // Ambil data siswa terlebih dahulu untuk mendapatkan nama foto
+    const siswa = await SiswaModel.getSiswaByIdWithUser(req.params.id);
+    
     if (!siswa) {
       return res.status(404).json({
         status: "04",
@@ -285,6 +359,14 @@ export const deleteSiswa = async (req, res) => {
         datetime: new Date().toISOString(),
       });
     }
+
+    // Hapus foto jika ada
+    if (siswa.FOTO) {
+      deleteFoto(siswa.FOTO);
+    }
+
+    // Hapus data siswa
+    await SiswaModel.deleteSiswa(req.params.id);
 
     res.status(200).json({
       status: "00",

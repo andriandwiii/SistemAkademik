@@ -1,4 +1,5 @@
 /**
+ * Migration: Create Master Guru (relasi ke users dan master_jabatan)
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
@@ -20,7 +21,15 @@ export async function up(knex) {
     table.string("NIP", 20).unique().notNullable(); // Nomor Induk Pegawai
     table.string("NAMA", 120).notNullable();
     table.string("PANGKAT", 50).nullable();
-    table.string("JABATAN", 50).nullable();
+
+    // Relasi ke tabel master_jabatan
+    table.string("KODE_JABATAN", 6).nullable();
+    table
+      .foreign("KODE_JABATAN")
+      .references("KODE_JABATAN")
+      .inTable("master_jabatan")
+      .onDelete("SET NULL");
+
     table
       .enu("STATUS_KEPEGAWAIAN", ["Aktif", "Cuti", "Pensiun"])
       .defaultTo("Aktif");
@@ -54,6 +63,11 @@ export async function up(knex) {
   });
 }
 
+/**
+ * Rollback migration
+ * @param { import("knex").Knex } knex
+ * @returns { Promise<void> }
+ */
 export async function down(knex) {
   return knex.schema.dropTableIfExists("master_guru");
 }

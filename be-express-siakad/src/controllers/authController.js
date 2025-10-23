@@ -13,11 +13,11 @@ import { db } from "../core/config/knex.js";
  */
 export const registerGuru = async (req, res) => {
   try {
-    // Ambil data dari form-data (bisa termasuk file foto)
+    // Ambil data dari form-data (termasuk file foto)
     const body = req.body;
     const file = req.file; // dari multer upload.single("foto")
 
-    // Validasi body
+    // Validasi body (gunakan schema Zod)
     const validation = registerGuruSchema.safeParse(body);
     if (!validation.success) {
       return res.status(400).json({
@@ -33,10 +33,10 @@ export const registerGuru = async (req, res) => {
 
     const parsed = validation.data;
 
-    // Hash password
+    // 🔐 Hash password untuk akun user guru
     const hashedPassword = await hashPassword(parsed.password);
 
-    // Buat akun user
+    // 🧩 Tambah akun ke tabel users
     const user = await addUser({
       name: parsed.nama,
       email: parsed.email,
@@ -44,16 +44,16 @@ export const registerGuru = async (req, res) => {
       role: "GURU",
     });
 
-    // Path foto (kalau ada upload)
+    // 📸 Path foto (jika ada upload)
     const fotoPath = file ? `/uploads/foto_guru/${file.filename}` : null;
 
-    // Simpan data guru
+    // 🧾 Simpan data guru ke tabel master_guru
     const guru = await addGuru({
       EMAIL: parsed.email,
       NIP: parsed.nip,
       NAMA: parsed.nama,
       PANGKAT: parsed.pangkat || null,
-      JABATAN: parsed.jabatan || null,
+      KODE_JABATAN: parsed.kode_jabatan || null, // ✅ perbaikan penting
       STATUS_KEPEGAWAIAN: parsed.status_kepegawaian || "Aktif",
       GENDER: parsed.gender,
       TGL_LAHIR: parsed.tgl_lahir || null,
@@ -82,7 +82,7 @@ export const registerGuru = async (req, res) => {
       guru,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error registerGuru:", err);
     return res.status(500).json({
       status: "01",
       message: `Terjadi kesalahan server: ${err.message}`,

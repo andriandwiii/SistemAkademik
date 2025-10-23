@@ -1,15 +1,17 @@
-import { db } from "../core/config/knex.js"; // pastikan path knex.js benar
+import { db } from "../core/config/knex.js";
 
-// Ambil semua guru + data user
+// 🔹 Ambil semua guru + data user + jabatan
 export const getAllGuruWithUser = async () => {
   return db("master_guru as g")
-    .leftJoin("users as u", "g.EMAIL", "u.email") // relasi pakai email, bukan user_id
+    .leftJoin("users as u", "g.EMAIL", "u.email")
+    .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
     .select(
       "g.GURU_ID",
       "g.NIP",
       "g.NAMA",
       "g.PANGKAT",
-      "g.JABATAN",
+      "g.KODE_JABATAN",
+      "j.NAMA_JABATAN as JABATAN",
       "g.STATUS_KEPEGAWAIAN",
       "g.EMAIL",
       "g.TGL_LAHIR",
@@ -27,21 +29,22 @@ export const getAllGuruWithUser = async () => {
       "g.created_at",
       "g.updated_at",
       "u.name as user_name",
-      "u.email as user_email",
       "u.role as user_role"
     );
 };
 
-// Ambil guru by ID + data user
+// 🔹 Ambil guru by ID + data user + jabatan
 export const getGuruByIdWithUser = async (id) => {
   return db("master_guru as g")
     .leftJoin("users as u", "g.EMAIL", "u.email")
+    .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
     .select(
       "g.GURU_ID",
       "g.NIP",
       "g.NAMA",
       "g.PANGKAT",
-      "g.JABATAN",
+      "g.KODE_JABATAN",
+      "j.NAMA_JABATAN as JABATAN",
       "g.STATUS_KEPEGAWAIAN",
       "g.EMAIL",
       "g.TGL_LAHIR",
@@ -59,19 +62,69 @@ export const getGuruByIdWithUser = async (id) => {
       "g.created_at",
       "g.updated_at",
       "u.name as user_name",
-      "u.email as user_email",
       "u.role as user_role"
     )
     .where("g.GURU_ID", id)
     .first();
 };
 
-// Tambah guru baru
+// 🔹 Cari guru berdasarkan KODE_JABATAN
+export const getGuruByJabatan = async (kodeJabatan) => {
+  return db("master_guru as g")
+    .leftJoin("users as u", "g.EMAIL", "u.email")
+    .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
+    .select(
+      "g.GURU_ID",
+      "g.NIP",
+      "g.NAMA",
+      "g.PANGKAT",
+      "g.KODE_JABATAN",
+      "j.NAMA_JABATAN as JABATAN",
+      "g.STATUS_KEPEGAWAIAN",
+      "g.EMAIL",
+      "g.TGL_LAHIR",
+      "g.TEMPAT_LAHIR",
+      "g.GENDER",
+      "g.ALAMAT",
+      "g.NO_TELP",
+      "g.FOTO",
+      "g.PENDIDIKAN_TERAKHIR",
+      "g.TAHUN_LULUS",
+      "g.UNIVERSITAS",
+      "g.NO_SERTIFIKAT_PENDIDIK",
+      "g.TAHUN_SERTIFIKAT",
+      "g.MAPEL_DIAMPU",
+      "u.name as user_name",
+      "u.role as user_role"
+    )
+    .where("g.KODE_JABATAN", kodeJabatan)
+    .andWhere("g.STATUS_KEPEGAWAIAN", "Aktif");
+};
+
+// Cari guru berdasarkan NAMA jabatan
+export const getGuruByNamaJabatan = async (nama_jabatan) => {
+  return await db("master_guru as g")
+    .join("master_jabatan as j", "g.KODE_JABATAN", "=", "j.KODE_JABATAN")
+    .select(
+      "g.GURU_ID",
+      "g.NIP",
+      "g.NAMA",
+      "g.EMAIL",
+      "g.STATUS_KEPEGAWAIAN",
+      "g.NO_TELP",
+      "j.KODE_JABATAN",
+      "j.NAMA_JABATAN"
+    )
+    .where("j.NAMA_JABATAN", "like", `%${nama_jabatan}%`);
+};
+
+
+// 🔹 Tambah guru baru
 export const addGuru = async ({
   NIP,
   NAMA,
   PANGKAT,
-  JABATAN,
+  KODE_JABATAN,
   STATUS_KEPEGAWAIAN,
   EMAIL,
   TGL_LAHIR,
@@ -87,11 +140,52 @@ export const addGuru = async ({
   TAHUN_SERTIFIKAT = null,
   MAPEL_DIAMPU = null
 }) => {
+  // ✅ Insert guru baru
   const [id] = await db("master_guru").insert({
     NIP,
     NAMA,
     PANGKAT,
-    JABATAN,
+    KODE_JABATAN: KODE_JABATAN || null, // pastikan diset meski null
+    STATUS_KEPEGAWAIAN,
+    EMAIL,
+    TGL_LAHIR,
+    TEMPAT_LAHIR,
+    GENDER,
+    ALAMAT,
+    NO_TELP,
+    FOTO,
+    PENDIDIKAN_TERAKHIR,
+    TAHUN_LULUS,
+    UNIVERSITAS,
+    NO_SERTIFIKAT_PENDIDIK,
+    TAHUN_SERTIFIKAT,
+    MAPEL_DIAMPU,
+  });
+
+  // ✅ Ambil data lengkap setelah insert
+  const guru = await getGuruByIdWithUser(id);
+
+  // Jika jabatan null tapi ada kode_jabatan, coba ambil manual
+  if (guru && !guru.JABATAN && KODE_JABATAN) {
+    const jabatan = await db("master_jabatan")
+      .where("KODE_JABATAN", KODE_JABATAN)
+      .first();
+    if (jabatan) {
+      guru.JABATAN = jabatan.NAMA_JABATAN;
+    }
+  }
+
+  return guru;
+};
+
+// 🔹 Update data guru
+export const updateGuru = async (
+  id,
+  {
+    NIP,
+    NAMA,
+    PANGKAT,
+    KODE_JABATAN,
     STATUS_KEPEGAWAIAN,
     EMAIL,
     TGL_LAHIR,
@@ -106,32 +200,6 @@ export const addGuru = async ({
     NO_SERTIFIKAT_PENDIDIK,
     TAHUN_SERTIFIKAT,
     MAPEL_DIAMPU
-  });
-
-  return getGuruByIdWithUser(id);
-};
-
-
-// Update data guru
-export const updateGuru = async (
-  id,
-  {
-    NIP,
-    NAMA,
-    PANGKAT,
-    JABATAN,
-    STATUS_KEPEGAWAIAN,
-    EMAIL,
-    TGL_LAHIR,
-    TEMPAT_LAHIR,
-    GENDER,
-    ALAMAT,
-    NO_TELP,
-    FOTO,
-    PENDIDIKAN_TERAKHIR,
-    UNIVERSITAS,
-    NO_SERTIFIKAT_PENDIDIK,
-    MAPEL_DIAMPU
   }
 ) => {
   await db("master_guru")
@@ -140,7 +208,7 @@ export const updateGuru = async (
       NIP,
       NAMA,
       PANGKAT,
-      JABATAN,
+      KODE_JABATAN: KODE_JABATAN || null,
       STATUS_KEPEGAWAIAN,
       EMAIL,
       TGL_LAHIR,
@@ -150,22 +218,24 @@ export const updateGuru = async (
       NO_TELP,
       FOTO,
       PENDIDIKAN_TERAKHIR,
+      TAHUN_LULUS,
       UNIVERSITAS,
       NO_SERTIFIKAT_PENDIDIK,
-      MAPEL_DIAMPU
+      TAHUN_SERTIFIKAT,
+      MAPEL_DIAMPU,
+      updated_at: db.fn.now(),
     });
 
   return getGuruByIdWithUser(id);
 };
 
-// Hapus guru
+// 🔹 Hapus guru + user-nya
 export const deleteGuru = async (id) => {
   const guru = await db("master_guru").where("GURU_ID", id).first();
   if (!guru) throw new Error("Guru tidak ditemukan");
 
   await db("master_guru").where("GURU_ID", id).del();
 
-  // Hapus user juga jika ada relasi lewat email
   if (guru.EMAIL) {
     await db("users").where("email", guru.EMAIL).del();
   }

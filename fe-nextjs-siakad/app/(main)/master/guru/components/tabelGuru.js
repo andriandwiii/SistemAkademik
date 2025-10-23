@@ -11,10 +11,50 @@ const TabelGuru = ({ data, loading, onEdit, onDelete }) => {
   const [selectedGuru, setSelectedGuru] = useState(null);
   const [visibleDetail, setVisibleDetail] = useState(false);
 
-  const namaLengkapTemplate = (row) => {
-    const depan = row.GELAR_DEPAN ? row.GELAR_DEPAN + " " : "";
-    const belakang = row.GELAR_BELAKANG ? ", " + row.GELAR_BELAKANG : "";
-    return `${depan}${row.NAMA}${belakang}`;
+  // Helper function untuk build foto URL (sama seperti siswa)
+  const getFotoUrl = (fotoPath) => {
+    if (!fotoPath) return null;
+    
+    // Jika sudah URL lengkap
+    if (fotoPath.startsWith('http://') || fotoPath.startsWith('https://')) {
+      return fotoPath;
+    }
+    
+    // Remove /api dari API_URL dan append foto path
+    return `${API_URL.replace("/api", "")}${fotoPath}`;
+  };
+
+  const fotoTemplate = (row) => {
+    const fotoUrl = getFotoUrl(row.FOTO);
+    
+    if (fotoUrl) {
+      return (
+        <div className="flex justify-center">
+          <img
+            src={fotoUrl}
+            alt={row.NAMA}
+            className="w-12 h-12 rounded-full object-cover cursor-pointer border-2 border-gray-300"
+            onError={(e) => {
+              // Jika gambar gagal load, tampilkan icon default
+              console.error('Failed to load image:', fotoUrl);
+              e.target.style.display = 'none';
+              e.target.nextElementSibling.style.display = 'flex';
+            }}
+          />
+          <div className="w-12 h-12 bg-gray-300 rounded-full hidden items-center justify-center">
+            <i className="pi pi-user text-gray-600"></i>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex justify-center">
+        <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+          <i className="pi pi-user text-gray-600"></i>
+        </div>
+      </div>
+    );
   };
 
   const handleDetail = async (row) => {
@@ -35,40 +75,84 @@ const TabelGuru = ({ data, loading, onEdit, onDelete }) => {
         size="small"
         severity="info"
         onClick={() => handleDetail(row)}
+        tooltip="Detail"
+        tooltipOptions={{ position: "top" }}
       />
       <Button
         icon="pi pi-pencil"
         size="small"
         severity="warning"
         onClick={() => onEdit(row)}
+        tooltip="Edit"
+        tooltipOptions={{ position: "top" }}
       />
       <Button
         icon="pi pi-trash"
         size="small"
         severity="danger"
         onClick={() => onDelete(row)}
+        tooltip="Hapus"
+        tooltipOptions={{ position: "top" }}
       />
     </div>
   );
 
   const columns = [
-    { field: "GURU_ID", header: "ID", style: { minWidth: "70px" } },
-    { field: "NIP", header: "NIP", style: { minWidth: "140px" } },
+    { 
+      field: "GURU_ID", 
+      header: "ID", 
+      style: { minWidth: "70px" } 
+    },
+    { 
+      header: "Foto", 
+      body: fotoTemplate, 
+      style: { minWidth: "80px", textAlign: "center" } 
+    },
+    { 
+      field: "NIP", 
+      header: "NIP", 
+      style: { minWidth: "140px" } 
+    },
     {
+      field: "NAMA",
       header: "Nama Lengkap",
-      body: namaLengkapTemplate,
       style: { minWidth: "200px" },
     },
-    { field: "PANGKAT", header: "Pangkat", style: { minWidth: "120px" } },
-    { field: "JABATAN", header: "Jabatan", style: { minWidth: "150px" } },
+    { 
+      field: "PANGKAT", 
+      header: "Pangkat", 
+      style: { minWidth: "120px" } 
+    },
+    { 
+      field: "JABATAN", 
+      header: "Jabatan", 
+      style: { minWidth: "150px" } 
+    },
     {
       field: "STATUS_KEPEGAWAIAN",
       header: "Status",
       style: { minWidth: "120px" },
     },
-    { field: "EMAIL", header: "Email", style: { minWidth: "200px" } },
-    { field: "NO_TELP", header: "No. Telp", style: { minWidth: "130px" } },
-    { header: "Aksi", body: actionTemplate, style: { width: "150px" } },
+    { 
+      field: "MAPEL_DIAMPU", 
+      header: "Mapel Diampu", 
+      style: { minWidth: "150px" } 
+    },
+    { 
+      field: "EMAIL", 
+      header: "Email", 
+      style: { minWidth: "200px" } 
+    },
+    { 
+      field: "NO_TELP", 
+      header: "No. Telp", 
+      style: { minWidth: "130px" } 
+    },
+    { 
+      header: "Aksi", 
+      body: actionTemplate, 
+      style: { width: "150px" } 
+    },
   ];
 
   return (

@@ -4,19 +4,29 @@ import fs from "fs";
 
 // Tentukan folder penyimpanan berdasarkan URL endpoint
 const getUploadFolder = (req) => {
-  if (req.originalUrl.includes("register-siswa")) return "./uploads/foto_siswa";
-  if (req.originalUrl.includes("register-guru")) return "./uploads/foto_guru";
-  return "./uploads/foto_lainnya"; // fallback folder
+  const url = req.originalUrl.toLowerCase();
+
+  // Siswa: register atau master
+  if (url.includes("register-siswa") || url.includes("master-siswa")) {
+    return "./uploads/foto_siswa";
+  }
+
+  // Guru: register atau master
+  if (url.includes("register-guru") || url.includes("master-guru")) {
+    return "./uploads/foto_guru";
+  }
+
+  // fallback folder
+  return "./uploads/foto_lainnya";
 };
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: (req, file, cb) => {
     const dir = getUploadFolder(req);
-    // Buat folder jika belum ada
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
