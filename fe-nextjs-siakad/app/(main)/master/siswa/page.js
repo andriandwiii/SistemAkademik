@@ -4,36 +4,44 @@ import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
+import { ProgressSpinner } from "primereact/progressspinner";
+import dynamic from "next/dynamic";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import ToastNotifier from "../../../components/ToastNotifier";
-import CustomDataTable from "../../../components/DataTable";
 import HeaderBar from "../../../components/headerbar";
 import FilterTanggal from "../../../components/filterTanggal";
-import FormSiswa from "./components/SiswaDetailDialog";
+import TabelSiswa from "./components/TabelSiswa";
+import FormDialogSiswa from "./components/FormDialogSiswa";
 import AdjustPrintMarginLaporan from "./print/AdjustPrintMarginLaporan";
-import SiswaDetailDialog from "./components/SiswaDetailDialog";
-import dynamic from "next/dynamic";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
 
-export default function SiswaPage() {
+// Dynamic import PDFViewer dengan loading fallback
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <ProgressSpinner style={{ width: "50px", height: "50px" }} strokeWidth="4" />
+    </div>
+  ),
+  ssr: false,
+});
+
+const SiswaPage = () => {
   const toastRef = useRef(null);
   const [token, setToken] = useState("");
 
-  const [dataSiswa, setDataSiswa] = useState([]);
+  const [data, setData] = useState([]);
   const [originalData, setOriginalData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [loading, setLoading] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
+
   const [selectedSiswa, setSelectedSiswa] = useState(null);
 
-  const [detailDialogVisible, setDetailDialogVisible] = useState(false);
-  const [detailSiswa, setDetailSiswa] = useState(null);
-
+  // Filter tanggal
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
 
+  // PDF Preview
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [fileName, setFileName] = useState("");
@@ -45,106 +53,73 @@ export default function SiswaPage() {
       window.location.href = "/";
     } else {
       setToken(t);
-      fetchData(t);
+      fetchSiswa(t);
     }
   }, []);
 
-  // 🔹 Ambil data siswa
-  const fetchData = async (t) => {
-    setIsLoading(true);
+  const fetchSiswa = async (t) => {
+    setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/siswa`, {
         headers: { Authorization: `Bearer ${t}` },
       });
-      const sorted = res.data.data.sort((a, b) => b.SISWA_ID - a.SISWA_ID);
-      setDataSiswa(sorted);
-      setOriginalData(sorted);
+      if (res.data.status === "00") {
+        const siswaData = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
+        const sorted = siswaData.sort((a, b) => b.SISWA_ID - a.SISWA_ID);
+        setData(sorted);
+        setOriginalData(sorted);
+      } else {
+        toastRef.current?.showToast("01", res.data.message || "Gagal mengambil data");
+      }
     } catch (err) {
-      console.error("Gagal ambil data siswa:", err);
-      toastRef.current?.showToast("01", "Gagal memuat data siswa");
+      console.error("Gagal mengambil data:", err);
+      toastRef.current?.showToast("01", "Gagal mengambil data");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // 🔍 Searching
   const handleSearch = (keyword) => {
     if (!keyword) {
-      setDataSiswa(originalData);
+      setData(originalData);
     } else {
       const filtered = originalData.filter(
-        (s) =>
-          s.NAMA.toLowerCase().includes(keyword.toLowerCase()) ||
-          s.NIS.toLowerCase().includes(keyword.toLowerCase()) ||
-          s.NISN.toLowerCase().includes(keyword.toLowerCase())
+        (item) =>
+          item.NIS?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.NISN?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.NAMA?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.EMAIL?.toLowerCase().includes(keyword.toLowerCase())
       );
-      setDataSiswa(filtered);
+      setData(filtered);
     }
   };
 
-  // 📅 Filter tanggal lahir
+  // Filter tanggal lahir
   const handleDateFilter = () => {
-    if (!startDate && !endDate) return setDataSiswa(originalData);
+    if (!startDate && !endDate) return setData(originalData);
     const filtered = originalData.filter((item) => {
       const birthDate = new Date(item.TGL_LAHIR);
       const from = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
       const to = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
       return (!from || birthDate >= from) && (!to || birthDate <= to);
     });
-    setDataSiswa(filtered);
+    setData(filtered);
   };
 
   const resetFilter = () => {
     setStartDate(null);
     setEndDate(null);
-    setDataSiswa(originalData);
+    setData(originalData);
   };
 
-  // 💾 Simpan siswa
-  const handleSubmit = async (formData) => {
-    try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      };
-
-      if (selectedSiswa) {
-        await axios.put(`${API_URL}/siswa/${selectedSiswa.SISWA_ID}`, formData, config);
-        toastRef.current?.showToast("00", "Data siswa berhasil diperbarui");
-      } else {
-        const res = await axios.post(`${API_URL}/auth/register-siswa`, formData, config);
-        toastRef.current?.showToast("00", "Siswa baru berhasil ditambahkan");
-        if (res.data.siswa_id) {
-          fetchData(token);
-        }
-      }
-
-      setDialogVisible(false);
-      setSelectedSiswa(null);
-    } catch (err) {
-      console.error("Gagal simpan siswa:", err);
-      toastRef.current?.showToast("01", "Gagal menyimpan data siswa");
-    }
-  };
-
-  // ✏️ Edit data
   const handleEdit = (row) => {
     setSelectedSiswa(row);
     setDialogVisible(true);
   };
 
-  // 🔍 Detail siswa
-  const handleDetail = (row) => {
-    setDetailSiswa(row);
-    setDetailDialogVisible(true);
-  };
-
-  // ❌ Hapus siswa
   const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin ingin menghapus siswa "${row.NAMA}"?`,
+      message: `Apakah Anda yakin ingin menghapus siswa ${row.NAMA}?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
       acceptLabel: "Ya",
@@ -155,72 +130,28 @@ export default function SiswaPage() {
           await axios.delete(`${API_URL}/siswa/${row.SISWA_ID}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          toastRef.current?.showToast("00", "Data siswa berhasil dihapus");
-          fetchData(token);
+          fetchSiswa(token);
+          toastRef.current?.showToast("00", "Data berhasil dihapus");
         } catch (err) {
-          console.error("Gagal hapus siswa:", err);
-          toastRef.current?.showToast("01", "Gagal menghapus data siswa");
+          console.error("Gagal menghapus data:", err);
+          toastRef.current?.showToast("01", "Gagal menghapus data");
         }
       },
     });
   };
 
-  // 🔹 Kolom tabel
-  const columns = [
-    { field: "NIS", header: "NIS", style: { minWidth: "120px" } },
-    { field: "NISN", header: "NISN", style: { minWidth: "120px" } },
-    { field: "NAMA", header: "Nama", style: { minWidth: "200px" } },
-    {
-      field: "GENDER",
-      header: "Jenis Kelamin",
-      style: { minWidth: "120px" },
-      body: (row) => (row.GENDER === "L" ? "Laki-laki" : "Perempuan"),
-    },
-    {
-      field: "TGL_LAHIR",
-      header: "Tanggal Lahir",
-      style: { minWidth: "120px" },
-      body: (row) =>
-        row.TGL_LAHIR ? new Date(row.TGL_LAHIR).toLocaleDateString("id-ID") : "-",
-    },
-    { field: "TEMPAT_LAHIR", header: "Tempat Lahir", style: { minWidth: "150px" } },
-    { field: "AGAMA", header: "Agama", style: { minWidth: "100px" } },
-    { field: "ALAMAT", header: "Alamat", style: { minWidth: "200px" } },
-    { field: "NO_TELP", header: "No. Telp", style: { minWidth: "120px" } },
-    { field: "STATUS", header: "Status", style: { minWidth: "100px" } },
-    {
-      field: "FOTO",
-      header: "Foto",
-      style: { minWidth: "100px" },
-      body: (row) => {
-        const fotoUrl = row.FOTO
-          ? row.FOTO.startsWith("http")
-            ? row.FOTO
-            : `${API_URL.replace("/api", "")}${row.FOTO}`
-          : null;
-        return fotoUrl ? (
-          <img
-            src={fotoUrl}
-            alt={row.NAMA}
-            className="w-12 h-12 rounded-full object-cover border border-gray-300"
-          />
-        ) : (
-          <span>-</span>
-        );
-      },
-    },
-    {
-      header: "Aksi",
-      body: (row) => (
-        <div className="flex gap-2">
-          <Button icon="pi pi-search" size="small" severity="info" onClick={() => handleDetail(row)} />
-          <Button icon="pi pi-pencil" size="small" severity="warning" onClick={() => handleEdit(row)} />
-          <Button icon="pi pi-trash" size="small" severity="danger" onClick={() => handleDelete(row)} />
-        </div>
-      ),
-      style: { width: "150px" },
-    },
-  ];
+  const handlePrintClick = () => {
+    handleDateFilter();
+    setAdjustDialog(true);
+  };
+
+  const handleClosePdfPreview = () => {
+    setJsPdfPreviewOpen(false);
+    // Clear PDF URL untuk free memory
+    setTimeout(() => {
+      setPdfUrl("");
+    }, 300);
+  };
 
   return (
     <div className="card">
@@ -229,8 +160,8 @@ export default function SiswaPage() {
 
       <h3 className="text-xl font-semibold mb-3">Master Siswa</h3>
 
-      {/* 🔹 Toolbar & Filter */}
-      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4">
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
         <FilterTanggal
           startDate={startDate}
           endDate={endDate}
@@ -244,16 +175,14 @@ export default function SiswaPage() {
           <Button
             icon="pi pi-print"
             className="p-button-warning mt-3"
-            tooltip="Atur Print Margin"
-            onClick={() => {
-              handleDateFilter();
-              setAdjustDialog(true);
-            }}
+            tooltip="Cetak Laporan"
+            onClick={handlePrintClick}
+            disabled={data.length === 0}
           />
 
           <HeaderBar
             title=""
-            placeholder="Cari siswa berdasarkan nama, NIS, atau NISN"
+            placeholder="Cari siswa (NIS, NISN, Nama, Email)"
             onSearch={handleSearch}
             onAddClick={() => {
               setSelectedSiswa(null);
@@ -263,47 +192,62 @@ export default function SiswaPage() {
         </div>
       </div>
 
-      <CustomDataTable data={dataSiswa} columns={columns} loading={isLoading} />
+      {/* Tabel Siswa */}
+      <TabelSiswa
+        data={data}
+        loading={loading}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
-      {/* 🔹 Form Tambah/Edit */}
-      <FormSiswa
+      {/* Form Dialog */}
+      <FormDialogSiswa
         visible={dialogVisible}
         onHide={() => {
           setDialogVisible(false);
           setSelectedSiswa(null);
         }}
-        onSave={handleSubmit}
         selectedSiswa={selectedSiswa}
         token={token}
+        reloadData={() => fetchSiswa(token)}
+        toastRef={toastRef}
       />
 
-      {/* 🔹 Detail Siswa */}
-      <SiswaDetailDialog
-        visible={detailDialogVisible}
-        onHide={() => setDetailDialogVisible(false)}
-        siswa={detailSiswa}
-      />
-
-      {/* 🔹 Print Margin */}
+      {/* Dialog Adjust Print Margin */}
       <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
-        dataSiswa={dataSiswa}
+        dataSiswa={data}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
       />
 
-      {/* 🔹 PDF Preview */}
+      {/* Dialog PDF Preview */}
       <Dialog
         visible={jsPdfPreviewOpen}
-        onHide={() => setJsPdfPreviewOpen(false)}
+        onHide={handleClosePdfPreview}
         modal
+        maximizable
         style={{ width: "90vw", height: "90vh" }}
-        header="Preview Laporan Siswa"
+        header={
+          <div className="flex items-center gap-2">
+            <i className="pi pi-file-pdf text-red-500"></i>
+            <span>Preview Laporan Siswa</span>
+          </div>
+        }
+        contentStyle={{ height: "calc(90vh - 60px)", padding: 0 }}
       >
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
+        {pdfUrl && (
+          <PDFViewer
+            pdfUrl={pdfUrl}
+            fileName={fileName || "laporan-siswa"}
+            paperSize="A4"
+          />
+        )}
       </Dialog>
     </div>
   );
-}
+};
+
+export default SiswaPage;

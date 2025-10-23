@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { Button } from "primereact/button";
+import { useState } from "react";
 import { Dialog } from "primereact/dialog";
-import { Dropdown } from "primereact/dropdown";
+import { Button } from "primereact/button";
 import { InputNumber } from "primereact/inputnumber";
+import { Dropdown } from "primereact/dropdown";
 import { Toolbar } from "primereact/toolbar";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -54,12 +54,19 @@ export default function AdjustPrintMarginLaporan({
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
-    doc.text("SEKOLAH NEGERI 1 MADIUN", pageWidth / 2, marginTop + 5, { align: "center" });
+    doc.text("SEKOLAH NEGERI 1 MADIUN", pageWidth / 2, marginTop + 5, {
+      align: "center",
+    });
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 80, 80);
-    doc.text("Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur", pageWidth / 2, marginTop + 12, { align: "center" });
+    doc.text(
+      "Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur",
+      pageWidth / 2,
+      marginTop + 12,
+      { align: "center" }
+    );
 
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
@@ -78,13 +85,15 @@ export default function AdjustPrintMarginLaporan({
     doc.setFontSize(10);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 100, 100);
-    doc.text(`Dicetak pada: ${today}`, marginLeft, marginTop + 33, { align: "left" });
+    doc.text(`Dicetak pada: ${today}`, marginLeft, marginTop + 33, {
+      align: "left",
+    });
 
     return marginTop + 38;
   };
 
   // 🔸 Export PDF
-  async function exportPDF(adjustConfig) {
+  const exportPDF = async (adjustConfig) => {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
       unit: "mm",
@@ -95,13 +104,19 @@ export default function AdjustPrintMarginLaporan({
     const marginTop = parseFloat(adjustConfig.marginTop);
     const marginRight = parseFloat(adjustConfig.marginRight);
 
-    const startY = addHeader(doc, "LAPORAN DATA SISWA", marginLeft, marginTop, marginRight);
+    const startY = addHeader(
+      doc,
+      "LAPORAN DATA SISWA",
+      marginLeft,
+      marginTop,
+      marginRight
+    );
 
     autoTable(doc, {
       startY,
       head: [
         [
-          "ID",
+          "No",
           "NIS",
           "NISN",
           "Nama",
@@ -114,8 +129,8 @@ export default function AdjustPrintMarginLaporan({
           "Tahun Masuk",
         ],
       ],
-      body: dataSiswa.map((s) => [
-        s.SISWA_ID,
+      body: dataSiswa.map((s, index) => [
+        index + 1,
         s.NIS || "-",
         s.NISN || "-",
         s.NAMA || "-",
@@ -135,22 +150,25 @@ export default function AdjustPrintMarginLaporan({
       alternateRowStyles: { fillColor: [248, 249, 250] },
     });
 
-    return doc.output("datauristring");
-  }
+    // Convert ke blob agar bisa dipreview
+    const pdfBlob = doc.output("blob");
+    const url = URL.createObjectURL(pdfBlob);
+    return url;
+  };
 
   // 🔸 Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataSiswa.map((s) => ({
-      ID: s.SISWA_ID,
-      NIS: s.NIS,
-      NISN: s.NISN,
-      Nama: s.NAMA,
+    const dataForExcel = dataSiswa.map((s, index) => ({
+      No: index + 1,
+      NIS: s.NIS || "-",
+      NISN: s.NISN || "-",
+      Nama: s.NAMA || "-",
       "Jenis Kelamin": s.GENDER === "L" ? "Laki-laki" : "Perempuan",
       "Tanggal Lahir": s.TGL_LAHIR
         ? new Date(s.TGL_LAHIR).toLocaleDateString("id-ID")
         : "-",
-      Email: s.EMAIL,
-      Status: s.STATUS,
+      Email: s.EMAIL || "-",
+      Status: s.STATUS || "-",
       "Kelas":
         s.transaksi?.kelas
           ? `${s.transaksi.kelas.TINGKATAN} ${s.transaksi.kelas.NAMA_KELAS}`
@@ -162,6 +180,22 @@ export default function AdjustPrintMarginLaporan({
     const ws = XLSX.utils.json_to_sheet(dataForExcel);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
+
+    // Lebar kolom Excel
+    ws["!cols"] = [
+      { wch: 5 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 18 },
+    ];
+
     XLSX.writeFile(wb, "Laporan_Data_Siswa.xlsx");
   };
 
@@ -169,11 +203,13 @@ export default function AdjustPrintMarginLaporan({
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true);
-      const pdfDataUrl = await exportPDF(dataAdjust);
-      setPdfUrl(pdfDataUrl);
+      const pdfUrl = await exportPDF(dataAdjust);
+      setPdfUrl(pdfUrl);
       setFileName("Laporan_Data_Siswa");
       setAdjustDialog(false);
       setJsPdfPreviewOpen(true);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
     } finally {
       setLoadingExport(false);
     }
@@ -206,6 +242,17 @@ export default function AdjustPrintMarginLaporan({
       modal
     >
       <div className="grid p-fluid">
+        {/* Info jumlah data */}
+        <div className="col-12 mb-3">
+          <div className="p-3 bg-blue-50 border-round">
+            <p className="text-sm text-blue-800 m-0">
+              <i className="pi pi-info-circle mr-2"></i>
+              Total Data: <strong>{dataSiswa.length} Siswa</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Pengaturan margin */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -216,6 +263,7 @@ export default function AdjustPrintMarginLaporan({
                   value={dataAdjust[`margin${label}`]}
                   onChange={(e) => onInputChangeNumber(e, `margin${label}`)}
                   min={0}
+                  max={50}
                   suffix=" mm"
                   showButtons
                   className="w-full"
@@ -226,6 +274,7 @@ export default function AdjustPrintMarginLaporan({
           </div>
         </div>
 
+        {/* Pengaturan kertas */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>
