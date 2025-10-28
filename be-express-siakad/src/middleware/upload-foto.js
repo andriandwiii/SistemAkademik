@@ -7,7 +7,7 @@ const getUploadFolder = (req) => {
   const url = req.originalUrl.toLowerCase();
 
   // Siswa: register atau master
-  if (url.includes("register-siswa") || url.includes("master-siswa")) {
+  if (url.includes("register-siswa") || url.includes("siswa")) {
     return "./uploads/foto_siswa";
   }
 

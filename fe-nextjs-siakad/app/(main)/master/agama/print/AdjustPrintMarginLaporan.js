@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { Button } from 'primereact/button'
-import { Dialog } from 'primereact/dialog'
-import { Dropdown } from 'primereact/dropdown'
-import { InputNumber } from 'primereact/inputnumber'
-import { Toolbar } from 'primereact/toolbar'
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import * as XLSX from 'xlsx'
+import React, { useState } from "react";
+import { Button } from "primereact/button";
+import { Dialog } from "primereact/dialog";
+import { Dropdown } from "primereact/dropdown";
+import { InputNumber } from "primereact/inputnumber";
+import { Toolbar } from "primereact/toolbar";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 export default function AdjustPrintMarginLaporanAgama({
   adjustDialog,
@@ -18,137 +18,139 @@ export default function AdjustPrintMarginLaporanAgama({
   setFileName,
   setJsPdfPreviewOpen,
 
-  // Ambil state dari parent
+  // State from parent component
   dataAdjust,
   setDataAdjust,
 }) {
-  const [loadingExport, setLoadingExport] = useState(false)
+  const [loadingExport, setLoadingExport] = useState(false);
 
   const paperSizes = [
-    { name: 'A4', value: 'A4' },
-    { name: 'Letter', value: 'Letter' },
-    { name: 'Legal', value: 'Legal' },
-  ]
+    { name: "A4", value: "A4" },
+    { name: "Letter", value: "Letter" },
+    { name: "Legal", value: "Legal" },
+  ];
 
   const orientationOptions = [
-    { label: 'Potrait', value: 'portrait' },
-    { label: 'Lanskap', value: 'landscape' },
-  ]
+    { label: "Potrait", value: "portrait" },
+    { label: "Lanskap", value: "landscape" },
+  ];
 
-  // 🔹 Perubahan input number
+  // 🔹 Handle input changes for numbers
   const onInputChangeNumber = (e, name) => {
-    setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }))
-  }
+    setDataAdjust((prev) => ({ ...prev, [name]: e.value || 0 }));
+  };
 
-  // 🔹 Perubahan dropdown
+  // 🔹 Handle input changes for dropdowns
   const onInputChange = (e, name) => {
-    setDataAdjust((prev) => ({ ...prev, [name]: e.value }))
-  }
+    setDataAdjust((prev) => ({ ...prev, [name]: e.value }));
+  };
 
-  // 🔹 Header laporan
+  // 🔹 Add header to the PDF
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
-    const pageWidth = doc.internal.pageSize.width
+    const pageWidth = doc.internal.pageSize.width;
 
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(41, 128, 185)
-    doc.text('SEKOLAH NEGERI 1 MADIUN', pageWidth / 2, marginTop + 5, {
-      align: 'center',
-    })
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(41, 128, 185);
+    doc.text("SEKOLAH NEGERI 1 MADIUN", pageWidth / 2, marginTop + 5, {
+      align: "center",
+    });
 
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(80, 80, 80)
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
     doc.text(
-      'Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur',
+      "Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur",
       pageWidth / 2,
       marginTop + 12,
-      { align: 'center' }
-    )
+      { align: "center" }
+    );
 
-    doc.setDrawColor(200, 200, 200)
-    doc.setLineWidth(0.3)
-    doc.line(marginLeft, marginTop + 18, pageWidth - marginRight, marginTop + 18)
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.line(marginLeft, marginTop + 18, pageWidth - marginRight, marginTop + 18);
 
-    doc.setFontSize(14)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(0, 0, 0)
-    doc.text(title, pageWidth / 2, marginTop + 25, { align: 'center' })
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(title, pageWidth / 2, marginTop + 25, { align: "center" });
 
-    const today = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'italic')
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Dicetak pada: ${today}`, marginLeft, marginTop + 33, { align: 'left' })
+    const today = new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Dicetak pada: ${today}`, marginLeft, marginTop + 33, {
+      align: "left",
+    });
 
-    return marginTop + 38
-  }
+    return marginTop + 38;
+  };
 
   // 🔸 Export PDF
   async function exportPDF(adjustConfig) {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
-      unit: 'mm',
+      unit: "mm",
       format: adjustConfig.paperSize,
-    })
+    });
 
-    const marginLeft = parseFloat(adjustConfig.marginLeft)
-    const marginTop = parseFloat(adjustConfig.marginTop)
-    const marginRight = parseFloat(adjustConfig.marginRight)
+    const marginLeft = parseFloat(adjustConfig.marginLeft);
+    const marginTop = parseFloat(adjustConfig.marginTop);
+    const marginRight = parseFloat(adjustConfig.marginRight);
 
     const startY = addHeader(
       doc,
-      'LAPORAN MASTER AGAMA',
+      "LAPORAN MASTER AGAMA",
       marginLeft,
       marginTop,
       marginRight
-    )
+    );
 
     autoTable(doc, {
       startY,
-      head: [['ID', 'Nama Agama']],
+      head: [["ID", "Nama Agama"]],
       body: dataAgama.map((a) => [a.IDAGAMA, a.NAMAAGAMA]),
       margin: { left: marginLeft, right: marginRight },
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
-    })
+    });
 
-    return doc.output('datauristring')
+    return doc.output("datauristring");
   }
 
   // 🔸 Export Excel
   const exportExcel = () => {
     const dataForExcel = dataAgama.map((a) => ({
       ID: a.IDAGAMA,
-      'Nama Agama': a.NAMAAGAMA,
-    }))
+      "Nama Agama": a.NAMAAGAMA,
+    }));
 
-    const ws = XLSX.utils.json_to_sheet(dataForExcel)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Data Agama')
-    XLSX.writeFile(wb, 'Laporan_Master_Agama.xlsx')
-  }
+    const ws = XLSX.utils.json_to_sheet(dataForExcel);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Agama");
+    XLSX.writeFile(wb, "Laporan_Master_Agama.xlsx");
+  };
 
-  // 🔸 Handle Export PDF
+  // 🔸 Handle PDF export
   const handleExportPdf = async () => {
     try {
-      setLoadingExport(true)
-      const pdfDataUrl = await exportPDF(dataAdjust)
-      setPdfUrl(pdfDataUrl)
-      setFileName('Laporan_Master_Agama')
-      setAdjustDialog(false)
-      setJsPdfPreviewOpen(true)
+      setLoadingExport(true);
+      const pdfDataUrl = await exportPDF(dataAdjust);
+      setPdfUrl(pdfDataUrl);
+      setFileName("Laporan_Master_Agama");
+      setAdjustDialog(false);
+      setJsPdfPreviewOpen(true);
     } finally {
-      setLoadingExport(false)
+      setLoadingExport(false);
     }
-  }
+  };
 
-  // 🔹 Footer Toolbar
+  // 🔹 Footer toolbar with export options
   const footer = () => (
     <div className="flex flex-row gap-2">
       <Button
@@ -165,14 +167,14 @@ export default function AdjustPrintMarginLaporanAgama({
         loading={loadingExport}
       />
     </div>
-  )
+  );
 
   return (
     <Dialog
       visible={adjustDialog}
       onHide={() => setAdjustDialog(false)}
       header="Pengaturan Cetak Laporan Agama"
-      style={{ width: '50vw' }}
+      style={{ width: "50vw" }}
       modal
       blockScroll
     >
@@ -181,7 +183,7 @@ export default function AdjustPrintMarginLaporanAgama({
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
-            {['Top', 'Bottom', 'Right', 'Left'].map((label) => (
+            {["Top", "Bottom", "Right", "Left"].map((label) => (
               <div className="col-6 field" key={label}>
                 <label>Margin {label}</label>
                 <InputNumber
@@ -191,7 +193,7 @@ export default function AdjustPrintMarginLaporanAgama({
                   suffix=" mm"
                   showButtons
                   className="w-full"
-                  inputStyle={{ padding: '0.3rem' }}
+                  inputStyle={{ padding: "0.3rem" }}
                 />
               </div>
             ))}
@@ -207,7 +209,7 @@ export default function AdjustPrintMarginLaporanAgama({
               <Dropdown
                 value={dataAdjust.paperSize}
                 options={paperSizes}
-                onChange={(e) => onInputChange(e, 'paperSize')}
+                onChange={(e) => onInputChange(e, "paperSize")}
                 optionLabel="name"
                 className="w-full"
               />
@@ -217,7 +219,7 @@ export default function AdjustPrintMarginLaporanAgama({
               <Dropdown
                 value={dataAdjust.orientation}
                 options={orientationOptions}
-                onChange={(e) => onInputChange(e, 'orientation')}
+                onChange={(e) => onInputChange(e, "orientation")}
                 className="w-full"
               />
             </div>
@@ -226,5 +228,5 @@ export default function AdjustPrintMarginLaporanAgama({
       </div>
       <Toolbar className="py-2 justify-content-end" end={footer} />
     </Dialog>
-  )
+  );
 }

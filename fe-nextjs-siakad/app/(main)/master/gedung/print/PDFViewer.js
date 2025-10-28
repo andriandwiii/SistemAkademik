@@ -1,151 +1,106 @@
 "use client";
-import React, { useState } from 'react'; // Hapus useEffect, tidak perlu lagi
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import { Button } from 'primereact/button';
-import 'react-pdf/dist/Page/TextLayer.css';
 
-// Atur worker source di luar komponen, cukup sekali
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
+import { useEffect, useRef, useState } from "react";
+import { Button } from "primereact/button";
+import { ProgressSpinner } from "primereact/progressspinner";
 
-function PDFViewer({ pdfUrl, fileName }) { // Hapus prop 'paperSize'
-  const [numPages, setNumPages] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(1.0); // Skala default
+export default function PDFViewer({ pdfUrl, fileName, paperSize = "A4" }) {
+  const iframeRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fungsi untuk mengatur jumlah halaman saat PDF berhasil dimuat
-  function onDocumentLoadSuccess({ numPages: nextNumPages }) {
-    setNumPages(nextNumPages);
-    setCurrentPage(1); // Selalu kembali ke halaman 1 saat PDF baru dimuat
+  useEffect(() => {
+    if (pdfUrl) {
+      setLoading(true);
+      setError(null);
+    }
+  }, [pdfUrl]);
+
+  const handleIframeLoad = () => {
+    setLoading(false);
+  };
+
+  const handleIframeError = () => {
+    setLoading(false);
+    setError("Gagal memuat PDF");
+  };
+
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = pdfUrl;
+    link.download = fileName || "laporan.pdf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrint = () => {
+    if (iframeRef.current) {
+      iframeRef.current.contentWindow.print();
+    }
+  };
+
+  if (!pdfUrl) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-gray-500">Tidak ada PDF untuk ditampilkan</p>
+      </div>
+    );
   }
 
-  const handleFirstPage = () => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < numPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const handleLastPage = () => {
-    if (currentPage !== numPages) {
-      setCurrentPage(numPages);
-    }
-  };
-
-  const handleZoomIn = () => {
-    if (scale < 2.0) { // Batasi zoom maks 200%
-      setScale(scale + 0.1);
-    }
-  };
-
-  const handleZoomOut = () => {
-    if (scale > 0.5) { // Batasi zoom min 50%
-      setScale(scale - 0.1);
-    }
-  };
-
-  const handleDownloadPDF = () => {
-    const downloadLink = document.createElement('a');
-    downloadLink.href = pdfUrl;
-    downloadLink.download = fileName + '.pdf';
-    downloadLink.click();
-  };
-
-  // Fungsi print ini akan membuka tab baru untuk print (lebih baik)
-  const handlePrint = () => {
-    if (pdfUrl) {
-      const printWindow = window.open(pdfUrl);
-      // Beri sedikit waktu untuk load, lalu panggil print
-      printWindow.onload = function() {
-        printWindow.print();
-      };
-    }
-  };
-  
-  // Hapus useEffect yang menghitung 'pageWidth' dan 'pageHeight'
-  
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {pdfUrl && (
-        <>
-          {/* 1. Toolbar */}
-          <div
-            style={{
-              backgroundColor: '#f0f0f0',
-              padding: '10px',
-              borderRadius: '5px',
-              boxShadow: '0px 0px 5px rgba(0, 0, 0, 0.3)',
-              position: 'sticky',
-              top: '0',
-              zIndex: '1000',
-              width: '100%',
-              textAlign: 'center' // Pusatkan tombol
-            }}
-          >
-            <Button icon="pi pi-angle-double-left" style={{ margin: '5px' }} onClick={handleFirstPage} disabled={currentPage === 1} className="p-button-secondary" />
-            <Button icon="pi pi-angle-left" style={{ margin: '5px' }} onClick={handlePrevPage} disabled={currentPage === 1} className="p-button-secondary" />
-            <Button icon="pi pi-search-minus" style={{ margin: '5px' }} onClick={handleZoomOut} disabled={scale <= 0.5} className="p-button-info" />
-            <Button icon="pi pi-search-plus" style={{ margin: '5px' }} onClick={handleZoomIn} disabled={scale >= 2.0} className="p-button-info" />
-            <Button icon="pi pi-angle-right" style={{ margin: '5px' }} onClick={handleNextPage} disabled={!numPages || currentPage === numPages} className="p-button-secondary" />
-            <Button icon="pi pi-angle-double-right" style={{ margin: '5px' }} onClick={handleLastPage} disabled={!numPages || currentPage === numPages} className="p-button-secondary" />
-            <Button icon="pi pi-download" style={{ margin: '5px' }} onClick={handleDownloadPDF} className="p-button-success" />
-            <Button icon="pi pi-print" style={{ margin: '5px' }} onClick={handlePrint} className="p-button-warning" /> 
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="flex justify-between items-center p-3 bg-gray-100 border-b">
+        <div className="flex items-center gap-2">
+          <i className="pi pi-file-pdf text-red-500 text-xl"></i>
+          <span className="font-semibold">{fileName || "Laporan.pdf"}</span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            label="Download"
+            icon="pi pi-download"
+            className="p-button-sm p-button-success"
+            onClick={handleDownload}
+          />
+          <Button
+            label="Print"
+            icon="pi pi-print"
+            className="p-button-sm p-button-warning"
+            onClick={handlePrint}
+          />
+        </div>
+      </div>
 
-          {/* 2. PDF Viewer Area */}
-          <div 
-            style={{ 
-              overflow: 'auto', 
-              flexGrow: 1, // Ambil sisa tinggi
-              background: '#525659', // Latar belakang abu-abu tua
-              display: 'flex', 
-              justifyContent: 'center',
-              padding: '20px' // Beri jarak
-            }}
-          >
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={(error) => console.error('Error loading PDF:', error.message)}
-            >
-              {/* Gunakan 'scale' untuk zoom, jangan 'width'/'height' */}
-              <Page 
-                pageNumber={currentPage} 
-                scale={scale}
-              />
-            </Document>
+      {/* PDF Viewer */}
+      <div className="flex-1 relative bg-gray-200">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+            <ProgressSpinner
+              style={{ width: "50px", height: "50px" }}
+              strokeWidth="4"
+            />
           </div>
+        )}
 
-          {/* 3. Page Info Footer */}
-          {numPages && (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '5px',
-                background: '#f0f0f0',
-                color: 'gray',
-                fontSize: '12px',
-                borderTop: '1px solid #ddd'
-              }}
-            >
-              Halaman {currentPage} dari {numPages}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+            <div className="text-center">
+              <i className="pi pi-exclamation-triangle text-red-500 text-4xl mb-3"></i>
+              <p className="text-gray-700">{error}</p>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+
+        <iframe
+          ref={iframeRef}
+          src={pdfUrl}
+          className="w-full h-full border-0"
+          title="PDF Preview"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+        />
+      </div>
     </div>
   );
 }
-
-export default PDFViewer;

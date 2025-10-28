@@ -10,10 +10,10 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
-export default function AdjustPrintMarginLaporan({
+export default function AdjustPrintMarginKelas({
   adjustDialog,
   setAdjustDialog,
-  dataSiswa = [],
+  dataKelas = [],
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
@@ -47,7 +47,7 @@ export default function AdjustPrintMarginLaporan({
     setDataAdjust((prev) => ({ ...prev, [name]: e.value }));
   };
 
-  // 🔹 Header laporan
+  // Header laporan
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width;
 
@@ -92,7 +92,7 @@ export default function AdjustPrintMarginLaporan({
     return marginTop + 38;
   };
 
-  // 🔸 Export PDF
+  // Export PDF
   const exportPDF = async (adjustConfig) => {
     const doc = new jsPDF({
       orientation: adjustConfig.orientation,
@@ -106,7 +106,7 @@ export default function AdjustPrintMarginLaporan({
 
     const startY = addHeader(
       doc,
-      "LAPORAN DATA SISWA",
+      "LAPORAN DATA KELAS",
       marginLeft,
       marginTop,
       marginRight
@@ -117,32 +117,16 @@ export default function AdjustPrintMarginLaporan({
       head: [
         [
           "No",
-          "NIS",
-          "NISN",
-          "Nama",
-          "Jenis Kelamin",
-          "Tanggal Lahir",
-          "Email",
-          "Status",
-          "Kelas",
-          "Jurusan",
-          "Tahun Masuk",
+          "Kode Kelas",
+          "Nama Kelas",
+          "Tingkatan",
         ],
       ],
-      body: dataSiswa.map((s, index) => [
+      body: dataKelas.map((kelas, index) => [
         index + 1,
-        s.NIS || "-",
-        s.NISN || "-",
-        s.NAMA || "-",
-        s.GENDER === "L" ? "Laki-laki" : "Perempuan",
-        s.TGL_LAHIR ? new Date(s.TGL_LAHIR).toLocaleDateString("id-ID") : "-",
-        s.EMAIL || "-",
-        s.STATUS || "-",
-        s.transaksi?.kelas
-          ? `${s.transaksi.kelas.TINGKATAN} ${s.transaksi.kelas.NAMA_KELAS}`
-          : "-",
-        s.transaksi?.kelas?.NAMA_JURUSAN || "-",
-        s.transaksi?.TAHUN_AJARAN || "-",
+        kelas.KODE_KELAS || "-",
+        kelas.NAMA_KELAS || "-",
+        kelas.TINGKATAN || "-",
       ]),
       margin: { left: marginLeft, right: marginRight },
       styles: { fontSize: 8, cellPadding: 2 },
@@ -150,62 +134,43 @@ export default function AdjustPrintMarginLaporan({
       alternateRowStyles: { fillColor: [248, 249, 250] },
     });
 
-    // Convert ke blob agar bisa dipreview
+    // Generate blob URL
     const pdfBlob = doc.output("blob");
     const url = URL.createObjectURL(pdfBlob);
     return url;
   };
 
-  // 🔸 Export Excel
+  // Export Excel
   const exportExcel = () => {
-    const dataForExcel = dataSiswa.map((s, index) => ({
+    const dataForExcel = dataKelas.map((kelas, index) => ({
       No: index + 1,
-      NIS: s.NIS || "-",
-      NISN: s.NISN || "-",
-      Nama: s.NAMA || "-",
-      "Jenis Kelamin": s.GENDER === "L" ? "Laki-laki" : "Perempuan",
-      "Tanggal Lahir": s.TGL_LAHIR
-        ? new Date(s.TGL_LAHIR).toLocaleDateString("id-ID")
-        : "-",
-      Email: s.EMAIL || "-",
-      Status: s.STATUS || "-",
-      "Kelas":
-        s.transaksi?.kelas
-          ? `${s.transaksi.kelas.TINGKATAN} ${s.transaksi.kelas.NAMA_KELAS}`
-          : "-",
-      Jurusan: s.transaksi?.kelas?.NAMA_JURUSAN || "-",
-      "Tahun Masuk": s.transaksi?.TAHUN_AJARAN || "-",
+      "Kode Kelas": kelas.KODE_KELAS || "-",
+      "Nama Kelas": kelas.NAMA_KELAS || "-",
+      Tingkatan: kelas.TINGKATAN || "-",
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
+    XLSX.utils.book_append_sheet(wb, ws, "Data Kelas");
 
-    // Lebar kolom Excel
+    // Set column widths
     ws["!cols"] = [
       { wch: 5 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 25 },
       { wch: 18 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 12 },
-      { wch: 20 },
       { wch: 25 },
       { wch: 18 },
     ];
 
-    XLSX.writeFile(wb, "Laporan_Data_Siswa.xlsx");
+    XLSX.writeFile(wb, "Laporan_Data_Kelas.xlsx");
   };
 
-  // 🔸 Handle Export PDF
+  // Handle Export PDF
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true);
       const pdfUrl = await exportPDF(dataAdjust);
       setPdfUrl(pdfUrl);
-      setFileName("Laporan_Data_Siswa");
+      setFileName("Laporan_Data_Kelas");
       setAdjustDialog(false);
       setJsPdfPreviewOpen(true);
     } catch (error) {
@@ -237,22 +202,22 @@ export default function AdjustPrintMarginLaporan({
     <Dialog
       visible={adjustDialog}
       onHide={() => setAdjustDialog(false)}
-      header="Pengaturan Cetak Laporan Data Siswa"
+      header="Pengaturan Cetak Laporan Data Kelas"
       style={{ width: "50vw" }}
       modal
     >
       <div className="grid p-fluid">
-        {/* Info jumlah data */}
+        {/* Info */}
         <div className="col-12 mb-3">
           <div className="p-3 bg-blue-50 border-round">
             <p className="text-sm text-blue-800 m-0">
               <i className="pi pi-info-circle mr-2"></i>
-              Total Data: <strong>{dataSiswa.length} Siswa</strong>
+              Total Data: <strong>{dataKelas.length} Kelas</strong>
             </p>
           </div>
         </div>
 
-        {/* Pengaturan margin */}
+        {/* Margin Settings */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Margin (mm)</h5>
@@ -274,7 +239,7 @@ export default function AdjustPrintMarginLaporan({
           </div>
         </div>
 
-        {/* Pengaturan kertas */}
+        {/* Paper Settings */}
         <div className="col-12 md:col-6">
           <div className="grid formgrid">
             <h5 className="col-12 mb-2">Pengaturan Kertas</h5>

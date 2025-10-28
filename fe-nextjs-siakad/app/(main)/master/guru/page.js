@@ -221,14 +221,13 @@ const GuruPage = () => {
         />
 
         <div className="flex items-center justify-end gap-2">
-          <Button
-            icon="pi pi-print"
-            className="p-button-warning"
-            tooltip="Cetak Laporan"
-            tooltipOptions={{ position: "bottom" }}
-            onClick={handlePrintClick}
-            disabled={data.length === 0 }
-          />
+        <Button
+          icon="pi pi-print"
+          className="p-button-warning mt-3"
+          tooltip="Cetak Laporan"
+          onClick={handlePrintClick}
+          disabled={data.length === 0}
+        />
 
           <HeaderBar
             title=""
