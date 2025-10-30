@@ -33,6 +33,7 @@ import masterRuangRouter from "./routes/masterRuangKelasRoutes.js";
 import masterTahunAjaranRoutes from "./routes/masterTahunAjaranRoutes.js";
 import masterMataPelajaranRoutes from "./routes/masterMataPelajaranRoutes.js";
 import masterJabatanRoutes from "./routes/masterJabatanRoute.js";
+import masterJamPelajaranRoutes from "./routes/masterJamPelajaranRoutes.js";
 import agamaRoutes from './routes/agamaRoutes.js';
 import transaksiWakelRoutes from "./routes/transaksiWakelRoutes.js";
 
@@ -101,6 +102,7 @@ app.use("/api/master-tingkatan", masterTingkatanRoutes);
 app.use("/api/master-ruang", masterRuangRouter);
 app.use("/api/master-tahun-ajaran", masterTahunAjaranRoutes);
 app.use("/api/master-mata-pelajaran", masterMataPelajaranRoutes);
+app.use("/api/master-jam-pelajaran", masterJamPelajaranRoutes);
 app.use("/api/agama", agamaRoutes);
 app.use("/api/transaksi-wakel", transaksiWakelRoutes);
 

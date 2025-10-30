@@ -15,6 +15,7 @@ const formatRow = (r) => ({
     GEDUNG_ID: r.GEDUNG_ID,
     RUANG_ID: r.RUANG_ID,
     NAMA_RUANG: r.NAMA_RUANG,
+   
   },
   jurusan: {
     JURUSAN_ID: r.JURUSAN_ID,
@@ -40,6 +41,7 @@ const baseQuery = () =>
       "s.NAMA as NAMA_SISWA",
       "ti.TINGKATAN",
       "j.NAMA_JURUSAN",
+     
       "k.GEDUNG_ID",
       "k.RUANG_ID",
       "r.NAMA_RUANG",
@@ -58,26 +60,13 @@ export const getAllTransaksi = async () => {
   return rows.map(formatRow);
 };
 
-// Tambah transaksi baru (TRANSAKSI_ID wajib manual)
+// ✅ Tambah transaksi baru (dengan auto generate TRANSAKSI_ID)
 export const createTransaksi = async (data) => {
-  // 🔹 Ambil transaksi terakhir untuk generate nomor berikutnya
-  const last = await db(table).select("TRANSAKSI_ID").orderBy("ID", "desc").first();
-
-  let nextNumber = 1;
-  if (last && last.TRANSAKSI_ID) {
-    const numericPart = parseInt(last.TRANSAKSI_ID.replace("TRXS", ""), 10);
-    if (!isNaN(numericPart)) nextNumber = numericPart + 1;
+  if (!data.TRANSAKSI_ID) {
+    throw new Error("TRANSAKSI_ID harus diisi secara manual dari frontend.");
   }
 
-  // 🔹 Format: TRXS + angka 6 digit
-  const newId = `TRXS${nextNumber.toString().padStart(6, "0")}`;
-
-  const insertData = {
-    ...data,
-    TRANSAKSI_ID: newId, // otomatis
-  };
-
-  const [id] = await db(table).insert(insertData);
+  const [id] = await db(table).insert(data);
   const row = await baseQuery().where("t.ID", id).first();
   return formatRow(row);
 };

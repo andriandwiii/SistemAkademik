@@ -61,6 +61,7 @@ export default function TransaksiPage() {
       if (!isMounted.current) return;
 
       const data = json.data || [];
+      console.log("DATA TRANSAKSI:", data); // 🪄 Debug: lihat struktur data dari API
 
       // Build tingkatan filter options
       const tingkatanSet = new Set();
@@ -87,7 +88,9 @@ export default function TransaksiPage() {
     let filtered = transaksi;
 
     if (tingkatanFilter) {
-      filtered = filtered.filter((t) => t.tingkatan?.TINGKATAN === tingkatanFilter);
+      filtered = filtered.filter(
+        (t) => t.tingkatan?.TINGKATAN === tingkatanFilter
+      );
     }
 
     if (searchKeyword.trim() !== "") {
@@ -113,31 +116,40 @@ export default function TransaksiPage() {
           },
           body: JSON.stringify(data),
         });
-        
+
         const json = await res.json();
-        
+
         if (res.ok && json.status === "00") {
           toastRef.current?.showToast("00", "Transaksi berhasil ditambahkan");
         } else {
-          toastRef.current?.showToast("01", json.message || "Gagal menambahkan transaksi");
+          toastRef.current?.showToast(
+            "01",
+            json.message || "Gagal menambahkan transaksi"
+          );
           return;
         }
       } else if (dialogMode === "edit" && selectedTransaksi) {
-        const res = await fetch(`${API_URL}/transaksi-siswa/${selectedTransaksi.ID}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(data),
-        });
-        
+        const res = await fetch(
+          `${API_URL}/transaksi-siswa/${selectedTransaksi.ID}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+          }
+        );
+
         const json = await res.json();
-        
+
         if (res.ok && json.status === "00") {
           toastRef.current?.showToast("00", "Transaksi berhasil diperbarui");
         } else {
-          toastRef.current?.showToast("01", json.message || "Gagal memperbarui transaksi");
+          toastRef.current?.showToast(
+            "01",
+            json.message || "Gagal memperbarui transaksi"
+          );
           return;
         }
       }
@@ -177,6 +189,7 @@ export default function TransaksiPage() {
     });
   };
 
+  // 🔹 Kolom DataTable
   const transaksiColumns = [
     { field: "ID", header: "ID", style: { width: "60px" } },
     {
@@ -209,8 +222,14 @@ export default function TransaksiPage() {
       body: (row) => row.jurusan?.NAMA_JURUSAN || "-",
     },
     {
+      field: "kelas.KELAS_ID",
+      header: "Kode Kelas",
+      style: { minWidth: "120px" },
+      body: (row) => row.kelas?.KELAS_ID || "-",
+    },
+    {
       field: "kelas.NAMA_RUANG",
-      header: "Kelas",
+      header: "Nama Ruang",
       style: { minWidth: "120px" },
       body: (row) => row.kelas?.NAMA_RUANG || "-",
     },
@@ -252,7 +271,7 @@ export default function TransaksiPage() {
 
       <h3 className="text-xl font-semibold mb-4">Transaksi Penempatan Siswa</h3>
 
-      {/* 🔹 Toolbar atas: Print | Search | Filter Tingkatan | Tambah */}
+      {/* 🔹 Toolbar atas */}
       <div className="flex flex-col md:flex-row justify-content-between align-items-center mb-3 gap-3 flex-wrap">
         <div className="flex flex-wrap gap-3 align-items-center w-full md:w-auto">
           <Button
