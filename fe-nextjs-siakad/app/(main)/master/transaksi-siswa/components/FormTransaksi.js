@@ -6,10 +6,6 @@ import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 
-/**
- * FormTransaksi Component
- * Komponen untuk menambah & mengedit data transaksi
- */
 const FormTransaksi = ({
   visible,
   onHide,
@@ -30,7 +26,6 @@ const FormTransaksi = ({
   const [jurusanOptions, setJurusanOptions] = useState([]);
   const [kelasOptions, setKelasOptions] = useState([]);
   const [tahunAjaranOptions, setTahunAjaranOptions] = useState([]);
-
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -70,15 +65,13 @@ const FormTransaksi = ({
       setLoadingData(false);
 
       if (selectedTransaksi) {
-        // Jika Edit
+        // Mode EDIT
         setTransaksiId(selectedTransaksi.TRANSAKSI_ID || "");
         setNis(selectedTransaksi.siswa?.NIS || null);
         setTingkatanId(selectedTransaksi.tingkatan?.TINGKATAN_ID || null);
         setJurusanId(selectedTransaksi.jurusan?.JURUSAN_ID || null);
         setKelasId(selectedTransaksi.kelas?.KELAS_ID || null);
-        setTahunAjaranId(
-          selectedTransaksi.tahun_ajaran?.TAHUN_AJARAN_ID || null
-        );
+        setTahunAjaranId(selectedTransaksi.tahun_ajaran?.TAHUN_AJARAN_ID || null);
       } else {
         // Mode TAMBAH - Generate ID otomatis
         const newId = generateTransaksiId();
@@ -94,12 +87,18 @@ const FormTransaksi = ({
     initForm();
   }, [visible, selectedTransaksi, token, transaksiList]);
 
-  // === Fetch Data dari API ===
+  // === FETCH SISWA ===
   const fetchSiswa = async () => {
     try {
       const res = await fetch(`${API_URL}/siswa`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      
+      if (!res.ok) {
+        console.error("Error fetch siswa, status:", res.status);
+        return;
+      }
+
       const json = await res.json();
       console.log("Data siswa dari API:", json);
       
@@ -109,7 +108,7 @@ const FormTransaksi = ({
       const usedNis = transaksiList.map((t) => t.siswa?.NIS);
       const currentNis = selectedTransaksi?.siswa?.NIS;
 
-      const filtered = siswaData.filter(
+      siswaData = siswaData.filter(
         (s) => !usedNis.includes(s.NIS) || s.NIS === currentNis
       );
       
@@ -127,6 +126,7 @@ const FormTransaksi = ({
     }
   };
 
+  // === FETCH TINGKATAN ===
   const fetchTingkatan = async () => {
     try {
       const res = await fetch(`${API_URL}/master-tingkatan`, {
@@ -146,6 +146,7 @@ const FormTransaksi = ({
     }
   };
 
+  // === FETCH JURUSAN ===
   const fetchJurusan = async () => {
     try {
       const res = await fetch(`${API_URL}/master-jurusan`, {
@@ -165,6 +166,7 @@ const FormTransaksi = ({
     }
   };
 
+  // === FETCH KELAS ===
   const fetchKelas = async () => {
     try {
       const res = await fetch(`${API_URL}/master-kelas`, {
@@ -173,12 +175,18 @@ const FormTransaksi = ({
       const json = await res.json();
       const data = json.data || [];
 
-      setKelasOptions(data);
+      setKelasOptions(
+        data.map((k) => ({
+          label: k.KELAS_ID || `Kelas ${k.KELAS_ID}`,
+          value: k.KELAS_ID,
+        }))
+      );
     } catch (err) {
       console.error("Gagal fetch kelas:", err);
     }
   };
 
+  // === FETCH TAHUN AJARAN ===
   const fetchTahunAjaran = async () => {
     try {
       const res = await fetch(`${API_URL}/master-tahun-ajaran`, {
@@ -198,7 +206,7 @@ const FormTransaksi = ({
     }
   };
 
-  // === Submit Form ===
+  // === SUBMIT FORM ===
   const handleSubmit = async () => {
     // Validasi field
     if (!nis || !tingkatanId || !jurusanId || !kelasId || !tahunAjaranId) {
@@ -220,19 +228,19 @@ const FormTransaksi = ({
     setLoading(false);
   };
 
+  // === UI DIALOG ===
   return (
     <Dialog
       header={selectedTransaksi ? "Edit Transaksi" : "Tambah Transaksi"}
       visible={visible}
-      style={{ width: "32vw" }}
+      style={{ width: "30vw" }}
       modal
       onHide={onHide}
     >
       <div className="p-fluid">
-        {/* Loading Spinner */}
         {loadingData && (
           <div className="text-center mb-3">
-            <i className="pi pi-spin pi-spinner" style={{ fontSize: "2rem" }}></i>
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem' }}></i>
             <p>Memuat data...</p>
           </div>
         )}
@@ -256,9 +264,11 @@ const FormTransaksi = ({
           )}
         </div>
 
-        {/* SISWA */}
+        {/* Siswa (NIS) */}
         <div className="field">
-          <label htmlFor="siswa">Siswa</label>
+          <label htmlFor="siswa">
+            Siswa
+          </label>
           <Dropdown
             id="siswa"
             value={nis}
@@ -268,12 +278,20 @@ const FormTransaksi = ({
             filter
             showClear
             disabled={loadingData}
+            emptyMessage="Tidak ada data siswa"
           />
+          {siswaOptions.length === 0 && !loadingData && (
+            <small className="text-red-500">
+              Data siswa kosong atau semua siswa sudah ditransaksikan
+            </small>
+          )}
         </div>
 
-        {/* TINGKATAN */}
+        {/* Tingkatan */}
         <div className="field">
-          <label htmlFor="tingkatan">Tingkatan</label>
+          <label htmlFor="tingkatan">
+            Tingkatan
+          </label>
           <Dropdown
             id="tingkatan"
             value={tingkatanId}
@@ -285,9 +303,11 @@ const FormTransaksi = ({
           />
         </div>
 
-        {/* JURUSAN */}
+        {/* Jurusan */}
         <div className="field">
-          <label htmlFor="jurusan">Jurusan</label>
+          <label htmlFor="jurusan">
+            Jurusan
+          </label>
           <Dropdown
             id="jurusan"
             value={jurusanId}
@@ -300,45 +320,28 @@ const FormTransaksi = ({
           />
         </div>
 
-        {/* KODE KELAS */}
+        {/* Kelas */}
         <div className="field">
-          <label htmlFor="kelas">Kode Kelas</label>
+          <label htmlFor="kelas">
+            Kelas 
+          </label>
           <Dropdown
             id="kelas"
             value={kelasId}
-            options={kelasOptions.map((k) => ({
-              label: k.KODE_KELAS || `${k.KELAS_ID}`,
-              value: k.KELAS_ID,
-            }))}
+            options={kelasOptions}
             onChange={(e) => setKelasId(e.value)}
-            placeholder="Pilih kode kelas"
+            placeholder="Pilih kelas"
             filter
             showClear
             disabled={loadingData}
           />
         </div>
 
-        {/* KELAS (Nama Ruang) */}
+        {/* Tahun Ajaran */}
         <div className="field">
-          <label htmlFor="kelas">Nama Ruang</label>
-          <Dropdown
-            id="kelas"
-            value={kelasId}
-            options={kelasOptions.map((k) => ({
-              label: k.NAMA_RUANG || "-",
-              value: k.KELAS_ID,
-            }))}
-            onChange={(e) => setKelasId(e.value)}
-            placeholder="Pilih nama ruang"
-            filter
-            showClear
-            disabled={loadingData}
-          />
-        </div>
-
-        {/* TAHUN AJARAN */}
-        <div className="field">
-          <label htmlFor="tahunAjaran">Tahun Ajaran</label>
+          <label htmlFor="tahunAjaran">
+            Tahun Ajaran 
+          </label>
           <Dropdown
             id="tahunAjaran"
             value={tahunAjaranId}
@@ -350,7 +353,7 @@ const FormTransaksi = ({
           />
         </div>
 
-        {/* Tombol Aksi */}
+        {/* Tombol */}
         <div className="flex justify-content-end gap-2 mt-3">
           <Button
             label="Batal"
