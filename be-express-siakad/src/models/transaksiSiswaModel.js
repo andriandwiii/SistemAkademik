@@ -15,6 +15,7 @@ const formatRow = (r) => ({
     GEDUNG_ID: r.GEDUNG_ID,
     RUANG_ID: r.RUANG_ID,
     NAMA_RUANG: r.NAMA_RUANG,
+   
   },
   jurusan: {
     JURUSAN_ID: r.JURUSAN_ID,
@@ -40,6 +41,7 @@ const baseQuery = () =>
       "s.NAMA as NAMA_SISWA",
       "ti.TINGKATAN",
       "j.NAMA_JURUSAN",
+     
       "k.GEDUNG_ID",
       "k.RUANG_ID",
       "r.NAMA_RUANG",
@@ -58,13 +60,24 @@ export const getAllTransaksi = async () => {
   return rows.map(formatRow);
 };
 
-// Tambah transaksi baru (TRANSAKSI_ID wajib manual)
+// ✅ Tambah transaksi baru (dengan auto generate TRANSAKSI_ID)
 export const createTransaksi = async (data) => {
-  if (!data.TRANSAKSI_ID) {
-    throw new Error("TRANSAKSI_ID harus diisi secara manual dari frontend.");
-  }
+  // Ambil TRANSAKSI_ID terakhir
+  const latest = await db(table).orderBy("ID", "desc").first();
 
+  // Ambil angka terakhir dari TRANSAKSI_ID (misal TRX0000007 → 7)
+  const lastNum = latest ? parseInt(latest.TRANSAKSI_ID.slice(3)) : 0;
+
+  // Buat TRANSAKSI_ID baru
+  const newId = `TRX${(lastNum + 1).toString().padStart(7, "0")}`;
+
+  // Set TRANSAKSI_ID ke data
+  data.TRANSAKSI_ID = newId;
+
+  // Simpan ke database
   const [id] = await db(table).insert(data);
+
+  // Ambil data yang baru dimasukkan
   const row = await baseQuery().where("t.ID", id).first();
   return formatRow(row);
 };

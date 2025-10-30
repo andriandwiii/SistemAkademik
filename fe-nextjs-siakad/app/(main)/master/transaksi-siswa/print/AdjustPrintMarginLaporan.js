@@ -47,34 +47,29 @@ export default function AdjustPrintMarginLaporan({
     setConfig((prev) => ({ ...prev, [name]: e.value }));
   };
 
-  // 🔹 Header Laporan
+  // 🟩 Header PDF
   const addHeader = (doc, title, marginLeft, marginTop, marginRight) => {
     const pageWidth = doc.internal.pageSize.width;
 
-    // Nama Sekolah
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(41, 128, 185);
     doc.text("SEKOLAH NEGERI 1 MADIUN", pageWidth / 2, marginTop + 5, { align: "center" });
 
-    // Alamat
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 80, 80);
     doc.text("Jl. Pendidikan No. 10, Kota Madiun, Jawa Timur", pageWidth / 2, marginTop + 12, { align: "center" });
 
-    // Garis pemisah
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
     doc.line(marginLeft, marginTop + 18, pageWidth - marginRight, marginTop + 18);
 
-    // Judul laporan
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
     doc.text(title, pageWidth / 2, marginTop + 25, { align: "center" });
 
-    // Tanggal cetak
     const today = new Date().toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
@@ -88,7 +83,7 @@ export default function AdjustPrintMarginLaporan({
     return marginTop + 38;
   };
 
-  // 🔸 Export PDF
+  // 🟥 Export PDF
   async function exportPDF(config) {
     const doc = new jsPDF({
       orientation: config.orientation,
@@ -102,32 +97,41 @@ export default function AdjustPrintMarginLaporan({
 
     const startY = addHeader(doc, "LAPORAN DATA PENEMPATAN SISWA KE KELAS", mL, mT, mR);
 
+    // 🧾 Isi tabel lengkap
     autoTable(doc, {
       startY,
-      head: [["ID", "Nama Siswa", "NIS", "Kelas", "Tahun Ajaran", "Status"]],
+      head: [
+        [
+          "ID",
+          "Nama Siswa",
+          "NIS",
+          "Tingkatan",
+          "Jurusan",
+          "Kode Kelas",
+          "Nama Ruang",
+          "Tahun Ajaran",
+        ],
+      ],
       body: dataTransaksi.map((t) => [
-        // ✅ ID FIX — ambil otomatis dari ID atau TRANSAKSI_ID
         t.ID || t.TRANSAKSI_ID || "-",
         t.siswa?.NAMA || "-",
         t.siswa?.NIS || "-",
-        t.kelas
-          ? `${t.kelas.TINGKATAN || ""} ${t.kelas.NAMA_JURUSAN || ""} ${t.kelas.NAMA_RUANG || ""}`
-              .replace(/\s+/g, " ")
-              .trim()
-          : "-",
-        t.TAHUN_AJARAN || "-",
-        t.STATUS || "-",
+        t.tingkatan?.TINGKATAN || "-",
+        t.jurusan?.NAMA_JURUSAN || "-",
+        t.kelas?.KELAS_ID || "-",
+        t.kelas?.NAMA_RUANG || "-",
+        t.tahun_ajaran?.NAMA_TAHUN_AJARAN || "-",
       ]),
       margin: { left: mL, right: mR },
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 249, 250] },
       didDrawPage: (data) => {
-        // Footer halaman
         const pageCount = doc.internal.getNumberOfPages();
         doc.setFontSize(8);
         doc.setTextColor(100);
-        doc.text(`Halaman ${doc.internal.getCurrentPageInfo().pageNumber} dari ${pageCount}`,
+        doc.text(
+          `Halaman ${doc.internal.getCurrentPageInfo().pageNumber} dari ${pageCount}`,
           doc.internal.pageSize.width - mR - 20,
           doc.internal.pageSize.height - 5
         );
@@ -137,19 +141,17 @@ export default function AdjustPrintMarginLaporan({
     return doc.output("datauristring");
   }
 
-  // 🔸 Export Excel
+  // 🟨 Export Excel
   const exportExcel = () => {
     const dataForExcel = dataTransaksi.map((t) => ({
       ID: t.ID || t.TRANSAKSI_ID || "-",
       "Nama Siswa": t.siswa?.NAMA || "-",
       NIS: t.siswa?.NIS || "-",
-      Kelas: t.kelas
-        ? `${t.kelas.TINGKATAN || ""} ${t.kelas.NAMA_JURUSAN || ""} ${t.kelas.NAMA_RUANG || ""}`
-            .replace(/\s+/g, " ")
-            .trim()
-        : "-",
-      "Tahun Ajaran": t.TAHUN_AJARAN || "-",
-      Status: t.STATUS || "-",
+      Tingkatan: t.tingkatan?.TINGKATAN || "-",
+      Jurusan: t.jurusan?.NAMA_JURUSAN || "-",
+      "Kode Kelas": t.kelas?.KELAS_ID || "-",
+      "Nama Ruang": t.kelas?.NAMA_RUANG || "-",
+      "Tahun Ajaran": t.tahun_ajaran?.NAMA_TAHUN_AJARAN || "-",
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataForExcel);
@@ -158,7 +160,7 @@ export default function AdjustPrintMarginLaporan({
     XLSX.writeFile(wb, "Laporan_Data_Transaksi_Siswa.xlsx");
   };
 
-  // 🔸 Handle Export PDF
+  // 🧩 Handle Export PDF
   const handleExportPdf = async () => {
     try {
       setLoadingExport(true);
@@ -172,7 +174,7 @@ export default function AdjustPrintMarginLaporan({
     }
   };
 
-  // 🔹 Footer Toolbar
+  // 🟢 Footer Toolbar
   const footer = () => (
     <div className="flex flex-row gap-2 justify-content-end">
       <Button
@@ -191,7 +193,7 @@ export default function AdjustPrintMarginLaporan({
     </div>
   );
 
-  // 🔹 UI Dialog
+  // 🧠 UI Dialog
   return (
     <Dialog
       visible={adjustDialog}
@@ -201,7 +203,6 @@ export default function AdjustPrintMarginLaporan({
       modal
     >
       <div className="grid p-fluid">
-        {/* Margin Settings */}
         <div className="col-12 md:col-6">
           <h5>Pengaturan Margin (mm)</h5>
           <div className="grid formgrid">
@@ -222,7 +223,6 @@ export default function AdjustPrintMarginLaporan({
           </div>
         </div>
 
-        {/* Paper Settings */}
         <div className="col-12 md:col-6">
           <h5>Pengaturan Kertas</h5>
           <div className="field">
