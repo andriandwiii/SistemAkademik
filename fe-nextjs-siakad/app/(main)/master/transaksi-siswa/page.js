@@ -223,7 +223,7 @@ export default function TransaksiPage() {
     },
     {
       field: "kelas.KELAS_ID",
-      header: "Kode Kelas",
+      header: "Kelas",
       style: { minWidth: "120px" },
       body: (row) => row.kelas?.KELAS_ID || "-",
     },

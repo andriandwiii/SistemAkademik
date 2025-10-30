@@ -107,9 +107,9 @@ export default function AdjustPrintMarginLaporan({
           "NIS",
           "Tingkatan",
           "Jurusan",
-          "Kode Kelas",
+          "Kelas",
           "Nama Ruang",
-          "Tahun Ajaran",
+          "Tahun Ajaran"
         ],
       ],
       body: dataTransaksi.map((t) => [
@@ -149,7 +149,7 @@ export default function AdjustPrintMarginLaporan({
       NIS: t.siswa?.NIS || "-",
       Tingkatan: t.tingkatan?.TINGKATAN || "-",
       Jurusan: t.jurusan?.NAMA_JURUSAN || "-",
-      "Kode Kelas": t.kelas?.KELAS_ID || "-",
+      "Kelas": t.kelas?.KELAS_ID || "-",
       "Nama Ruang": t.kelas?.NAMA_RUANG || "-",
       "Tahun Ajaran": t.tahun_ajaran?.NAMA_TAHUN_AJARAN || "-",
     }));
