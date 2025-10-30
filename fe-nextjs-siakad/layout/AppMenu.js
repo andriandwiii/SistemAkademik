@@ -53,7 +53,7 @@ const AppMenu = () => {
                             { label: "Master Tingkatan", icon: "pi pi-fw pi-list", to: "/master/tingkatan" },
                             { label: "Master Ruang Kelas", icon: "pi pi-fw pi-th-large", to: "/master/ruang" },
                             { label: "Master Tahun Ajaran", icon: "pi pi-fw pi-calendar-plus", to: "/master/tahun_ajaran" },
-                            
+                            { label: "Master Jam Pelajaran", icon: "pi pi-user-plus", to: "/master/jam_pelajaran" },
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
                             
 
