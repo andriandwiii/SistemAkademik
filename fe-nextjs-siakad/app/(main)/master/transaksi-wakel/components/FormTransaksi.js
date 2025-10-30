@@ -6,7 +6,7 @@ import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 
-const FormTransaksi = ({
+const FormTransaksiWakel = ({
   visible,
   onHide,
   onSave,
@@ -15,17 +15,15 @@ const FormTransaksi = ({
   transaksiList,
 }) => {
   const [transaksiId, setTransaksiId] = useState("");
-  const [nis, setNis] = useState(null);
+  const [nip, setNip] = useState(null);
   const [tingkatanId, setTingkatanId] = useState(null);
   const [jurusanId, setJurusanId] = useState(null);
   const [kelasId, setKelasId] = useState(null);
-  const [tahunAjaranId, setTahunAjaranId] = useState(null);
 
-  const [siswaOptions, setSiswaOptions] = useState([]);
+  const [guruOptions, setGuruOptions] = useState([]);
   const [tingkatanOptions, setTingkatanOptions] = useState([]);
   const [jurusanOptions, setJurusanOptions] = useState([]);
   const [kelasOptions, setKelasOptions] = useState([]);
-  const [tahunAjaranOptions, setTahunAjaranOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -34,19 +32,19 @@ const FormTransaksi = ({
   // Generate ID Transaksi otomatis (untuk mode tambah)
   const generateTransaksiId = () => {
     if (!transaksiList || transaksiList.length === 0) {
-      return "TRXS000001";
+      return "TRXG000001";
     }
 
     // Ambil transaksi terakhir
     const lastTransaksi = transaksiList[0]; // Asumsi list sudah diurutkan desc
-    const lastId = lastTransaksi?.TRANSAKSI_ID || "TRXS000000";
+    const lastId = lastTransaksi?.TRANSAKSI_ID || "TRXG000000";
 
     // Extract angka dari ID terakhir
-    const numericPart = parseInt(lastId.replace("TRXS", ""), 10);
+    const numericPart = parseInt(lastId.replace("TRXG", ""), 10);
     const nextNumber = isNaN(numericPart) ? 1 : numericPart + 1;
 
-    // Format: TRXS + angka 6 digit
-    return `TRXS${nextNumber.toString().padStart(6, "0")}`;
+    // Format: TRXG + angka 6 digit
+    return `TRXG${nextNumber.toString().padStart(6, "0")}`;
   };
 
   // Inisialisasi form setiap kali dialog dibuka
@@ -56,73 +54,70 @@ const FormTransaksi = ({
 
       setLoadingData(true);
       await Promise.all([
-        fetchSiswa(),
+        fetchGuru(),
         fetchTingkatan(),
         fetchJurusan(),
         fetchKelas(),
-        fetchTahunAjaran(),
       ]);
       setLoadingData(false);
 
       if (selectedTransaksi) {
         // Mode EDIT
         setTransaksiId(selectedTransaksi.TRANSAKSI_ID || "");
-        setNis(selectedTransaksi.siswa?.NIS || null);
+        setNip(selectedTransaksi.guru?.NIP || null);
         setTingkatanId(selectedTransaksi.tingkatan?.TINGKATAN_ID || null);
         setJurusanId(selectedTransaksi.jurusan?.JURUSAN_ID || null);
         setKelasId(selectedTransaksi.kelas?.KELAS_ID || null);
-        setTahunAjaranId(selectedTransaksi.tahun_ajaran?.TAHUN_AJARAN_ID || null);
       } else {
         // Mode TAMBAH - Generate ID otomatis
         const newId = generateTransaksiId();
         setTransaksiId(newId);
-        setNis(null);
+        setNip(null);
         setTingkatanId(null);
         setJurusanId(null);
         setKelasId(null);
-        setTahunAjaranId(null);
       }
     };
 
     initForm();
   }, [visible, selectedTransaksi, token, transaksiList]);
 
-  // === FETCH SISWA ===
-  const fetchSiswa = async () => {
+  // === FETCH GURU ===
+  const fetchGuru = async () => {
     try {
-      const res = await fetch(`${API_URL}/siswa`, {
+      const res = await fetch(`${API_URL}/master-guru`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
       if (!res.ok) {
-        console.error("Error fetch siswa, status:", res.status);
+        console.error("Error fetch guru, status:", res.status);
         return;
       }
 
       const json = await res.json();
-      console.log("Data siswa dari API:", json);
+      console.log("Data guru dari API:", json);
       
-      let siswaData = json.data || json || [];
+      let guruData = json.data || json || [];
 
-      // Filter siswa yang sudah ada di transaksi (kecuali yang sedang diedit)
-      const usedNis = transaksiList.map((t) => t.siswa?.NIS);
-      const currentNis = selectedTransaksi?.siswa?.NIS;
+      // Filter guru yang sudah ada di transaksi (kecuali yang sedang diedit)
+      const usedNip = transaksiList.map((t) => t.guru?.NIP);
+      const currentNip = selectedTransaksi?.guru?.NIP;
 
-      siswaData = siswaData.filter(
-        (s) => !usedNis.includes(s.NIS) || s.NIS === currentNis
+      guruData = guruData.filter(
+        (g) => !usedNip.includes(g.NIP) || g.NIP === currentNip
       );
       
-      siswaData.sort((a, b) => (a.NAMA || "").localeCompare(b.NAMA || ""));
+      guruData.sort((a, b) => (a.NAMA || "").localeCompare(b.NAMA || ""));
 
-      const options = siswaData.map((s) => ({
-        label: `${s.NIS} | ${s.NAMA}`,
-        value: s.NIS,
+      const options = guruData.map((g) => ({
+        label: `${g.NIP} | ${g.NAMA}`,
+        value: g.NIP,
       }));
 
-      console.log("Siswa options:", options);
-      setSiswaOptions(options);
+      console.log("Guru options:", options);
+      setGuruOptions(options);
     } catch (err) {
-      console.error("Gagal fetch siswa:", err);
+      console.error("Gagal fetch guru:", err);
     }
   };
 
@@ -167,58 +162,39 @@ const FormTransaksi = ({
   };
 
   // === FETCH KELAS ===
-  const fetchKelas = async () => {
-    try {
-      const res = await fetch(`${API_URL}/master-kelas`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      const data = json.data || [];
+const fetchKelas = async () => {
+  try {
+    const res = await fetch(`${API_URL}/master-kelas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json();
+    const data = json.data || [];
 
-      setKelasOptions(
-        data.map((k) => ({
-          label: k.NAMA_RUANG || `Kelas ${k.KELAS_ID}`,
-          value: k.KELAS_ID,
-        }))
-      );
-    } catch (err) {
-      console.error("Gagal fetch kelas:", err);
-    }
-  };
+    // Menampilkan hanya KELAS_ID di dropdown
+    setKelasOptions(
+      data.map((k) => ({
+        label: k.KELAS_ID,  // tampilkan ID kelas
+        value: k.KELAS_ID,  // kirim value ID kelas ke backend
+      }))
+    );
+  } catch (err) {
+    console.error("Gagal fetch kelas:", err);
+  }
+};
 
-  // === FETCH TAHUN AJARAN ===
-  const fetchTahunAjaran = async () => {
-    try {
-      const res = await fetch(`${API_URL}/master-tahun-ajaran`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      const data = json.data || [];
-
-      setTahunAjaranOptions(
-        data.map((ta) => ({
-          label: ta.NAMA_TAHUN_AJARAN,
-          value: ta.TAHUN_AJARAN_ID,
-        }))
-      );
-    } catch (err) {
-      console.error("Gagal fetch tahun ajaran:", err);
-    }
-  };
 
   // === SUBMIT FORM ===
   const handleSubmit = async () => {
     // Validasi field
-    if (!nis || !tingkatanId || !jurusanId || !kelasId || !tahunAjaranId) {
+    if (!nip || !tingkatanId || !jurusanId || !kelasId) {
       return alert("Lengkapi semua field!");
     }
 
     const data = {
-      NIS: nis,
+      NIP: nip,
       TINGKATAN_ID: tingkatanId,
       JURUSAN_ID: jurusanId,
       KELAS_ID: kelasId,
-      TAHUN_AJARAN_ID: tahunAjaranId,
     };
 
     // Tidak perlu kirim TRANSAKSI_ID karena backend yang generate
@@ -231,7 +207,7 @@ const FormTransaksi = ({
   // === UI DIALOG ===
   return (
     <Dialog
-      header={selectedTransaksi ? "Edit Transaksi" : "Tambah Transaksi"}
+      header={selectedTransaksi ? "Edit Wali Kelas" : "Tambah Wali Kelas"}
       visible={visible}
       style={{ width: "30vw" }}
       modal
@@ -259,30 +235,30 @@ const FormTransaksi = ({
           />
           {!selectedTransaksi && (
             <small className="text-gray-500">
-              ID akan di-generate otomatis dengan format TRXSXXXXXX
+              ID akan di-generate otomatis dengan format TRXGXXXXXX
             </small>
           )}
         </div>
 
-        {/* Siswa (NIS) */}
+        {/* Guru (NIP) */}
         <div className="field">
-          <label htmlFor="siswa">
-            Siswa
+          <label htmlFor="guru">
+            Guru Wali Kelas
           </label>
           <Dropdown
-            id="siswa"
-            value={nis}
-            options={siswaOptions}
-            onChange={(e) => setNis(e.value)}
-            placeholder="Pilih siswa"
+            id="guru"
+            value={nip}
+            options={guruOptions}
+            onChange={(e) => setNip(e.value)}
+            placeholder="Pilih guru"
             filter
             showClear
             disabled={loadingData}
-            emptyMessage="Tidak ada data siswa"
+            emptyMessage="Tidak ada data guru"
           />
-          {siswaOptions.length === 0 && !loadingData && (
+          {guruOptions.length === 0 && !loadingData && (
             <small className="text-red-500">
-              Data siswa kosong atau semua siswa sudah ditransaksikan
+              Data guru kosong atau semua guru sudah menjadi wali kelas
             </small>
           )}
         </div>
@@ -337,22 +313,6 @@ const FormTransaksi = ({
           />
         </div>
 
-        {/* Tahun Ajaran */}
-        <div className="field">
-          <label htmlFor="tahunAjaran">
-            Tahun Ajaran 
-          </label>
-          <Dropdown
-            id="tahunAjaran"
-            value={tahunAjaranId}
-            options={tahunAjaranOptions}
-            onChange={(e) => setTahunAjaranId(e.value)}
-            placeholder="Pilih tahun ajaran"
-            showClear
-            disabled={loadingData}
-          />
-        </div>
-
         {/* Tombol */}
         <div className="flex justify-content-end gap-2 mt-3">
           <Button
@@ -374,4 +334,4 @@ const FormTransaksi = ({
   );
 };
 
-export default FormTransaksi;
+export default FormTransaksiWakel;

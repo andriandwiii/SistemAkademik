@@ -1,14 +1,14 @@
 import { db } from "../core/config/knex.js";
 
-const table = "transaksi_siswa_kelas";
+const table = "transaksi_guru_wakel";
 
 // Format data hasil query
 const formatRow = (r) => ({
   ID: r.ID,
   TRANSAKSI_ID: r.TRANSAKSI_ID,
-  siswa: {
-    NIS: r.NIS,
-    NAMA: r.NAMA_SISWA,
+  guru: {
+    NIP: r.NIP,
+    NAMA: r.NAMA_GURU,
   },
   kelas: {
     KELAS_ID: r.KELAS_ID,
@@ -24,10 +24,6 @@ const formatRow = (r) => ({
     TINGKATAN_ID: r.TINGKATAN_ID,
     TINGKATAN: r.TINGKATAN,
   },
-  tahun_ajaran: {
-    TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID,
-    NAMA_TAHUN_AJARAN: r.NAMA_TAHUN_AJARAN,
-  },
   created_at: r.created_at,
   updated_at: r.updated_at,
 });
@@ -37,40 +33,38 @@ const baseQuery = () =>
   db(`${table} as t`)
     .select(
       "t.*",
-      "s.NAMA as NAMA_SISWA",
+      "g.NAMA as NAMA_GURU",
       "ti.TINGKATAN",
       "j.NAMA_JURUSAN",
       "k.GEDUNG_ID",
       "k.RUANG_ID",
-      "r.NAMA_RUANG",
-      "ta.NAMA_TAHUN_AJARAN"
+      "r.NAMA_RUANG"
     )
-    .leftJoin("master_siswa as s", "t.NIS", "s.NIS")
+    .leftJoin("master_guru as g", "t.NIP", "g.NIP")
     .leftJoin("master_tingkatan as ti", "t.TINGKATAN_ID", "ti.TINGKATAN_ID")
     .leftJoin("master_jurusan as j", "t.JURUSAN_ID", "j.JURUSAN_ID")
     .leftJoin("master_kelas as k", "t.KELAS_ID", "k.KELAS_ID")
-    .leftJoin("master_ruang as r", "k.RUANG_ID", "r.RUANG_ID")
-    .leftJoin("master_tahun_ajaran as ta", "t.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID");
+    .leftJoin("master_ruang as r", "k.RUANG_ID", "r.RUANG_ID");
 
-// Ambil semua transaksi
+// Ambil semua transaksi guru wali kelas
 export const getAllTransaksi = async () => {
   const rows = await baseQuery().orderBy("t.ID", "desc");
   return rows.map(formatRow);
 };
 
-// Tambah transaksi baru (TRANSAKSI_ID wajib manual)
+// Tambah transaksi baru (TRANSAKSI_ID auto-generate)
 export const createTransaksi = async (data) => {
   // 🔹 Ambil transaksi terakhir untuk generate nomor berikutnya
   const last = await db(table).select("TRANSAKSI_ID").orderBy("ID", "desc").first();
 
   let nextNumber = 1;
   if (last && last.TRANSAKSI_ID) {
-    const numericPart = parseInt(last.TRANSAKSI_ID.replace("TRXS", ""), 10);
+    const numericPart = parseInt(last.TRANSAKSI_ID.replace("TRXG", ""), 10);
     if (!isNaN(numericPart)) nextNumber = numericPart + 1;
   }
 
-  // 🔹 Format: TRXS + angka 6 digit
-  const newId = `TRXS${nextNumber.toString().padStart(6, "0")}`;
+  // 🔹 Format: TRXG + angka 6 digit
+  const newId = `TRXG${nextNumber.toString().padStart(6, "0")}`;
 
   const insertData = {
     ...data,
@@ -81,7 +75,6 @@ export const createTransaksi = async (data) => {
   const row = await baseQuery().where("t.ID", id).first();
   return formatRow(row);
 };
-
 
 // Update transaksi
 export const updateTransaksi = async (id, data) => {

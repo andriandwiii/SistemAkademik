@@ -51,7 +51,7 @@ const AppMenu = () => {
                             { label: "Master Jurusan", icon: "pi pi-fw pi-briefcase", to: "/master/jurusan" },
                             { label: "Master Gedung", icon: "pi pi-fw pi-building", to: "/master/gedung" },
                             { label: "Master Tingkatan", icon: "pi pi-fw pi-list", to: "/master/tingkatan" },
-                            { label: "Master Ruang Kelas", icon: "pi pi-fw pi-th-large", to: "/master/ruang" },
+                            { label: "Master Ruang", icon: "pi pi-fw pi-th-large", to: "/master/ruang" },
                             { label: "Master Tahun Ajaran", icon: "pi pi-fw pi-calendar-plus", to: "/master/tahun_ajaran" },
                             
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
@@ -73,7 +73,8 @@ const AppMenu = () => {
                         label: "Manajemen Guru",
                         icon: "pi pi-fw pi-users",
                         items: [
-                            { label: "Guru", icon: "pi pi-fw pi-users", to: "/master/guru" }
+                            { label: "Guru", icon: "pi pi-fw pi-users", to: "/master/guru" },
+                            { label: "Transaksi Wali Kelas", icon: "pi pi-fw pi-user-edit", to: "/master/transaksi-wakel" }
                         ]
                     },
                     {

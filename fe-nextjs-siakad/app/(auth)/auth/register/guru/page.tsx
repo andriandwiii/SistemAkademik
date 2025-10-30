@@ -97,7 +97,7 @@ const RegisterGuruPage: FC = () => {
       
       // Transform data menjadi format dropdown
       const options = response.data.data.map((jabatan: any) => ({
-        label: `${jabatan.KODE_JABATAN} - ${jabatan.NAMA_JABATAN}`,
+        label: `${jabatan.KODE_JABATAN} | ${jabatan.NAMA_JABATAN}`,
         value: jabatan.KODE_JABATAN,
       }));
       

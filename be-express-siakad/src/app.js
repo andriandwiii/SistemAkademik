@@ -34,6 +34,7 @@ import masterTahunAjaranRoutes from "./routes/masterTahunAjaranRoutes.js";
 import masterMataPelajaranRoutes from "./routes/masterMataPelajaranRoutes.js";
 import masterJabatanRoutes from "./routes/masterJabatanRoute.js";
 import agamaRoutes from './routes/agamaRoutes.js';
+import transaksiWakelRoutes from "./routes/transaksiWakelRoutes.js";
 
 
 const app = express();
@@ -101,5 +102,6 @@ app.use("/api/master-ruang", masterRuangRouter);
 app.use("/api/master-tahun-ajaran", masterTahunAjaranRoutes);
 app.use("/api/master-mata-pelajaran", masterMataPelajaranRoutes);
 app.use("/api/agama", agamaRoutes);
+app.use("/api/transaksi-wakel", transaksiWakelRoutes);
 
 export default app;
