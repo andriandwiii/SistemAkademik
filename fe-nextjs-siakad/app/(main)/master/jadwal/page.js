@@ -1,161 +1,221 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import axios from "axios";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "primereact/button";
-import { InputText } from "primereact/inputtext";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
-import { Dialog } from "primereact/dialog";
+import { Dropdown } from "primereact/dropdown";
 import ToastNotifier from "../../../components/ToastNotifier";
+import HeaderBar from "../../../components/headerbar";
 import CustomDataTable from "../../../components/DataTable";
 import FormJadwal from "./components/FormJadwal";
-import AdjustPrintMarginLaporanJadwal from "./print/AdjustPrintMarginLaporanJadwal";
-import dynamic from "next/dynamic";
 
-const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export default function MasterJadwalPage() {
+export default function JadwalPage() {
   const toastRef = useRef(null);
-  const [jadwalList, setJadwalList] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [dialogMode, setDialogMode] = useState(null);
+  const isMounted = useRef(true);
 
-  const [kelasOptions, setKelasOptions] = useState([]);
-  const [mapelKelasOptions, setMapelKelasOptions] = useState([]);
+  const [token, setToken] = useState("");
+  const [jadwal, setJadwal] = useState([]);
+  const [originalData, setOriginalData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedJadwal, setSelectedJadwal] = useState(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+
+  // Filter
+  const [hariFilter, setHariFilter] = useState(null);
+  const [tingkatanFilter, setTingkatanFilter] = useState(null);
+  const [jurusanFilter, setJurusanFilter] = useState(null);
+  const [kelasFilter, setKelasFilter] = useState(null);
   const [hariOptions, setHariOptions] = useState([]);
-  const [searchKeyword, setSearchKeyword] = useState("");
-
-  const [adjustDialog, setAdjustDialog] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const [tingkatanOptions, setTingkatanOptions] = useState([]);
+  const [jurusanOptions, setJurusanOptions] = useState([]);
+  const [kelasOptions, setKelasOptions] = useState([]);
 
   useEffect(() => {
-    fetchJadwal();
-    fetchKelas();
-    fetchMapelKelas();
-    fetchHari();
+    const t = localStorage.getItem("token");
+    if (!t) {
+      window.location.href = "/";
+    } else {
+      setToken(t);
+      fetchJadwal(t);
+    }
+
+    return () => {
+      isMounted.current = false;
+      toastRef.current = null;
+    };
   }, []);
 
-  // 🔹 Fetch semua data
-  const fetchJadwal = async () => {
-    setLoading(true);
+  const fetchJadwal = async (t) => {
+    setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/jadwal`);
-      const json = await res.json();
-      setJadwalList(json.data || []);
+      const res = await axios.get(`${API_URL}/jadwal`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+
+      if (!isMounted.current) return;
+
+      if (res.data.status === "00") {
+        const data = res.data.data || [];
+
+        // Build filter options
+        const hariSet = new Set();
+        const tingkatanSet = new Set();
+        const jurusanSet = new Set();
+        const kelasSet = new Set();
+
+        data.forEach((j) => {
+          if (j.hari?.HARI) hariSet.add(j.hari.HARI);
+          if (j.tingkatan?.TINGKATAN) tingkatanSet.add(j.tingkatan.TINGKATAN);
+          if (j.jurusan?.NAMA_JURUSAN) jurusanSet.add(j.jurusan.NAMA_JURUSAN);
+          if (j.kelas?.KELAS_ID) kelasSet.add(j.kelas.KELAS_ID);
+        });
+
+        setJadwal(data);
+        setOriginalData(data);
+        setHariOptions(
+          Array.from(hariSet).map((h) => ({ label: h, value: h }))
+        );
+        setTingkatanOptions(
+          Array.from(tingkatanSet).map((t) => ({ label: t, value: t }))
+        );
+        setJurusanOptions(
+          Array.from(jurusanSet).map((j) => ({ label: j, value: j }))
+        );
+        setKelasOptions(
+          Array.from(kelasSet).map((k) => ({ label: k, value: k }))
+        );
+      } else {
+        toastRef.current?.showToast("01", res.data.message || "Gagal memuat data jadwal");
+      }
     } catch (err) {
       console.error(err);
       toastRef.current?.showToast("01", "Gagal memuat data jadwal");
     } finally {
-      setLoading(false);
+      if (isMounted.current) setIsLoading(false);
     }
   };
 
-  const fetchKelas = async () => {
-    try {
-      const res = await fetch(`${API_URL}/kelas`);
-      const json = await res.json();
-      setKelasOptions(
-        json.data?.map((k) => ({
-          label: `${k.TINGKATAN || "-"} ${k.NAMA_JURUSAN || "-"} ${k.NAMA_RUANG || "-"}`,
-          value: k.KELAS_ID,
-        })) || []
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchMapelKelas = async () => {
-    try {
-      const res = await fetch(`${API_URL}/mapel-kelas`);
-      const json = await res.json();
-      setMapelKelasOptions(
-        json.data?.map((m) => ({
-          label: `${m.mapel?.KODE_MAPEL || "-"} - ${m.mapel?.NAMA_MAPEL || "-"} (${m.guru?.NAMA_GURU || "-"})`,
-          value: m.MAPEL_KELAS_ID,
-        })) || []
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchHari = async () => {
-    try {
-      const res = await fetch(`${API_URL}/master-hari`);
-      const json = await res.json();
-      setHariOptions(
-        json.data?.map((h) => ({
-          label: h.NAMA_HARI,
-          value: h.HARI_ID,
-        })) || []
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // 🔍 Search Filter
+  // Search handler
   const handleSearch = (keyword) => {
-    setSearchKeyword(keyword);
     if (!keyword) {
-      fetchJadwal();
+      setJadwal(originalData);
     } else {
-      const filtered = jadwalList.filter(
+      const filtered = originalData.filter(
         (j) =>
-          j.mapel?.NAMA_MAPEL?.toLowerCase().includes(keyword.toLowerCase()) ||
-          j.kelas?.NAMA_JURUSAN?.toLowerCase().includes(keyword.toLowerCase()) ||
-          j.hari?.NAMA_HARI?.toLowerCase().includes(keyword.toLowerCase())
+          j.guru?.NAMA_GURU?.toLowerCase().includes(keyword.toLowerCase()) ||
+          j.guru?.NIP?.toLowerCase().includes(keyword.toLowerCase()) ||
+          j.mata_pelajaran?.NAMA_MAPEL?.toLowerCase().includes(keyword.toLowerCase()) ||
+          j.KODE_JADWAL?.toLowerCase().includes(keyword.toLowerCase())
       );
-      setJadwalList(filtered);
+      setJadwal(filtered);
     }
   };
 
-  // 💾 Simpan (Tambah/Edit)
-  const handleSave = async (data) => {
+  // Apply all filters with values
+  const applyFiltersWithValue = (hari, tingkatan, jurusan, kelas) => {
+    let filtered = [...originalData];
+
+    // Filter by hari
+    if (hari) {
+      filtered = filtered.filter((j) => j.hari?.HARI === hari);
+    }
+
+    // Filter by tingkatan
+    if (tingkatan) {
+      filtered = filtered.filter((j) => j.tingkatan?.TINGKATAN === tingkatan);
+    }
+
+    // Filter by jurusan
+    if (jurusan) {
+      filtered = filtered.filter((j) => j.jurusan?.NAMA_JURUSAN === jurusan);
+    }
+
+    // Filter by kelas
+    if (kelas) {
+      filtered = filtered.filter((j) => j.kelas?.KELAS_ID === kelas);
+    }
+
+    setJadwal(filtered);
+  };
+
+  // Reset all filters
+  const resetFilter = () => {
+    setHariFilter(null);
+    setTingkatanFilter(null);
+    setJurusanFilter(null);
+    setKelasFilter(null);
+    setJadwal(originalData);
+  };
+
+  const handleSubmit = async (data) => {
     try {
-      if (dialogMode === "add") {
-        await fetch(`${API_URL}/jadwal`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        toastRef.current?.showToast("00", "Jadwal berhasil ditambahkan");
-      } else if (dialogMode === "edit" && selectedItem) {
-        await fetch(`${API_URL}/jadwal/${selectedItem.JADWAL_ID}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-        toastRef.current?.showToast("00", "Jadwal berhasil diperbarui");
+      if (selectedJadwal) {
+        // Edit mode
+        const res = await axios.put(
+          `${API_URL}/jadwal/${selectedJadwal.ID}`,
+          data,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (res.data.status === "00") {
+          toastRef.current?.showToast("00", "Jadwal berhasil diperbarui");
+        } else {
+          toastRef.current?.showToast("01", res.data.message || "Gagal memperbarui jadwal");
+          return;
+        }
+      } else {
+        // Add mode
+        const res = await axios.post(
+          `${API_URL}/jadwal`,
+          data,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (res.data.status === "00") {
+          toastRef.current?.showToast("00", "Jadwal berhasil ditambahkan");
+        } else {
+          toastRef.current?.showToast("01", res.data.message || "Gagal menambahkan jadwal");
+          return;
+        }
       }
-      fetchJadwal();
-      setDialogMode(null);
-      setSelectedItem(null);
+
+      if (isMounted.current) {
+        await fetchJadwal(token);
+        setDialogVisible(false);
+        setSelectedJadwal(null);
+      }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Gagal menyimpan jadwal");
+      toastRef.current?.showToast("01", err.response?.data?.message || "Gagal menyimpan jadwal");
     }
   };
 
-  // ❌ Hapus Data
-  const handleDelete = (row) => {
+  const handleDelete = (rowData) => {
     confirmDialog({
-      message: `Yakin ingin menghapus jadwal "${row.mapel?.NAMA_MAPEL}"?`,
+      message: `Apakah Anda yakin ingin menghapus jadwal "${rowData.KODE_JADWAL}"?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
-      acceptLabel: "Hapus",
+      acceptLabel: "Ya",
       rejectLabel: "Batal",
       acceptClassName: "p-button-danger",
       accept: async () => {
         try {
-          await fetch(`${API_URL}/jadwal/${row.JADWAL_ID}`, { method: "DELETE" });
+          await axios.delete(`${API_URL}/jadwal/${rowData.ID}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           toastRef.current?.showToast("00", "Jadwal berhasil dihapus");
-          fetchJadwal();
+          if (isMounted.current) await fetchJadwal(token);
         } catch (err) {
           console.error(err);
           toastRef.current?.showToast("01", "Gagal menghapus jadwal");
@@ -164,40 +224,82 @@ export default function MasterJadwalPage() {
     });
   };
 
-  // 🔹 Kolom tabel
-  const columns = [
-    { field: "JADWAL_ID", header: "ID", style: { width: "60px" } },
+  const jadwalColumns = [
+    { field: "ID", header: "ID", style: { width: "60px" } },
     {
+      field: "KODE_JADWAL",
+      header: "Kode Jadwal",
+      style: { minWidth: "120px" },
+    },
+    {
+      field: "hari.HARI",
+      header: "Hari",
+      style: { minWidth: "100px" },
+      body: (row) => row.hari?.HARI || "-",
+    },
+    {
+      field: "tingkatan.TINGKATAN",
+      header: "Tingkatan",
+      style: { minWidth: "100px" },
+      body: (row) => row.tingkatan?.TINGKATAN || "-",
+    },
+    {
+      field: "jurusan.NAMA_JURUSAN",
+      header: "Jurusan",
+      style: { minWidth: "140px" },
+      body: (row) => row.jurusan?.NAMA_JURUSAN || "-",
+    },
+    {
+      field: "kelas.KELAS_ID",
       header: "Kelas",
-      body: (row) =>
-        `${row.kelas?.TINGKATAN || "-"} ${row.kelas?.NAMA_JURUSAN || "-"} ${row.kelas?.NAMA_RUANG || "-"}`,
+      style: { minWidth: "100px" },
+      body: (row) => row.kelas?.KELAS_ID || "-",
     },
     {
+      field: "guru.NAMA_GURU",
+      header: "Guru",
+      style: { minWidth: "180px" },
+      body: (row) => row.guru?.NAMA_GURU || "-",
+    },
+    {
+      field: "mata_pelajaran.NAMA_MAPEL",
       header: "Mata Pelajaran",
-      body: (row) =>
-        `${row.mapel?.KODE_MAPEL || "-"} - ${row.mapel?.NAMA_MAPEL || "-"} (${row.guru?.NAMA_GURU || "-"})`,
+      style: { minWidth: "150px" },
+      body: (row) => row.mata_pelajaran?.NAMA_MAPEL || "-",
     },
-    { header: "Hari", body: (row) => row.hari?.NAMA_HARI || "-" },
-    { field: "JAM_MULAI", header: "Jam Mulai" },
-    { field: "JAM_SELESAI", header: "Jam Selesai" },
     {
-      header: "Actions",
-      body: (row) => (
+      field: "jam_pelajaran.JP_KE",
+      header: "Jam Ke",
+      style: { minWidth: "80px", textAlign: "center" },
+      body: (row) => row.jam_pelajaran?.JP_KE || "-",
+    },
+    {
+      field: "jam_pelajaran",
+      header: "Waktu",
+      style: { minWidth: "140px" },
+      body: (row) => 
+        row.jam_pelajaran?.WAKTU_MULAI && row.jam_pelajaran?.WAKTU_SELESAI
+          ? `${row.jam_pelajaran.WAKTU_MULAI} - ${row.jam_pelajaran.WAKTU_SELESAI}`
+          : "-",
+    },
+    {
+      header: "Aksi",
+      body: (rowData) => (
         <div className="flex gap-2">
           <Button
             icon="pi pi-pencil"
             size="small"
             severity="warning"
             onClick={() => {
-              setSelectedItem(row);
-              setDialogMode("edit");
+              setSelectedJadwal(rowData);
+              setDialogVisible(true);
             }}
           />
           <Button
             icon="pi pi-trash"
             size="small"
             severity="danger"
-            onClick={() => handleDelete(row)}
+            onClick={() => handleDelete(rowData)}
           />
         </div>
       ),
@@ -206,77 +308,129 @@ export default function MasterJadwalPage() {
   ];
 
   return (
-    <div className="card p-4">
+    <div className="card">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-4">Master Jadwal</h3>
+      <h3 className="text-xl font-semibold mb-3">Master Jadwal Pelajaran</h3>
 
-      {/* 🔹 Toolbar: Print | Search | Tambah */}
-      <div className="flex justify-content-end align-items-center mb-3 gap-3 flex-wrap">
-        <Button
-          icon="pi pi-print"
-          severity="warning"
-          onClick={() => setAdjustDialog(true)}
-        />
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
+        {/* Filter Section */}
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex flex-column gap-2">
+            <label htmlFor="hari-filter" className="text-sm font-medium">
+              Hari
+            </label>
+            <Dropdown
+              id="hari-filter"
+              value={hariFilter}
+              options={hariOptions}
+              onChange={(e) => {
+                setHariFilter(e.value);
+                applyFiltersWithValue(e.value, tingkatanFilter, jurusanFilter, kelasFilter);
+              }}
+              placeholder="Pilih hari"
+              className="w-40"
+              showClear
+            />
+          </div>
 
-        <span className="p-input-icon-left">
-          <i className="pi pi-search" />
-          <InputText
-            value={searchKeyword}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Cari mapel / kelas / hari..."
-            className="w-64"
+          <div className="flex flex-column gap-2">
+            <label htmlFor="tingkatan-filter" className="text-sm font-medium">
+              Tingkatan
+            </label>
+            <Dropdown
+              id="tingkatan-filter"
+              value={tingkatanFilter}
+              options={tingkatanOptions}
+              onChange={(e) => {
+                setTingkatanFilter(e.value);
+                applyFiltersWithValue(hariFilter, e.value, jurusanFilter, kelasFilter);
+              }}
+              placeholder="Pilih tingkatan"
+              className="w-40"
+              showClear
+            />
+          </div>
+
+          <div className="flex flex-column gap-2">
+            <label htmlFor="jurusan-filter" className="text-sm font-medium">
+              Jurusan
+            </label>
+            <Dropdown
+              id="jurusan-filter"
+              value={jurusanFilter}
+              options={jurusanOptions}
+              onChange={(e) => {
+                setJurusanFilter(e.value);
+                applyFiltersWithValue(hariFilter, tingkatanFilter, e.value, kelasFilter);
+              }}
+              placeholder="Pilih jurusan"
+              className="w-48"
+              showClear
+            />
+          </div>
+
+          <div className="flex flex-column gap-2">
+            <label htmlFor="kelas-filter" className="text-sm font-medium">
+              Kelas
+            </label>
+            <Dropdown
+              id="kelas-filter"
+              value={kelasFilter}
+              options={kelasOptions}
+              onChange={(e) => {
+                setKelasFilter(e.value);
+                applyFiltersWithValue(hariFilter, tingkatanFilter, jurusanFilter, e.value);
+              }}
+              placeholder="Pilih kelas"
+              className="w-40"
+              showClear
+            />
+          </div>
+
+          <Button
+            icon="pi pi-refresh"
+            className="p-button-secondary mt-3"
+            tooltip="Reset Filter"
+            onClick={resetFilter}
           />
-        </span>
+        </div>
 
-        <Button
-          label="Tambah Jadwal"
-          icon="pi pi-plus"
-          onClick={() => {
-            setDialogMode("add");
-            setSelectedItem(null);
-          }}
-        />
+        {/* Action Section */}
+        <div className="flex items-center justify-end gap-2">
+          <HeaderBar
+            title=""
+            placeholder="Cari jadwal (Kode, Guru, Mapel)"
+            onSearch={handleSearch}
+            onAddClick={() => {
+              setSelectedJadwal(null);
+              setDialogVisible(true);
+            }}
+          />
+        </div>
       </div>
 
-      {/* 🔹 Data Table */}
-      <CustomDataTable data={jadwalList} loading={loading} columns={columns} />
+      {/* Tabel Data */}
+      <CustomDataTable
+        data={jadwal}
+        loading={isLoading}
+        columns={jadwalColumns}
+      />
 
-      {/* 🔹 Form Tambah/Edit */}
+      {/* Form Jadwal */}
       <FormJadwal
-        visible={dialogMode !== null}
+        visible={dialogVisible}
         onHide={() => {
-          setDialogMode(null);
-          setSelectedItem(null);
+          setDialogVisible(false);
+          setSelectedJadwal(null);
         }}
-        selectedItem={selectedItem}
-        onSave={handleSave}
-        kelasOptions={kelasOptions}
-        mapelKelasOptions={mapelKelasOptions}
-        hariOptions={hariOptions}
+        selectedJadwal={selectedJadwal}
+        onSave={handleSubmit}
+        token={token}
+        jadwalList={originalData}
       />
-
-      {/* 🔹 Dialog Print */}
-      <AdjustPrintMarginLaporanJadwal
-        adjustDialog={adjustDialog}
-        setAdjustDialog={setAdjustDialog}
-        dataJadwal={jadwalList}
-        setPdfUrl={setPdfUrl}
-        setFileName={setFileName}
-        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
-      />
-
-      {/* 🔹 PDF Preview */}
-      <Dialog
-        visible={jsPdfPreviewOpen}
-        onHide={() => setJsPdfPreviewOpen(false)}
-        modal
-        style={{ width: "90vw", height: "90vh" }}
-        header="Preview Laporan Jadwal"
-      >
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
-      </Dialog>
     </div>
   );
 }

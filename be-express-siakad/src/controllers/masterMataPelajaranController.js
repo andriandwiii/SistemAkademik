@@ -31,7 +31,7 @@ export const getAllMataPelajaran = async (req, res) => {
 };
 
 /** =============================
- * GET mata pelajaran by ID
+ * GET mata pelajaran by ID (Primary Key)
  * ============================= */
 export const getMataPelajaranById = async (req, res) => {
   try {
@@ -64,17 +64,27 @@ export const getMataPelajaranById = async (req, res) => {
  * ============================= */
 export const addMataPelajaran = async (req, res) => {
   try {
-    const { MAPEL_ID, NAMA_MAPEL, KATEGORI, DESKRIPSI, STATUS } = req.body;
+    const { KODE_MAPEL, NAMA_MAPEL, KATEGORI, DESKRIPSI, STATUS } = req.body;
 
-    if (!MAPEL_ID || !NAMA_MAPEL || !KATEGORI) {
+    // Validasi field wajib
+    if (!KODE_MAPEL || !NAMA_MAPEL || !KATEGORI) {
       return res.status(400).json({
         status: "warning",
-        message: "Field MAPEL_ID, NAMA_MAPEL, dan KATEGORI wajib diisi",
+        message: "Field KODE_MAPEL, NAMA_MAPEL, dan KATEGORI wajib diisi",
+      });
+    }
+
+    // Cek duplikasi KODE_MAPEL
+    const existing = await MataPelajaranModel.getMataPelajaranByKode(KODE_MAPEL);
+    if (existing) {
+      return res.status(409).json({
+        status: "warning",
+        message: `KODE_MAPEL '${KODE_MAPEL}' sudah digunakan`,
       });
     }
 
     const result = await MataPelajaranModel.addMataPelajaran({
-      MAPEL_ID,
+      KODE_MAPEL,
       NAMA_MAPEL,
       KATEGORI,
       DESKRIPSI,
@@ -101,8 +111,9 @@ export const addMataPelajaran = async (req, res) => {
 export const updateMataPelajaran = async (req, res) => {
   try {
     const { id } = req.params;
-    const { MAPEL_ID, NAMA_MAPEL, KATEGORI, DESKRIPSI, STATUS } = req.body;
+    const { KODE_MAPEL, NAMA_MAPEL, KATEGORI, DESKRIPSI, STATUS } = req.body;
 
+    // Cek apakah data ada
     const existing = await MataPelajaranModel.getMataPelajaranById(id);
     if (!existing) {
       return res.status(404).json({
@@ -111,8 +122,19 @@ export const updateMataPelajaran = async (req, res) => {
       });
     }
 
+    // Jika user mengubah kode_mapel, pastikan tidak duplikat
+    if (KODE_MAPEL && KODE_MAPEL !== existing.KODE_MAPEL) {
+      const duplicate = await MataPelajaranModel.getMataPelajaranByKode(KODE_MAPEL);
+      if (duplicate) {
+        return res.status(409).json({
+          status: "warning",
+          message: `KODE_MAPEL '${KODE_MAPEL}' sudah digunakan oleh data lain`,
+        });
+      }
+    }
+
     await MataPelajaranModel.updateMataPelajaran(id, {
-      MAPEL_ID,
+      KODE_MAPEL,
       NAMA_MAPEL,
       KATEGORI,
       DESKRIPSI,
@@ -138,8 +160,8 @@ export const updateMataPelajaran = async (req, res) => {
 export const deleteMataPelajaran = async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = await MataPelajaranModel.getMataPelajaranById(id);
 
+    const existing = await MataPelajaranModel.getMataPelajaranById(id);
     if (!existing) {
       return res.status(404).json({
         status: "warning",

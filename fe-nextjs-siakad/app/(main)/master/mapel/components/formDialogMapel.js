@@ -8,7 +8,7 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Button } from "primereact/button";
 
 const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
-  const [mapelId, setMapelId] = useState("");
+  const [kodeMapel, setMapelId] = useState("");
   const [namaMapel, setNamaMapel] = useState("");
   const [kategori, setKategori] = useState("Wajib");
   const [deskripsi, setDeskripsi] = useState("");
@@ -16,7 +16,7 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
 
   useEffect(() => {
     if (selectedMapel) {
-      setMapelId(selectedMapel.MAPEL_ID || "");
+      setMapelId(selectedMapel.KODE_MAPEL || "");
       setNamaMapel(selectedMapel.NAMA_MAPEL || "");
       setKategori(selectedMapel.KATEGORI || "Wajib");
       setDeskripsi(selectedMapel.DESKRIPSI || "");
@@ -31,9 +31,9 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
   }, [selectedMapel, visible]);
 
   const handleSubmit = () => {
-    if (!mapelId || !namaMapel || !kategori) return alert("Lengkapi semua field wajib!");
+    if (!kodeMapel || !namaMapel || !kategori) return alert("Lengkapi semua field wajib!");
     onSave({
-      MAPEL_ID: mapelId,
+      KODE_MAPEL: kodeMapel,
       NAMA_MAPEL: namaMapel,
       KATEGORI: kategori,
       DESKRIPSI: deskripsi,
@@ -51,12 +51,11 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
     >
       <div className="p-fluid">
         <div className="field">
-          <label htmlFor="mapelId">Mapel ID</label>
+          <label htmlFor="mapelId">Kode Mapel</label>
           <InputText
-            id="mapelId"
-            value={mapelId}
+            id="kodeMapel"
+            value={kodeMapel}
             onChange={(e) => setMapelId(e.target.value)}
-            placeholder="Contoh: MTK0011"
           />
         </div>
 
@@ -66,7 +65,6 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
             id="namaMapel"
             value={namaMapel}
             onChange={(e) => setNamaMapel(e.target.value)}
-            placeholder="Contoh: Matematika"
           />
         </div>
 
@@ -88,7 +86,7 @@ const FormMapel = ({ visible, onHide, onSave, selectedMapel }) => {
             value={deskripsi}
             onChange={(e) => setDeskripsi(e.target.value)}
             rows={3}
-            placeholder="Deskripsi mata pelajaran (opsional)"
+            placeholder="Deskripsi mata pelajaran"
           />
         </div>
 

@@ -63,12 +63,12 @@ export default function MasterMapelPage() {
   const handleSave = async (data) => {
     // Pastikan field sesuai struktur form
     if (
-      !data.MAPEL_ID ||
+      !data.KODE_MAPEL ||
       !data.NAMA_MAPEL ||
       !data.KATEGORI ||
       !data.DESKRIPSI ||
       !data.STATUS ||
-      data.MAPEL_ID.trim() === "" ||
+      data.KODE_MAPEL.trim() === "" ||
       data.NAMA_MAPEL.trim() === "" ||
       data.KATEGORI.trim() === "" ||
       data.DESKRIPSI.trim() === "" ||
@@ -136,7 +136,7 @@ export default function MasterMapelPage() {
       const filtered = originalData.filter(
         (m) =>
           m.NAMA_MAPEL.toLowerCase().includes(keyword.toLowerCase()) ||
-          m.MAPEL_ID.toLowerCase().includes(keyword.toLowerCase()) ||
+          m.KODE_MAPEL.toLowerCase().includes(keyword.toLowerCase()) ||
           m.KATEGORI.toLowerCase().includes(keyword.toLowerCase())
       );
       setMapelList(filtered);
@@ -165,7 +165,7 @@ export default function MasterMapelPage() {
 
   const columns = [
     { field: "ID", header: "ID", style: { width: "60px" } },
-    { field: "MAPEL_ID", header: "Kode Mapel" },
+    { field: "KODE_MAPEL", header: "Kode Mapel" },
     { field: "NAMA_MAPEL", header: "Nama Mapel" },
     { field: "KATEGORI", header: "Kategori" },
     { field: "DESKRIPSI", header: "Deskripsi" },

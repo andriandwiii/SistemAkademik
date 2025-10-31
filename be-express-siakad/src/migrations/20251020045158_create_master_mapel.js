@@ -5,7 +5,7 @@
 export async function up(knex) {
   return knex.schema.createTable("master_mata_pelajaran", (table) => {
     table.bigIncrements("ID").primary();
-    table.string("MAPEL_ID", 8).unique().notNullable(); // diganti dari KODE_MAPEL
+    table.string("KODE_MAPEL", 8).unique().notNullable(); // diganti dari KODE_MAPEL
     table.string("NAMA_MAPEL", 120).notNullable();
     table.string("KATEGORI", 50).notNullable(); // contoh: Wajib, Peminatan, Muatan Lokal
     table.text("DESKRIPSI").nullable();
@@ -18,7 +18,7 @@ export async function up(knex) {
       .defaultTo(knex.raw("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"));
 
     // index
-    table.index(["MAPEL_ID", "NAMA_MAPEL"]);
+    table.index(["KODE_MAPEL", "NAMA_MAPEL"]);
   });
 }
 
