@@ -86,7 +86,7 @@ const GuruPage = () => {
       });
       if (res.data.status === "00") {
         const guruData = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
-        const sorted = guruData.sort((a, b) => b.GURU_ID - a.GURU_ID);
+        const sorted = guruData.sort((a, b) => a.GURU_ID - b.GURU_ID);
         setData(sorted);
         setOriginalData(sorted);
       } else {
