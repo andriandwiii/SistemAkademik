@@ -65,7 +65,7 @@ const SiswaPage = () => {
       });
       if (res.data.status === "00") {
         const siswaData = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
-        const sorted = siswaData.sort((a, b) => b.SISWA_ID - a.SISWA_ID);
+        const sorted = siswaData.sort((a, b) => a.SISWA_ID - b.SISWA_ID);
         setData(sorted);
         setOriginalData(sorted);
       } else {
