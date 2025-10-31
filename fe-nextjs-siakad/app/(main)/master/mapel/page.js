@@ -48,7 +48,7 @@ export default function MasterMapelPage() {
       const res = await fetch(`${API_URL}/master-mata-pelajaran`);
       const json = await res.json();
       if (!isMounted.current) return;
-      const sorted = json.data?.sort((a, b) => b.ID - a.ID) || [];
+      const sorted = json.data?.sort((a, b) => a.ID - b.ID) || [];
       setMapelList(sorted);
       setOriginalData(sorted);
     } catch (err) {

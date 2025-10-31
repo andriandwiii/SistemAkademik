@@ -109,7 +109,7 @@ export const createGuru = async (req, res) => {
       universitas,
       no_sertifikat_pendidik,
       tahun_sertifikat,
-      mapel_diampu,
+      keahlian,  // Ganti dari MAPEL_DIAMPU menjadi KEAHLIAN
       password,
     } = req.body;
 
@@ -148,7 +148,7 @@ export const createGuru = async (req, res) => {
       UNIVERSITAS: universitas,
       NO_SERTIFIKAT_PENDIDIK: no_sertifikat_pendidik,
       TAHUN_SERTIFIKAT: tahun_sertifikat,
-      MAPEL_DIAMPU: mapel_diampu,
+      KEAHLIAN: keahlian, // Ganti MAPEL_DIAMPU menjadi KEAHLIAN
       created_at: new Date(),
     };
 
@@ -164,7 +164,6 @@ export const createGuru = async (req, res) => {
     res.status(500).json({ status: "01", message: err.message });
   }
 };
-
 
 // 🔹 Update guru
 export const updateGuru = async (req, res) => {
@@ -201,7 +200,7 @@ export const updateGuru = async (req, res) => {
       universitas,
       no_sertifikat_pendidik,
       tahun_sertifikat,
-      mapel_diampu,
+      keahlian, // Ganti MAPEL_DIAMPU menjadi KEAHLIAN
     } = req.body;
 
     // Handle foto upload
@@ -229,7 +228,7 @@ export const updateGuru = async (req, res) => {
       UNIVERSITAS: universitas,
       NO_SERTIFIKAT_PENDIDIK: no_sertifikat_pendidik,
       TAHUN_SERTIFIKAT: tahun_sertifikat,
-      MAPEL_DIAMPU: mapel_diampu,
+      KEAHLIAN: keahlian, // Ganti MAPEL_DIAMPU menjadi KEAHLIAN
       updated_at: new Date(),
     };
 
@@ -238,63 +237,10 @@ export const updateGuru = async (req, res) => {
       .where("GURU_ID", guruId)
       .update(guruData);
 
-    // Update user jika email berubah
-    if (email !== existingGuru.EMAIL) {
-      // Update email di tabel users
-      await db("users")
-        .where("email", existingGuru.EMAIL)
-        .update({
-          email: email,
-          name: nama,
-          updated_at: new Date(),
-        });
-    } else {
-      // Update nama saja jika email tidak berubah
-      await db("users")
-        .where("email", email)
-        .update({
-          name: nama,
-          updated_at: new Date(),
-        });
-    }
-
-    // Ambil data lengkap setelah update
-    const updatedGuru = await db("master_guru as g")
-      .leftJoin("users as u", "g.EMAIL", "u.email")
-      .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
-      .select(
-        "g.GURU_ID",
-        "g.NIP",
-        "g.NAMA",
-        "g.PANGKAT",
-        "g.KODE_JABATAN",
-        "j.NAMA_JABATAN as JABATAN",
-        "g.STATUS_KEPEGAWAIAN",
-        "g.EMAIL",
-        "g.TGL_LAHIR",
-        "g.TEMPAT_LAHIR",
-        "g.GENDER",
-        "g.ALAMAT",
-        "g.NO_TELP",
-        "g.FOTO",
-        "g.PENDIDIKAN_TERAKHIR",
-        "g.TAHUN_LULUS",
-        "g.UNIVERSITAS",
-        "g.NO_SERTIFIKAT_PENDIDIK",
-        "g.TAHUN_SERTIFIKAT",
-        "g.MAPEL_DIAMPU",
-        "g.created_at",
-        "g.updated_at",
-        "u.name as user_name",
-        "u.role as user_role"
-      )
-      .where("g.GURU_ID", guruId)
-      .first();
-
     res.json({
       status: "00",
       message: "Guru berhasil diperbarui",
-      data: updatedGuru,
+      data: guruData,
     });
   } catch (err) {
     console.error("Error updateGuru:", err);

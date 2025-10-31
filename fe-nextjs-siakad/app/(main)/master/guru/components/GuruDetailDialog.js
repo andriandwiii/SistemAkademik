@@ -132,8 +132,8 @@ const GuruDetailDialog = ({ visible, onHide, guru }) => {
                   value={guru.STATUS_KEPEGAWAIAN}
                 />
                 <InfoItem
-                  label="Mata Pelajaran Diampu"
-                  value={guru.MAPEL_DIAMPU}
+                  label="Keahlian" 
+                  value={guru.KEAHLIAN}
                 />
                 <InfoItem
                   label="No. Sertifikat Pendidik"

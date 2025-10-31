@@ -50,7 +50,7 @@ export async function up(knex) {
     table.integer("TAHUN_SERTIFIKAT").nullable();
 
     // Data akademik dan penugasan
-    table.string("MAPEL_DIAMPU", 150).nullable();
+    table.string("KEAHLIAN", 150).nullable();
 
     // timestamps
     table.timestamp("created_at").defaultTo(knex.fn.now());

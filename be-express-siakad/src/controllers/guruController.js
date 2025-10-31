@@ -1,6 +1,6 @@
 import * as GuruModel from "../models/guruModel.js";
 
-// Ambil semua guru
+// 🔹 Ambil semua guru
 export const getAllGuru = async (req, res) => {
   try {
     const data = await GuruModel.getAllGuruWithUser();
@@ -10,7 +10,7 @@ export const getAllGuru = async (req, res) => {
   }
 };
 
-// Ambil guru by ID
+// 🔹 Ambil guru by ID
 export const getGuruById = async (req, res) => {
   try {
     const data = await GuruModel.getGuruByIdWithUser(req.params.id);
@@ -23,9 +23,10 @@ export const getGuruById = async (req, res) => {
   }
 };
 
-// Tambah guru
+// 🔹 Tambah guru
 export const createGuru = async (req, res) => {
   try {
+    // Sekarang KEAHLIAN otomatis ikut dibaca dari req.body
     const guru = await GuruModel.addGuru(req.body);
     res.json({ status: "00", message: "Guru berhasil ditambahkan", guru });
   } catch (err) {
@@ -33,7 +34,7 @@ export const createGuru = async (req, res) => {
   }
 };
 
-// Update guru
+// 🔹 Update guru
 export const updateGuru = async (req, res) => {
   try {
     const guru = await GuruModel.updateGuru(req.params.id, req.body);
@@ -43,7 +44,7 @@ export const updateGuru = async (req, res) => {
   }
 };
 
-// Hapus guru
+// 🔹 Hapus guru
 export const deleteGuru = async (req, res) => {
   try {
     await GuruModel.deleteGuru(req.params.id);

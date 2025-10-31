@@ -134,8 +134,8 @@ const TabelGuru = ({ data, loading, onEdit, onDelete }) => {
       style: { minWidth: "120px" },
     },
     { 
-      field: "MAPEL_DIAMPU", 
-      header: "Mapel Diampu", 
+      field: "KEAHLIAN",  // Ganti MAPEL_DIAMPU menjadi KEAHLIAN
+      header: "Keahlian", 
       style: { minWidth: "150px" } 
     },
     { 

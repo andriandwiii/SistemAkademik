@@ -11,14 +11,14 @@ import { FileUpload } from "primereact/fileupload";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Opsi status
+// 🔹 Opsi status
 const statusOptions = [
   { label: "Aktif", value: "Aktif" },
   { label: "Cuti", value: "Cuti" },
   { label: "Pensiun", value: "Pensiun" },
 ];
 
-// Opsi gender
+// 🔹 Opsi gender
 const genderOptions = [
   { label: "Laki-laki", value: "L" },
   { label: "Perempuan", value: "P" },
@@ -72,8 +72,7 @@ const FormGuru = ({ visible, onHide, reloadData, formData, setFormData, toastRef
       if (formData.GURU_ID) {
         // === EDIT GURU ===
         const updateFormData = new FormData();
-        
-        // Append semua field
+
         Object.keys(formData).forEach((key) => {
           if (key === "FOTO" && formData.FOTO instanceof File) {
             updateFormData.append("foto", formData.FOTO);
@@ -97,8 +96,7 @@ const FormGuru = ({ visible, onHide, reloadData, formData, setFormData, toastRef
       } else {
         // === TAMBAH GURU ===
         const createFormData = new FormData();
-        
-        // Append semua field dengan lowercase key untuk backend
+
         createFormData.append("nip", formData.NIP || "");
         createFormData.append("nama", formData.NAMA || "");
         createFormData.append("pangkat", formData.PANGKAT || "");
@@ -114,18 +112,16 @@ const FormGuru = ({ visible, onHide, reloadData, formData, setFormData, toastRef
         createFormData.append("universitas", formData.UNIVERSITAS || "");
         createFormData.append("no_sertifikat_pendidik", formData.NO_SERTIFIKAT_PENDIDIK || "");
         createFormData.append("tahun_sertifikat", formData.TAHUN_SERTIFIKAT || "");
-        createFormData.append("mapel_diampu", formData.MAPEL_DIAMPU || "");
+        createFormData.append("keahlian", formData.KEAHLIAN || ""); // ✅ ganti dari mapel_diampu
         createFormData.append("password", formData.PASSWORD || "123456");
-        
-        // Format tanggal lahir
+
         if (formData.TGL_LAHIR) {
-          const date = formData.TGL_LAHIR instanceof Date 
-            ? formData.TGL_LAHIR 
+          const date = formData.TGL_LAHIR instanceof Date
+            ? formData.TGL_LAHIR
             : new Date(formData.TGL_LAHIR);
           createFormData.append("tgl_lahir", date.toISOString().split("T")[0]);
         }
-        
-        // Append foto jika ada
+
         if (formData.FOTO instanceof File) {
           createFormData.append("foto", formData.FOTO);
         }
@@ -238,18 +234,18 @@ const FormGuru = ({ visible, onHide, reloadData, formData, setFormData, toastRef
           />
         </div>
 
-        {/* Mapel */}
+        {/* Keahlian */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Mata Pelajaran Diampu
+            Keahlian
           </label>
           <InputText
-            className={inputClass("MAPEL_DIAMPU")}
-            value={formData.MAPEL_DIAMPU || ""}
+            className={inputClass("KEAHLIAN")}
+            value={formData.KEAHLIAN || ""}
             onChange={(e) =>
-              setFormData({ ...formData, MAPEL_DIAMPU: e.target.value })
+              setFormData({ ...formData, KEAHLIAN: e.target.value })
             }
-            placeholder="Contoh: Matematika, Fisika"
+            placeholder="Contoh: Matematika, Fisika, Teknologi"
           />
         </div>
 
@@ -449,11 +445,13 @@ const FormGuru = ({ visible, onHide, reloadData, formData, setFormData, toastRef
             auto={false}
           />
           {formData.FOTO instanceof File && (
-            <small className="text-green-600">File terpilih: {formData.FOTO.name}</small>
+            <small className="text-green-600">
+              File terpilih: {formData.FOTO.name}
+            </small>
           )}
         </div>
 
-        {/* Password (hanya saat tambah guru) */}
+        {/* Password */}
         {!formData.GURU_ID && (
           <div className="col-span-2 mt-3">
             <h4 className="text-lg font-semibold mb-2 text-primary border-b pb-2">
@@ -486,13 +484,11 @@ const FormGuru = ({ visible, onHide, reloadData, formData, setFormData, toastRef
             icon="pi pi-times"
             className="p-button-text"
             onClick={onHide}
-            disabled={loading}
           />
           <Button
             type="submit"
             label={loading ? "Menyimpan..." : "Simpan"}
-            icon={loading ? "pi pi-spin pi-spinner" : "pi pi-save"}
-            className="p-button-primary"
+            icon={loading ? "pi pi-spin pi-spinner" : "pi pi-check"}
             disabled={loading}
           />
         </div>

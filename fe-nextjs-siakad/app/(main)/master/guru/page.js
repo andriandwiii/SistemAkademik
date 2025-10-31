@@ -15,7 +15,7 @@ import AdjustPrintMarginLaporan from "./print/AdjustPrintMarginLaporan";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Dynamic import PDFViewer dengan loading fallback
+// Dynamic import PDFViewer
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), {
   loading: () => (
     <div className="flex items-center justify-center h-full">
@@ -28,12 +28,12 @@ const PDFViewer = dynamic(() => import("./print/PDFViewer"), {
 const GuruPage = () => {
   const toastRef = useRef(null);
   const [token, setToken] = useState("");
-  
+
   const [data, setData] = useState([]);
   const [originalData, setOriginalData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     GURU_ID: 0,
     NIP: "",
@@ -52,10 +52,10 @@ const GuruPage = () => {
     UNIVERSITAS: "",
     NO_SERTIFIKAT_PENDIDIK: "",
     TAHUN_SERTIFIKAT: "",
-    MAPEL_DIAMPU: "",
+    KEAHLIAN: "",
     FOTO: null,
   });
-  
+
   const [errors, setErrors] = useState({});
 
   // Filter tanggal
@@ -109,7 +109,8 @@ const GuruPage = () => {
           item.NIP?.toLowerCase().includes(keyword.toLowerCase()) ||
           item.NAMA?.toLowerCase().includes(keyword.toLowerCase()) ||
           item.EMAIL?.toLowerCase().includes(keyword.toLowerCase()) ||
-          item.JABATAN?.toLowerCase().includes(keyword.toLowerCase())
+          item.JABATAN?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.KEAHLIAN?.toLowerCase().includes(keyword.toLowerCase())
       );
       setData(filtered);
     }
@@ -134,9 +135,9 @@ const GuruPage = () => {
   };
 
   const handleEdit = (row) => {
-    setFormData({ 
+    setFormData({
       ...row,
-      FOTO: null // Reset foto saat edit
+      FOTO: null, // Reset foto saat edit
     });
     setDialogVisible(true);
   };
@@ -183,7 +184,7 @@ const GuruPage = () => {
       UNIVERSITAS: "",
       NO_SERTIFIKAT_PENDIDIK: "",
       TAHUN_SERTIFIKAT: "",
-      MAPEL_DIAMPU: "",
+      KEAHLIAN: "",
       FOTO: null,
     });
     setErrors({});
@@ -196,19 +197,16 @@ const GuruPage = () => {
 
   const handleClosePdfPreview = () => {
     setJsPdfPreviewOpen(false);
-    // Clear PDF URL untuk free memory
-    setTimeout(() => {
-      setPdfUrl("");
-    }, 300);
+    setTimeout(() => setPdfUrl(""), 300);
   };
 
   return (
     <div className="card">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
-      
+
       <h3 className="text-xl font-semibold mb-3">Master Guru</h3>
-      
+
       {/* Filter & Toolbar */}
       <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
         <FilterTanggal
@@ -221,17 +219,17 @@ const GuruPage = () => {
         />
 
         <div className="flex items-center justify-end gap-2">
-        <Button
-          icon="pi pi-print"
-          className="p-button-warning mt-3"
-          tooltip="Cetak Laporan"
-          onClick={handlePrintClick}
-          disabled={data.length === 0}
-        />
+          <Button
+            icon="pi pi-print"
+            className="p-button-warning mt-3"
+            tooltip="Cetak Laporan"
+            onClick={handlePrintClick}
+            disabled={data.length === 0}
+          />
 
           <HeaderBar
             title=""
-            placeholder="Cari guru (NIP, Nama, Email, Jabatan)"
+            placeholder="Cari guru (NIP, Nama, Email, Jabatan, Keahlian)"
             onSearch={handleSearch}
             onAddClick={() => {
               resetForm();
@@ -248,7 +246,7 @@ const GuruPage = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-      
+
       {/* Form Dialog */}
       <FormGuru
         visible={dialogVisible}
@@ -259,7 +257,7 @@ const GuruPage = () => {
         formData={formData}
         setFormData={setFormData}
         errors={errors}
-        reloadData={() => fetchGuru(token)} 
+        reloadData={() => fetchGuru(token)}
         toastRef={toastRef}
       />
 
@@ -289,10 +287,10 @@ const GuruPage = () => {
         contentStyle={{ height: "calc(90vh - 60px)", padding: 0 }}
       >
         {pdfUrl && (
-          <PDFViewer 
-            pdfUrl={pdfUrl} 
-            fileName={fileName || "laporan-guru"} 
-            paperSize="A4" 
+          <PDFViewer
+            pdfUrl={pdfUrl}
+            fileName={fileName || "laporan-guru"}
+            paperSize="A4"
           />
         )}
       </Dialog>

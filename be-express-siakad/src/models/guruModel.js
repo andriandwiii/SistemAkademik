@@ -25,7 +25,7 @@ export const getAllGuruWithUser = async () => {
       "g.UNIVERSITAS",
       "g.NO_SERTIFIKAT_PENDIDIK",
       "g.TAHUN_SERTIFIKAT",
-      "g.MAPEL_DIAMPU",
+      "g.KEAHLIAN",
       "g.created_at",
       "g.updated_at",
       "u.name as user_name",
@@ -58,7 +58,7 @@ export const getGuruByIdWithUser = async (id) => {
       "g.UNIVERSITAS",
       "g.NO_SERTIFIKAT_PENDIDIK",
       "g.TAHUN_SERTIFIKAT",
-      "g.MAPEL_DIAMPU",
+      "g.KEAHLIAN",
       "g.created_at",
       "g.updated_at",
       "u.name as user_name",
@@ -93,7 +93,7 @@ export const getGuruByJabatan = async (kodeJabatan) => {
       "g.UNIVERSITAS",
       "g.NO_SERTIFIKAT_PENDIDIK",
       "g.TAHUN_SERTIFIKAT",
-      "g.MAPEL_DIAMPU",
+      "g.KEAHLIAN",
       "u.name as user_name",
       "u.role as user_role"
     )
@@ -101,7 +101,7 @@ export const getGuruByJabatan = async (kodeJabatan) => {
     .andWhere("g.STATUS_KEPEGAWAIAN", "Aktif");
 };
 
-// Cari guru berdasarkan NAMA jabatan
+// 🔹 Cari guru berdasarkan NAMA jabatan
 export const getGuruByNamaJabatan = async (nama_jabatan) => {
   return await db("master_guru as g")
     .join("master_jabatan as j", "g.KODE_JABATAN", "=", "j.KODE_JABATAN")
@@ -117,7 +117,6 @@ export const getGuruByNamaJabatan = async (nama_jabatan) => {
     )
     .where("j.NAMA_JABATAN", "like", `%${nama_jabatan}%`);
 };
-
 
 // 🔹 Tambah guru baru
 export const addGuru = async ({
@@ -138,14 +137,13 @@ export const addGuru = async ({
   UNIVERSITAS = null,
   NO_SERTIFIKAT_PENDIDIK = null,
   TAHUN_SERTIFIKAT = null,
-  MAPEL_DIAMPU = null
+  KEAHLIAN = null
 }) => {
-  // ✅ Insert guru baru
   const [id] = await db("master_guru").insert({
     NIP,
     NAMA,
     PANGKAT,
-    KODE_JABATAN: KODE_JABATAN || null, // pastikan diset meski null
+    KODE_JABATAN: KODE_JABATAN || null,
     STATUS_KEPEGAWAIAN,
     EMAIL,
     TGL_LAHIR,
@@ -159,20 +157,16 @@ export const addGuru = async ({
     UNIVERSITAS,
     NO_SERTIFIKAT_PENDIDIK,
     TAHUN_SERTIFIKAT,
-    MAPEL_DIAMPU,
+    KEAHLIAN,
   });
 
-  // ✅ Ambil data lengkap setelah insert
   const guru = await getGuruByIdWithUser(id);
 
-  // Jika jabatan null tapi ada kode_jabatan, coba ambil manual
   if (guru && !guru.JABATAN && KODE_JABATAN) {
     const jabatan = await db("master_jabatan")
       .where("KODE_JABATAN", KODE_JABATAN)
       .first();
-    if (jabatan) {
-      guru.JABATAN = jabatan.NAMA_JABATAN;
-    }
+    if (jabatan) guru.JABATAN = jabatan.NAMA_JABATAN;
   }
 
   return guru;
@@ -199,7 +193,7 @@ export const updateGuru = async (
     UNIVERSITAS,
     NO_SERTIFIKAT_PENDIDIK,
     TAHUN_SERTIFIKAT,
-    MAPEL_DIAMPU
+    KEAHLIAN
   }
 ) => {
   await db("master_guru")
@@ -222,7 +216,7 @@ export const updateGuru = async (
       UNIVERSITAS,
       NO_SERTIFIKAT_PENDIDIK,
       TAHUN_SERTIFIKAT,
-      MAPEL_DIAMPU,
+      KEAHLIAN,
       updated_at: db.fn.now(),
     });
 
