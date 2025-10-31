@@ -53,7 +53,7 @@ export const registerGuru = async (req, res) => {
       NIP: parsed.nip,
       NAMA: parsed.nama,
       PANGKAT: parsed.pangkat || null,
-      KODE_JABATAN: parsed.kode_jabatan || null, // ✅ perbaikan penting
+      KODE_JABATAN: parsed.kode_jabatan || null,
       STATUS_KEPEGAWAIAN: parsed.status_kepegawaian || "Aktif",
       GENDER: parsed.gender,
       TGL_LAHIR: parsed.tgl_lahir || null,
@@ -66,7 +66,7 @@ export const registerGuru = async (req, res) => {
       UNIVERSITAS: parsed.universitas || null,
       NO_SERTIFIKAT_PENDIDIK: parsed.no_sertifikat_pendidik || null,
       TAHUN_SERTIFIKAT: parsed.tahun_sertifikat || null,
-      MAPEL_DIAMPU: parsed.mapel_diampu || null,
+      KEAHLIAN: parsed.keahlian || null, // ✅ diperbaiki dari MAPEL_DIAMPU ke KEAHLIAN
     });
 
     return res.status(201).json({
@@ -90,7 +90,6 @@ export const registerGuru = async (req, res) => {
     });
   }
 };
-
 
 
 /**
