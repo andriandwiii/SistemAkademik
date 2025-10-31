@@ -33,7 +33,7 @@ interface GuruFormData {
   universitas: string;
   no_sertifikat_pendidik: string;
   tahun_sertifikat: string;
-  mapel_diampu: string;
+  keahlian: string; // ✅ Diperbaiki dari mapel_diampu ke keahlian
   password: string;
   foto: File | null;
 }
@@ -78,7 +78,7 @@ const RegisterGuruPage: FC = () => {
     universitas: '',
     no_sertifikat_pendidik: '',
     tahun_sertifikat: '',
-    mapel_diampu: '',
+    keahlian: '', // ✅ Diperbaiki dari mapel_diampu ke keahlian
     password: '',
     foto: null,
   });
@@ -151,7 +151,7 @@ const RegisterGuruPage: FC = () => {
       formData.append('universitas', form.universitas);
       formData.append('no_sertifikat_pendidik', form.no_sertifikat_pendidik);
       formData.append('tahun_sertifikat', form.tahun_sertifikat);
-      formData.append('mapel_diampu', form.mapel_diampu);
+      formData.append('keahlian', form.keahlian); // ✅ Diperbaiki dari mapel_diampu ke keahlian
       formData.append('password', form.password);
       
       // Format tanggal lahir
@@ -275,16 +275,18 @@ const RegisterGuruPage: FC = () => {
                 </div>
 
                 <div className="field col-12 md:col-6 mb-3">
-                  <label htmlFor="mapel_diampu" className="block text-900 font-medium mb-1">
-                    Mata Pelajaran Diampu
+                  <label htmlFor="keahlian" className="block text-900 font-medium mb-1">
+                    Keahlian / Bidang Spesialisasi
                   </label>
                   <InputText
-                    id="mapel_diampu"
-                    value={form.mapel_diampu}
-                    onChange={(e) => handleChange('mapel_diampu', e.target.value)}
+                    id="keahlian"
+                    value={form.keahlian}
+                    onChange={(e) => handleChange('keahlian', e.target.value)}
                     className="w-full"
-                    placeholder="Contoh: Matematika, Fisika"
                   />
+                  <small className="text-gray-600">
+                    Isi dengan bidang keahlian atau mata pelajaran yang dikuasai
+                  </small>
                 </div>
 
                 {/* Data Pribadi */}

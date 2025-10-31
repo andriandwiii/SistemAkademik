@@ -79,7 +79,7 @@ export const registerGuruSchema = z.object({
   nama: z.string().min(3, "Nama lengkap harus diisi"),
   pangkat: z.string().optional(),
 
-  // 🔹 ganti jabatan_id → kode_jabatan (sesuai field database)
+  // 🔹 Kode jabatan (opsional, sesuai field database)
   kode_jabatan: z
     .string()
     .min(2, "KODE_JABATAN harus diisi")
@@ -87,7 +87,9 @@ export const registerGuruSchema = z.object({
     .optional(),
 
   status_kepegawaian: z.enum(["Aktif", "Cuti", "Pensiun"]).default("Aktif"),
-  gender: z.enum(["L", "P"]),
+  gender: z.enum(["L", "P"], {
+    errorMap: () => ({ message: "Gender harus L (Laki-laki) atau P (Perempuan)" })
+  }),
   tgl_lahir: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
@@ -102,14 +104,18 @@ export const registerGuruSchema = z.object({
   tahun_lulus: z
     .string()
     .regex(/^\d{4}$/, "Format tahun lulus harus 4 digit")
-    .optional(),
+    .optional()
+    .transform((val) => val ? parseInt(val, 10) : null),
   universitas: z.string().optional(),
   no_sertifikat_pendidik: z.string().optional(),
   tahun_sertifikat: z
     .string()
     .regex(/^\d{4}$/, "Format tahun sertifikat harus 4 digit")
-    .optional(),
-  mapel_diampu: z.string().optional(),
+    .optional()
+    .transform((val) => val ? parseInt(val, 10) : null),
+  
+  // ✅ Diperbaiki: mapel_diampu → keahlian (sesuai migrations)
+  keahlian: z.string().optional(),
 
   password: z.string().min(8, "Password minimal 8 karakter"),
 });
