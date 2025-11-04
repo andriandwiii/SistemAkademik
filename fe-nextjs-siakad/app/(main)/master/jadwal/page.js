@@ -64,7 +64,7 @@ export default function JadwalPage() {
 
       if (res.data.status === "00") {
         const data = res.data.data || [];
-
+        data.sort((a, b) => a.ID - b.ID);
         // Build filter options
         const hariSet = new Set();
         const tingkatanSet = new Set();
