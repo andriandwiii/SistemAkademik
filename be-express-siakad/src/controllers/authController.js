@@ -1,23 +1,34 @@
-import { getUserByEmail, addUser, getUsersByRole } from "../models/userModel.js";
-import { addSiswa } from "../models/siswaModel.js";
-import { addGuru } from "../models/guruModel.js";
+import { getUserByEmail, addUser } from "../models/userModel.js";
 import { addLoginHistory } from "../models/loginHistoryModel.js";
-import { registerSchema, registerSiswaSchema, loginSchema, registerGuruSchema } from "../scemas/authSchema.js";
+import {
+  createGuru,
+  createSiswa,
+  checkEmailExists,
+  checkNisExists,
+  checkNisnExists,
+  countSuperAdmin,
+  getUserProfileById,
+  blacklistToken,
+} from "../models/authModel.js";
+import {
+  registerSchema,
+  registerSiswaSchema,
+  loginSchema,
+  registerGuruSchema,
+} from "../scemas/authSchema.js";
 import { comparePassword, hashPassword } from "../utils/hash.js";
 import { generateToken } from "../utils/jwt.js";
 import { datetime, status } from "../utils/general.js";
-import { db } from "../core/config/knex.js";
 
 /**
  * REGISTER GURU
  */
 export const registerGuru = async (req, res) => {
   try {
-    // Ambil data dari form-data (termasuk file foto)
     const body = req.body;
-    const file = req.file; // dari multer upload.single("foto")
+    const file = req.file;
 
-    // Validasi body (gunakan schema Zod)
+    // Validasi
     const validation = registerGuruSchema.safeParse(body);
     if (!validation.success) {
       return res.status(400).json({
@@ -32,42 +43,36 @@ export const registerGuru = async (req, res) => {
     }
 
     const parsed = validation.data;
-
-    // 🔐 Hash password untuk akun user guru
-    const hashedPassword = await hashPassword(parsed.password);
-
-    // 🧩 Tambah akun ke tabel users
-    const user = await addUser({
-      name: parsed.nama,
-      email: parsed.email,
-      password: hashedPassword,
-      role: "GURU",
-    });
-
-    // 📸 Path foto (jika ada upload)
     const fotoPath = file ? `/uploads/foto_guru/${file.filename}` : null;
 
-    // 🧾 Simpan data guru ke tabel master_guru
-    const guru = await addGuru({
-      EMAIL: parsed.email,
-      NIP: parsed.nip,
-      NAMA: parsed.nama,
-      PANGKAT: parsed.pangkat || null,
-      KODE_JABATAN: parsed.kode_jabatan || null,
-      STATUS_KEPEGAWAIAN: parsed.status_kepegawaian || "Aktif",
-      GENDER: parsed.gender,
-      TGL_LAHIR: parsed.tgl_lahir || null,
-      TEMPAT_LAHIR: parsed.tempat_lahir || null,
-      NO_TELP: parsed.no_telp || null,
-      ALAMAT: parsed.alamat || null,
-      FOTO: fotoPath,
-      PENDIDIKAN_TERAKHIR: parsed.pendidikan_terakhir || null,
-      TAHUN_LULUS: parsed.tahun_lulus || null,
-      UNIVERSITAS: parsed.universitas || null,
-      NO_SERTIFIKAT_PENDIDIK: parsed.no_sertifikat_pendidik || null,
-      TAHUN_SERTIFIKAT: parsed.tahun_sertifikat || null,
-      KEAHLIAN: parsed.keahlian || null,
-    });
+    // Gunakan model
+    const { user, guru } = await createGuru(
+      {
+        EMAIL: parsed.email,
+        NIP: parsed.nip,
+        NAMA: parsed.nama,
+        PANGKAT: parsed.pangkat || null,
+        KODE_JABATAN: parsed.kode_jabatan || null,
+        STATUS_KEPEGAWAIAN: parsed.status_kepegawaian || "Aktif",
+        GENDER: parsed.gender,
+        TGL_LAHIR: parsed.tgl_lahir || null,
+        TEMPAT_LAHIR: parsed.tempat_lahir || null,
+        NO_TELP: parsed.no_telp || null,
+        ALAMAT: parsed.alamat || null,
+        FOTO: fotoPath,
+        PENDIDIKAN_TERAKHIR: parsed.pendidikan_terakhir || null,
+        TAHUN_LULUS: parsed.tahun_lulus || null,
+        UNIVERSITAS: parsed.universitas || null,
+        NO_SERTIFIKAT_PENDIDIK: parsed.no_sertifikat_pendidik || null,
+        TAHUN_SERTIFIKAT: parsed.tahun_sertifikat || null,
+        KEAHLIAN: parsed.keahlian || null,
+      },
+      {
+        name: parsed.nama,
+        email: parsed.email,
+        password: parsed.password,
+      }
+    );
 
     return res.status(201).json({
       status: "00",
@@ -91,13 +96,12 @@ export const registerGuru = async (req, res) => {
   }
 };
 
-
 /**
- * REGISTER SISWA + ORANG TUA/WALI (Dengan Upload Foto)
+ * REGISTER SISWA
  */
 export const registerSiswa = async (req, res) => {
   try {
-    // Parse FormData agar aman
+    // Parse FormData
     let parsedBody = {};
     for (const key in req.body) {
       try {
@@ -107,7 +111,7 @@ export const registerSiswa = async (req, res) => {
       }
     }
 
-    // Validasi dengan Zod
+    // Validasi
     const validation = registerSiswaSchema.safeParse(parsedBody);
     if (!validation.success) {
       return res.status(400).json({
@@ -143,8 +147,8 @@ export const registerSiswa = async (req, res) => {
 
     const fotoFile = req.file ? `/uploads/foto_siswa/${req.file.filename}` : null;
 
-    // Cek duplikasi email di tabel users
-    const existingUser = await db("users").where({ email }).first();
+    // Cek duplikasi menggunakan model
+    const existingUser = await checkEmailExists(email);
     if (existingUser) {
       return res.status(400).json({
         status: status.BAD_REQUEST,
@@ -153,8 +157,7 @@ export const registerSiswa = async (req, res) => {
       });
     }
 
-    // Cek duplikasi NIS
-    const existingNis = await db("master_siswa").where({ NIS: nis }).first();
+    const existingNis = await checkNisExists(nis);
     if (existingNis) {
       return res.status(400).json({
         status: status.BAD_REQUEST,
@@ -163,8 +166,7 @@ export const registerSiswa = async (req, res) => {
       });
     }
 
-    // Cek duplikasi NISN
-    const existingNisn = await db("master_siswa").where({ NISN: nisn }).first();
+    const existingNisn = await checkNisnExists(nisn);
     if (existingNisn) {
       return res.status(400).json({
         status: status.BAD_REQUEST,
@@ -172,9 +174,6 @@ export const registerSiswa = async (req, res) => {
         datetime: datetime(),
       });
     }
-
-    // Hash password
-    const hashedPassword = await hashPassword(password);
 
     // Mapping orang tua/wali
     let namaAyah, pekerjaanAyah, pendidikanAyah, alamatAyah, noTelpAyah;
@@ -209,18 +208,9 @@ export const registerSiswa = async (req, res) => {
       }
     }
 
-    // Transaksi agar user + siswa konsisten
-    await db.transaction(async (trx) => {
-      // 1️⃣ Insert user
-      const [userId] = await trx("users").insert({
-        name: nama,
-        email,
-        password: hashedPassword,
-        role: "SISWA",
-      });
-
-      // 2️⃣ Insert siswa
-      const [siswaId] = await trx("master_siswa").insert({
+    // Gunakan model untuk create siswa
+    const { userId, siswaId } = await createSiswa(
+      {
         EMAIL: email,
         NIS: nis,
         NISN: nisn,
@@ -237,40 +227,41 @@ export const registerSiswa = async (req, res) => {
         BERAT: berat || null,
         KEBUTUHAN_KHUSUS: kebutuhan_khusus || null,
         FOTO: fotoFile,
-
-        // Orang tua / wali
         NAMA_AYAH: namaAyah,
         PEKERJAAN_AYAH: pekerjaanAyah,
         PENDIDIKAN_AYAH: pendidikanAyah,
         ALAMAT_AYAH: alamatAyah,
         NO_TELP_AYAH: noTelpAyah,
-
         NAMA_IBU: namaIbu,
         PEKERJAAN_IBU: pekerjaanIbu,
         PENDIDIKAN_IBU: pendidikanIbu,
         ALAMAT_IBU: alamatIbu,
         NO_TELP_IBU: noTelpIbu,
-
         NAMA_WALI: namaWali,
         PEKERJAAN_WALI: pekerjaanWali,
         PENDIDIKAN_WALI: pendidikanWali,
         ALAMAT_WALI: alamatWali,
         NO_TELP_WALI: noTelpWali,
-      });
+      },
+      {
+        name: nama,
+        email,
+        password,
+      }
+    );
 
-      return res.status(201).json({
-        status: status.SUKSES,
-        message: "Siswa berhasil didaftarkan",
-        datetime: datetime(),
-        siswa_id: siswaId,
-        foto: fotoFile,
-        user: {
-          id: userId,
-          name: nama,
-          email,
-          role: "SISWA",
-        },
-      });
+    return res.status(201).json({
+      status: status.SUKSES,
+      message: "Siswa berhasil didaftarkan",
+      datetime: datetime(),
+      siswa_id: siswaId,
+      foto: fotoFile,
+      user: {
+        id: userId,
+        name: nama,
+        email,
+        role: "SISWA",
+      },
     });
   } catch (error) {
     console.error("Error registerSiswa:", error);
@@ -303,11 +294,11 @@ export const register = async (req, res) => {
 
     const { name, email, password, role } = validation.data;
 
-    // ✅ cek apakah super admin sudah ada
+    // Cek batasan Super Admin
     if (role === "SUPER_ADMIN") {
-      const countSuperAdmin = await db("users").where({ role: "SUPER_ADMIN" }).count("id as total");
-      
-      if (countSuperAdmin[0].total >= 3) {
+      const total = await countSuperAdmin();
+
+      if (total >= 3) {
         return res.status(400).json({
           status: status.BAD_REQUEST,
           message: "Maksimal 3 Super Admin sudah terdaftar.",
@@ -349,11 +340,10 @@ export const register = async (req, res) => {
 };
 
 /**
- * GET PROFILE USER YANG LOGIN
+ * GET PROFILE
  */
 export const getProfile = async (req, res) => {
   try {
-    // Data user sudah ada di req.user (dari middleware verifyToken)
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -364,11 +354,8 @@ export const getProfile = async (req, res) => {
       });
     }
 
-    // Ambil data user dari database
-    const user = await db("users")
-      .where({ id: userId })
-      .select("id", "name", "email", "role", "created_at")
-      .first();
+    // Gunakan model
+    const user = await getUserProfileById(userId);
 
     if (!user) {
       return res.status(404).json({
@@ -378,66 +365,11 @@ export const getProfile = async (req, res) => {
       });
     }
 
-    // Jika user adalah GURU, ambil juga data guru
-    let guruData = null;
-    if (user.role === "GURU") {
-      guruData = await db("master_guru as g")
-        .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
-        .where("g.EMAIL", user.email)
-        .select(
-          "g.GURU_ID",
-          "g.NIP",
-          "g.NAMA",
-          "g.PANGKAT",
-          "g.KODE_JABATAN",
-          "j.NAMA_JABATAN as JABATAN",
-          "g.STATUS_KEPEGAWAIAN",
-          "g.GENDER",
-          "g.TGL_LAHIR",
-          "g.TEMPAT_LAHIR",
-          "g.ALAMAT",
-          "g.NO_TELP",
-          "g.FOTO",
-          "g.KEAHLIAN"
-        )
-        .first();
-    }
-
-    // Jika user adalah SISWA, ambil juga data siswa
-    let siswaData = null;
-    if (user.role === "SISWA") {
-      siswaData = await db("master_siswa")
-        .where("EMAIL", user.email)
-        .select(
-          "SISWA_ID",
-          "NIS",  
-          "NISN",
-          "NAMA",
-          "GENDER",
-          "TGL_LAHIR",
-          "TEMPAT_LAHIR",
-          "AGAMA",
-          "ALAMAT",
-          "NO_TELP",
-          "STATUS",
-          "FOTO"
-        )
-        .first();
-    }
-
     return res.status(200).json({
       status: "00",
       message: "Berhasil mengambil profil user",
       datetime: new Date().toISOString(),
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        created_at: user.created_at,
-        ...(guruData && { guru: guruData }),
-        ...(siswaData && { siswa: siswaData }),
-      },
+      user,
     });
   } catch (error) {
     console.error("Error getProfile:", error);
@@ -448,7 +380,6 @@ export const getProfile = async (req, res) => {
     });
   }
 };
-
 
 /**
  * LOGIN
@@ -494,7 +425,7 @@ export const login = async (req, res) => {
       role: existingUser.role,
     });
 
-    // ✅ simpan history login
+    // Simpan history login
     await addLoginHistory({
       userId: existingUser.id,
       action: "LOGIN",
@@ -539,13 +470,10 @@ export const logout = async (req, res) => {
       });
     }
 
-    // ✅ blacklist token
-    await db("blacklist_tokens").insert({
-      token,
-      expired_at: new Date(req.user.exp * 1000),
-    });
+    // Blacklist token menggunakan model
+    await blacklistToken(token, new Date(req.user.exp * 1000));
 
-    // ✅ simpan history logout
+    // Simpan history logout
     await addLoginHistory({
       userId,
       action: "LOGOUT",
