@@ -9,6 +9,7 @@ const formatRow = (r) => ({
   siswa: {
     NIS: r.NIS,
     NAMA: r.NAMA_SISWA,
+    GENDER: r.GENDER,  
   },
   kelas: {
     KELAS_ID: r.KELAS_ID,
@@ -38,6 +39,7 @@ const baseQuery = () =>
     .select(
       "t.*",
       "s.NAMA as NAMA_SISWA",
+      "s.GENDER",  
       "ti.TINGKATAN",
       "j.NAMA_JURUSAN",
       "k.GEDUNG_ID",
@@ -58,7 +60,7 @@ export const getAllTransaksi = async () => {
   return rows.map(formatRow);
 };
 
-// Tambah transaksi baru (TRANSAKSI_ID wajib manual)
+// Tambah transaksi baru (TRANSAKSI_ID generate otomatis)
 export const createTransaksi = async (data) => {
   // 🔹 Ambil transaksi terakhir untuk generate nomor berikutnya
   const last = await db(table).select("TRANSAKSI_ID").orderBy("ID", "desc").first();
@@ -81,7 +83,6 @@ export const createTransaksi = async (data) => {
   const row = await baseQuery().where("t.ID", id).first();
   return formatRow(row);
 };
-
 
 // Update transaksi
 export const updateTransaksi = async (id, data) => {

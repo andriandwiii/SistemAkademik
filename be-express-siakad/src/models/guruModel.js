@@ -68,6 +68,40 @@ export const getGuruByIdWithUser = async (id) => {
     .first();
 };
 
+// 🔹 Cari guru berdasarkan EMAIL (untuk filter dashboard)
+export const getGuruByEmail = async (email) => {
+  return db("master_guru as g")
+    .leftJoin("users as u", "g.EMAIL", "u.email")
+    .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
+    .where("g.EMAIL", email)
+    .select(
+      "g.GURU_ID",
+      "g.NIP",
+      "g.NAMA",
+      "g.PANGKAT",
+      "g.KODE_JABATAN",
+      "j.NAMA_JABATAN as JABATAN",
+      "g.STATUS_KEPEGAWAIAN",
+      "g.EMAIL",
+      "g.TGL_LAHIR",
+      "g.TEMPAT_LAHIR",
+      "g.GENDER",
+      "g.ALAMAT",
+      "g.NO_TELP",
+      "g.FOTO",
+      "g.PENDIDIKAN_TERAKHIR",
+      "g.TAHUN_LULUS",
+      "g.UNIVERSITAS",
+      "g.NO_SERTIFIKAT_PENDIDIK",
+      "g.TAHUN_SERTIFIKAT",
+      "g.KEAHLIAN",
+      "g.created_at",
+      "g.updated_at",
+      "u.name as user_name",
+      "u.role as user_role"
+    );
+};
+
 // 🔹 Cari guru berdasarkan KODE_JABATAN
 export const getGuruByJabatan = async (kodeJabatan) => {
   return db("master_guru as g")

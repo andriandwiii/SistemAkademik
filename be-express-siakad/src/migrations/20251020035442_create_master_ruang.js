@@ -5,7 +5,7 @@
 export async function up(knex) {
   return knex.schema.createTable("master_ruang", (table) => {
     // Primary key internal
-    table.increments("ID").primary(); // ID auto increment untuk sistem
+    table.increments("id").primary(); // ID auto increment untuk sistem
 
     // Kode ruang unik (bisa dipakai untuk relasi)
     table.string("RUANG_ID", 5).notNullable().unique(); 

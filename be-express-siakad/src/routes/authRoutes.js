@@ -17,4 +17,7 @@ router.post("/register-guru", upload.single("foto"), AuthController.registerGuru
 // LOGOUT
 router.post("/logout", verifyToken, AuthController.logout);
 
+// GET PROFILE
+router.get("/profile", verifyToken, AuthController.getProfile);
+
 export default router;

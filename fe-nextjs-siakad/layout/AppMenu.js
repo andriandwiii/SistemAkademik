@@ -45,7 +45,6 @@ const AppMenu = () => {
                             { label: "Master Kelas", icon: "pi pi-fw pi-th-large", to: "/master/m.kelas" },
                             { label: "Master Kurikulum", icon: "pi pi-fw pi-book", to: "/master/kurikulum" },
                             { label: "Master Mapel", icon: "pi pi-fw pi-bookmark", to: "/master/mapel" },
-                            { label: "Master Mapel Kelas", icon: "pi pi-fw pi-bookmark", to: "/master/mapel-kelas" },
                             { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
                             { label: "Master Jadwal", icon: "pi pi-fw pi-calendar-times", to: "/master/jadwal" },
                             { label: "Master Jurusan", icon: "pi pi-fw pi-briefcase", to: "/master/jurusan" },
