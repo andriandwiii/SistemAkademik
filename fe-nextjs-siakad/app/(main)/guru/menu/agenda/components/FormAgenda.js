@@ -1,95 +1,163 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
-import { Dropdown } from 'primereact/dropdown';
-import { Calendar } from 'primereact/calendar';
-import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
+import { Calendar } from 'primereact/calendar';
+import { Dropdown } from 'primereact/dropdown';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 
-export default function FormAgendaMengajarModal({ isOpen, onClose, onSubmit, initialData }) {
-  const [tanggal, setTanggal] = useState(null);
-  const [kelas, setKelas] = useState(null);
-  const [mataPelajaran, setMataPelajaran] = useState(null);
-  const [materi, setMateri] = useState('');
-  const [status, setStatus] = useState('Belum Dimulai');
-
-  const kelasOptions = ['X IPA 1', 'X IPS 1', 'XI IPA 2', 'XI IPS 1', 'XII IPA 3', 'XII IPS 1'];
-  const subjects = ['Matematika', 'Biologi', 'Fisika', 'Sejarah', 'Geografi', 'Sosiologi', 'Kimia', 'Ekonomi'];
-  const statusOptions = ['Belum Dimulai', 'Selesai', 'Dibatalkan'];
+export default function FormAgendaMengajar({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  initialData, 
+  jadwalGuru, 
+  mode, 
+  statusOptions 
+}) {
+  const [formData, setFormData] = useState(initialData);
 
   useEffect(() => {
-    if (initialData) {
-      setTanggal(initialData.tanggal || null);
-      setKelas(initialData.kelas || null);
-      setMataPelajaran(initialData.mataPelajaran || null);
-      setMateri(initialData.materi || '');
-      setStatus(initialData.status || 'Belum Dimulai');
-    } else {
-      setTanggal(null);
-      setKelas(null);
-      setMataPelajaran(null);
-      setMateri('');
-      setStatus('Belum Dimulai');
-    }
-  }, [initialData, isOpen]);
+    setFormData(initialData);
+  }, [initialData]);
 
-  const handleSave = () => {
-    if (!tanggal || !kelas || !mataPelajaran || !materi) {
-      alert('Lengkapi semua field terlebih dahulu!');
+  const handleJadwalChange = (jadwalId) => {
+    const selectedJadwal = jadwalGuru.find(j => j.ID === jadwalId);
+    
+    if (selectedJadwal) {
+      const tingkat = selectedJadwal.tingkatan?.TINGKATAN || '';
+      const jurusan = selectedJadwal.jurusan?.NAMA_JURUSAN || '';
+      const ruang = selectedJadwal.kelas?.NAMA_RUANG || '';
+      
+      setFormData({
+        ...formData,
+        jadwalId: jadwalId,
+        hari: selectedJadwal.hari?.HARI || '',
+        kelas: `${tingkat} ${jurusan} | ${ruang}`,
+        mataPelajaran: selectedJadwal.mata_pelajaran?.NAMA_MAPEL || '',
+      });
+    }
+  };
+
+  const handleSubmitForm = () => {
+    if (!formData.tanggal || !formData.jadwalId || !formData.materi) {
+      alert('Mohon lengkapi semua field yang wajib diisi');
       return;
     }
 
-    const payload = {
-      tanggal,
-      kelas,
-      mataPelajaran,
-      materi,
-      status
-    };
-
-    onSubmit(payload);
-    onClose();
+    onSubmit(formData);
   };
+
+  // Options untuk dropdown jadwal
+  const jadwalOptions = jadwalGuru.map(j => {
+    const tingkat = j.tingkatan?.TINGKATAN || '';
+    const jurusan = j.jurusan?.NAMA_JURUSAN || '';
+    const ruang = j.kelas?.NAMA_RUANG || '';
+    const mapel = j.mata_pelajaran?.NAMA_MAPEL || '';
+    const hari = j.hari?.HARI || '';
+    const jp = j.jam_pelajaran?.JP_KE || '';
+    
+    return {
+      label: `${hari} - JP ${jp} - ${mapel} - ${tingkat} ${jurusan} | ${ruang}`,
+      value: j.ID
+    };
+  });
 
   return (
     <Dialog
-      header="Form Agenda Mengajar"
       visible={isOpen}
+      style={{ width: '600px' }}
+      header={mode === 'edit' ? 'Edit Agenda Mengajar' : 'Tambah Agenda Mengajar'}
       modal
       onHide={onClose}
-      style={{ width: '500px' }}
       footer={
-        <div className="flex justify-content-end gap-2">
+        <div>
           <Button label="Batal" icon="pi pi-times" onClick={onClose} className="p-button-text" />
-          <Button label="Simpan" icon="pi pi-check" onClick={handleSave} />
+          <Button label="Simpan" icon="pi pi-check" onClick={handleSubmitForm} autoFocus />
         </div>
       }
     >
-      <div className="p-fluid formgrid grid">
-        <div className="field col-12 md:col-6">
-          <label>Tanggal</label>
-          <Calendar value={tanggal} onChange={(e) => setTanggal(e.value)} dateFormat="dd/mm/yy" />
+      <div className="flex flex-column gap-3 mt-3">
+        <div className="field">
+          <label htmlFor="tanggal" className="font-semibold">
+            Tanggal <span className="text-red-500">*</span>
+          </label>
+          <Calendar
+            id="tanggal"
+            value={formData.tanggal}
+            onChange={(e) => setFormData({ ...formData, tanggal: e.value })}
+            dateFormat="dd/mm/yy"
+            showIcon
+            className="w-full"
+          />
         </div>
 
-        <div className="field col-12 md:col-6">
-          <label>Kelas</label>
-          <Dropdown options={kelasOptions} value={kelas} onChange={(e) => setKelas(e.value)} placeholder="Pilih Kelas" />
+        <div className="field">
+          <label htmlFor="jadwal" className="font-semibold">
+            Pilih Jadwal <span className="text-red-500">*</span>
+          </label>
+          <Dropdown
+            id="jadwal"
+            value={formData.jadwalId}
+            options={jadwalOptions}
+            onChange={(e) => handleJadwalChange(e.value)}
+            placeholder="Pilih jadwal mengajar"
+            className="w-full"
+            filter
+            filterBy="label"
+            emptyMessage="Tidak ada jadwal tersedia"
+            disabled={mode === 'edit'}
+          />
+          {mode === 'edit' && (
+            <small className="text-500">Jadwal tidak dapat diubah saat edit</small>
+          )}
         </div>
 
-        <div className="field col-12 md:col-6">
-          <label>Mata Pelajaran</label>
-          <Dropdown options={subjects} value={mataPelajaran} onChange={(e) => setMataPelajaran(e.value)} placeholder="Pilih Mata Pelajaran" />
+        <div className="field">
+          <label htmlFor="kelas" className="font-semibold">Kelas</label>
+          <InputText
+            id="kelas"
+            value={formData.kelas}
+            disabled
+            className="w-full"
+          />
         </div>
 
-        <div className="field col-12 md:col-6">
-          <label>Status</label>
-          <Dropdown options={statusOptions} value={status} onChange={(e) => setStatus(e.value)} />
+        <div className="field">
+          <label htmlFor="mataPelajaran" className="font-semibold">Mata Pelajaran</label>
+          <InputText
+            id="mataPelajaran"
+            value={formData.mataPelajaran}
+            disabled
+            className="w-full"
+          />
         </div>
 
-        <div className="field col-12">
-          <label>Materi</label>
-          <InputTextarea value={materi} onChange={(e) => setMateri(e.target.value)} rows={3} autoResize placeholder="Masukkan materi yang diajarkan" />
+        <div className="field">
+          <label htmlFor="materi" className="font-semibold">
+            Materi Pembelajaran <span className="text-red-500">*</span>
+          </label>
+          <InputTextarea
+            id="materi"
+            value={formData.materi}
+            onChange={(e) => setFormData({ ...formData, materi: e.target.value })}
+            rows={3}
+            className="w-full"
+            placeholder="Contoh: Persamaan Kuadrat dan Penyelesaiannya"
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="status" className="font-semibold">Status</label>
+          <Dropdown
+            id="status"
+            value={formData.status}
+            options={statusOptions.map(s => ({ label: s, value: s }))}
+            onChange={(e) => setFormData({ ...formData, status: e.value })}
+            className="w-full"
+          />
         </div>
       </div>
     </Dialog>

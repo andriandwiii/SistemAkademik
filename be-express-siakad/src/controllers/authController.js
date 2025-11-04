@@ -66,7 +66,7 @@ export const registerGuru = async (req, res) => {
       UNIVERSITAS: parsed.universitas || null,
       NO_SERTIFIKAT_PENDIDIK: parsed.no_sertifikat_pendidik || null,
       TAHUN_SERTIFIKAT: parsed.tahun_sertifikat || null,
-      KEAHLIAN: parsed.keahlian || null, // ✅ diperbaiki dari MAPEL_DIAMPU ke KEAHLIAN
+      KEAHLIAN: parsed.keahlian || null,
     });
 
     return res.status(201).json({
@@ -347,6 +347,108 @@ export const register = async (req, res) => {
     });
   }
 };
+
+/**
+ * GET PROFILE USER YANG LOGIN
+ */
+export const getProfile = async (req, res) => {
+  try {
+    // Data user sudah ada di req.user (dari middleware verifyToken)
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        status: "01",
+        message: "Token tidak valid atau tidak ditemukan",
+        datetime: new Date().toISOString(),
+      });
+    }
+
+    // Ambil data user dari database
+    const user = await db("users")
+      .where({ id: userId })
+      .select("id", "name", "email", "role", "created_at")
+      .first();
+
+    if (!user) {
+      return res.status(404).json({
+        status: "01",
+        message: "User tidak ditemukan",
+        datetime: new Date().toISOString(),
+      });
+    }
+
+    // Jika user adalah GURU, ambil juga data guru
+    let guruData = null;
+    if (user.role === "GURU") {
+      guruData = await db("master_guru as g")
+        .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
+        .where("g.EMAIL", user.email)
+        .select(
+          "g.GURU_ID",
+          "g.NIP",
+          "g.NAMA",
+          "g.PANGKAT",
+          "g.KODE_JABATAN",
+          "j.NAMA_JABATAN as JABATAN",
+          "g.STATUS_KEPEGAWAIAN",
+          "g.GENDER",
+          "g.TGL_LAHIR",
+          "g.TEMPAT_LAHIR",
+          "g.ALAMAT",
+          "g.NO_TELP",
+          "g.FOTO",
+          "g.KEAHLIAN"
+        )
+        .first();
+    }
+
+    // Jika user adalah SISWA, ambil juga data siswa
+    let siswaData = null;
+    if (user.role === "SISWA") {
+      siswaData = await db("master_siswa")
+        .where("EMAIL", user.email)
+        .select(
+          "SISWA_ID",
+          "NIS",  
+          "NISN",
+          "NAMA",
+          "GENDER",
+          "TGL_LAHIR",
+          "TEMPAT_LAHIR",
+          "AGAMA",
+          "ALAMAT",
+          "NO_TELP",
+          "STATUS",
+          "FOTO"
+        )
+        .first();
+    }
+
+    return res.status(200).json({
+      status: "00",
+      message: "Berhasil mengambil profil user",
+      datetime: new Date().toISOString(),
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at,
+        ...(guruData && { guru: guruData }),
+        ...(siswaData && { siswa: siswaData }),
+      },
+    });
+  } catch (error) {
+    console.error("Error getProfile:", error);
+    return res.status(500).json({
+      status: "01",
+      message: `Terjadi kesalahan server: ${error.message}`,
+      datetime: new Date().toISOString(),
+    });
+  }
+};
+
 
 /**
  * LOGIN

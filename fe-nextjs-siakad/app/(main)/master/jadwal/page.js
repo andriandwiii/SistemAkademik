@@ -9,6 +9,7 @@ import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
 import CustomDataTable from "../../../components/DataTable";
 import FormJadwal from "./components/FormJadwal";
+import DialogSiswaKelas from "./components/DialogSiswaKelas";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -22,6 +23,10 @@ export default function JadwalPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedJadwal, setSelectedJadwal] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
+  
+  // Dialog Siswa
+  const [siswaDialogVisible, setSiswaDialogVisible] = useState(false);
+  const [selectedJadwalForSiswa, setSelectedJadwalForSiswa] = useState(null);
 
   // Filter
   const [hariFilter, setHariFilter] = useState(null);
@@ -224,6 +229,11 @@ export default function JadwalPage() {
     });
   };
 
+  const handleViewSiswa = (rowData) => {
+    setSelectedJadwalForSiswa(rowData);
+    setSiswaDialogVisible(true);
+  };
+
   const jadwalColumns = [
     { field: "ID", header: "ID", style: { width: "60px" } },
     {
@@ -287,9 +297,19 @@ export default function JadwalPage() {
       body: (rowData) => (
         <div className="flex gap-2">
           <Button
+            icon="pi pi-users"
+            size="small"
+            severity="info"
+            tooltip="Lihat Siswa"
+            tooltipOptions={{ position: "top" }}
+            onClick={() => handleViewSiswa(rowData)}
+          />
+          <Button
             icon="pi pi-pencil"
             size="small"
             severity="warning"
+            tooltip="Edit"
+            tooltipOptions={{ position: "top" }}
             onClick={() => {
               setSelectedJadwal(rowData);
               setDialogVisible(true);
@@ -299,11 +319,13 @@ export default function JadwalPage() {
             icon="pi pi-trash"
             size="small"
             severity="danger"
+            tooltip="Hapus"
+            tooltipOptions={{ position: "top" }}
             onClick={() => handleDelete(rowData)}
           />
         </div>
       ),
-      style: { width: "120px" },
+      style: { width: "160px" },
     },
   ];
 
@@ -430,6 +452,17 @@ export default function JadwalPage() {
         onSave={handleSubmit}
         token={token}
         jadwalList={originalData}
+      />
+
+      {/* Dialog Siswa Kelas */}
+      <DialogSiswaKelas
+        visible={siswaDialogVisible}
+        onHide={() => {
+          setSiswaDialogVisible(false);
+          setSelectedJadwalForSiswa(null);
+        }}
+        jadwalData={selectedJadwalForSiswa}
+        token={token}
       />
     </div>
   );
