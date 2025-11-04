@@ -5,10 +5,19 @@ import { useEffect, useState, useRef } from "react";
 import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Dropdown } from "primereact/dropdown";
+import { Dialog } from "primereact/dialog"; // 🔹 IMPORT TAMBAHAN
 import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
 import CustomDataTable from "../../../components/DataTable";
 import FormJadwal from "./components/FormJadwal";
+import dynamic from "next/dynamic"; // 🔹 IMPORT TAMBAHAN
+
+// 🔹 Buat komponen print dinamis tanpa SSR
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const AdjustPrintMarginLaporanJadwal = dynamic(
+  () => import("./print/AdjustPrintMarginLaporanJadwal"),
+  { ssr: false }
+);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -32,6 +41,12 @@ export default function JadwalPage() {
   const [tingkatanOptions, setTingkatanOptions] = useState([]);
   const [jurusanOptions, setJurusanOptions] = useState([]);
   const [kelasOptions, setKelasOptions] = useState([]);
+
+  // 🔹 STATE UNTUK PRINT
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem("token");
@@ -67,7 +82,10 @@ export default function JadwalPage() {
         const kelasSet = new Set();
 
         data.forEach((j) => {
-          if (j.hari?.HARI) hariSet.add(j.hari.HARI);
+          // 🔹 Sesuaikan dengan struktur data Anda (j.HARI atau j.hari.HARI)
+          if (j.HARI) hariSet.add(j.HARI);
+          else if (j.hari?.HARI) hariSet.add(j.hari.HARI);
+          
           if (j.tingkatan?.TINGKATAN) tingkatanSet.add(j.tingkatan.TINGKATAN);
           if (j.jurusan?.NAMA_JURUSAN) jurusanSet.add(j.jurusan.NAMA_JURUSAN);
           if (j.kelas?.KELAS_ID) kelasSet.add(j.kelas.KELAS_ID);
@@ -101,10 +119,17 @@ export default function JadwalPage() {
   // Search handler
   const handleSearch = (keyword) => {
     if (!keyword) {
-      setJadwal(originalData);
+      // Jika filter aktif, terapkan filter. Jika tidak, reset ke data asli.
+      applyFiltersWithValue(hariFilter, tingkatanFilter, jurusanFilter, kelasFilter);
     } else {
-      const filtered = originalData.filter(
+      // Mulai filter dari data yang sudah difilter sebelumnya (jadwal)
+      // atau dari originalData jika ingin search mengabaikan filter dropdown
+      const dataToSearch = (hariFilter || tingkatanFilter || jurusanFilter || kelasFilter) ? jadwal : originalData;
+
+      const filtered = dataToSearch.filter(
         (j) =>
+          // 🔹 Sesuaikan dengan key NAMA GURU Anda (NAMA atau NAMA_GURU)
+          j.guru?.NAMA?.toLowerCase().includes(keyword.toLowerCase()) ||
           j.guru?.NAMA_GURU?.toLowerCase().includes(keyword.toLowerCase()) ||
           j.guru?.NIP?.toLowerCase().includes(keyword.toLowerCase()) ||
           j.mata_pelajaran?.NAMA_MAPEL?.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -120,7 +145,8 @@ export default function JadwalPage() {
 
     // Filter by hari
     if (hari) {
-      filtered = filtered.filter((j) => j.hari?.HARI === hari);
+       // 🔹 Sesuaikan dengan struktur data Anda
+      filtered = filtered.filter((j) => (j.HARI || j.hari?.HARI) === hari);
     }
 
     // Filter by tingkatan
@@ -155,7 +181,8 @@ export default function JadwalPage() {
       if (selectedJadwal) {
         // Edit mode
         const res = await axios.put(
-          `${API_URL}/jadwal/${selectedJadwal.ID}`,
+          // 🔹 Pastikan ID ada di selectedJadwal (selectedJadwal.ID atau selectedJadwal.id)
+          `${API_URL}/jadwal/${selectedJadwal.ID || selectedJadwal.id}`,
           data,
           {
             headers: {
@@ -211,7 +238,8 @@ export default function JadwalPage() {
       acceptClassName: "p-button-danger",
       accept: async () => {
         try {
-          await axios.delete(`${API_URL}/jadwal/${rowData.ID}`, {
+          // 🔹 Pastikan ID ada di rowData (rowData.ID atau rowData.id)
+          await axios.delete(`${API_URL}/jadwal/${rowData.ID || rowData.id}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           toastRef.current?.showToast("00", "Jadwal berhasil dihapus");
@@ -225,7 +253,8 @@ export default function JadwalPage() {
   };
 
   const jadwalColumns = [
-    { field: "ID", header: "ID", style: { width: "60px" } },
+    // 🔹 Sesuaikan field ID (ID atau id)
+    { field: "ID", header: "ID", style: { width: "60px" } }, 
     {
       field: "KODE_JADWAL",
       header: "Kode Jadwal",
@@ -235,7 +264,8 @@ export default function JadwalPage() {
       field: "hari.HARI",
       header: "Hari",
       style: { minWidth: "100px" },
-      body: (row) => row.hari?.HARI || "-",
+      // 🔹 Sesuaikan body (row.HARI atau row.hari.HARI)
+      body: (row) => row.HARI || row.hari?.HARI || "-",
     },
     {
       field: "tingkatan.TINGKATAN",
@@ -256,10 +286,10 @@ export default function JadwalPage() {
       body: (row) => row.kelas?.KELAS_ID || "-",
     },
     {
-      field: "guru.NAMA_GURU",
+      field: "guru.NAMA", // 🔹 Disesuaikan (NAMA atau NAMA_GURU)
       header: "Guru",
       style: { minWidth: "180px" },
-      body: (row) => row.guru?.NAMA_GURU || "-",
+      body: (row) => row.guru?.NAMA || row.guru?.NAMA_GURU || "-",
     },
     {
       field: "mata_pelajaran.NAMA_MAPEL",
@@ -277,7 +307,7 @@ export default function JadwalPage() {
       field: "jam_pelajaran",
       header: "Waktu",
       style: { minWidth: "140px" },
-      body: (row) => 
+      body: (row) =>
         row.jam_pelajaran?.WAKTU_MULAI && row.jam_pelajaran?.WAKTU_SELESAI
           ? `${row.jam_pelajaran.WAKTU_MULAI} - ${row.jam_pelajaran.WAKTU_SELESAI}`
           : "-",
@@ -400,6 +430,14 @@ export default function JadwalPage() {
 
         {/* Action Section */}
         <div className="flex items-center justify-end gap-2">
+          {/* 🔹 TOMBOL PRINT DITAMBAHKAN */}
+          <Button
+            icon="pi pi-print"
+            severity="warning"
+            tooltip="Cetak Laporan"
+            tooltipOptions={{ position: "top" }}
+            onClick={() => setAdjustDialog(true)}
+          />
           <HeaderBar
             title=""
             placeholder="Cari jadwal (Kode, Guru, Mapel)"
@@ -414,7 +452,7 @@ export default function JadwalPage() {
 
       {/* Tabel Data */}
       <CustomDataTable
-        data={jadwal}
+        data={jadwal} // 🔹 Kirim data yang sudah difilter
         loading={isLoading}
         columns={jadwalColumns}
       />
@@ -429,8 +467,30 @@ export default function JadwalPage() {
         selectedJadwal={selectedJadwal}
         onSave={handleSubmit}
         token={token}
-        jadwalList={originalData}
+        jadwalList={originalData} // Mengirim data asli untuk generate kode
       />
+
+      {/* 🔹 DIALOG PRINT DITAMBAHKAN */}
+      <AdjustPrintMarginLaporanJadwal
+        adjustDialog={adjustDialog}
+        setAdjustDialog={setAdjustDialog}
+        dataJadwal={jadwal} // 🔹 Kirim data yang sudah difilter ke komponen print
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+      />
+
+      {/* 🔹 DIALOG PREVIEW PDF DITAMBAHKAN */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={() => setJsPdfPreviewOpen(false)}
+        modal
+        style={{ width: "90vw", height: "90vh" }}
+        header="Preview Laporan Jadwal Pelajaran"
+        blockScroll
+      >
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
+      </Dialog>
     </div>
   );
 }

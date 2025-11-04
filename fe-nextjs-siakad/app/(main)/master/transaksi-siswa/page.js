@@ -61,7 +61,8 @@ export default function TransaksiPage() {
       if (!isMounted.current) return;
 
       const data = json.data || [];
-      console.log("DATA TRANSAKSI:", data); // 🪄 Debug: lihat struktur data dari API
+      console.log("DATA TRANSAKSI:", data);
+      data.sort((a, b) => a.ID - b.ID); // 🪄 Debug: lihat struktur data dari API
 
       // Build tingkatan filter options
       const tingkatanSet = new Set();
