@@ -5,11 +5,16 @@ import { useEffect, useState, useRef } from "react";
 import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Dropdown } from "primereact/dropdown";
+import { Dialog } from "primereact/dialog";
 import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
 import CustomDataTable from "../../../components/DataTable";
 import FormJadwal from "./components/FormJadwal";
 import DialogSiswaKelas from "./components/DialogSiswaKelas";
+import AdjustPrintMarginAbsensi from "./print//AdjustPrintMarginAbsensi";
+import dynamic from "next/dynamic";
+
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -27,6 +32,13 @@ export default function JadwalPage() {
   // Dialog Siswa
   const [siswaDialogVisible, setSiswaDialogVisible] = useState(false);
   const [selectedJadwalForSiswa, setSelectedJadwalForSiswa] = useState(null);
+
+  // Print
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [selectedJadwalForPrint, setSelectedJadwalForPrint] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
   // Filter
   const [hariFilter, setHariFilter] = useState(null);
@@ -65,6 +77,7 @@ export default function JadwalPage() {
       if (res.data.status === "00") {
         const data = res.data.data || [];
         data.sort((a, b) => a.ID - b.ID);
+        
         // Build filter options
         const hariSet = new Set();
         const tingkatanSet = new Set();
@@ -123,22 +136,18 @@ export default function JadwalPage() {
   const applyFiltersWithValue = (hari, tingkatan, jurusan, kelas) => {
     let filtered = [...originalData];
 
-    // Filter by hari
     if (hari) {
       filtered = filtered.filter((j) => j.hari?.HARI === hari);
     }
 
-    // Filter by tingkatan
     if (tingkatan) {
       filtered = filtered.filter((j) => j.tingkatan?.TINGKATAN === tingkatan);
     }
 
-    // Filter by jurusan
     if (jurusan) {
       filtered = filtered.filter((j) => j.jurusan?.NAMA_JURUSAN === jurusan);
     }
 
-    // Filter by kelas
     if (kelas) {
       filtered = filtered.filter((j) => j.kelas?.KELAS_ID === kelas);
     }
@@ -158,7 +167,6 @@ export default function JadwalPage() {
   const handleSubmit = async (data) => {
     try {
       if (selectedJadwal) {
-        // Edit mode
         const res = await axios.put(
           `${API_URL}/jadwal/${selectedJadwal.ID}`,
           data,
@@ -176,7 +184,6 @@ export default function JadwalPage() {
           return;
         }
       } else {
-        // Add mode
         const res = await axios.post(
           `${API_URL}/jadwal`,
           data,
@@ -232,6 +239,11 @@ export default function JadwalPage() {
   const handleViewSiswa = (rowData) => {
     setSelectedJadwalForSiswa(rowData);
     setSiswaDialogVisible(true);
+  };
+
+  const handlePrintAbsensi = (rowData) => {
+    setSelectedJadwalForPrint(rowData);
+    setAdjustDialog(true);
   };
 
   const jadwalColumns = [
@@ -297,6 +309,14 @@ export default function JadwalPage() {
       body: (rowData) => (
         <div className="flex gap-2">
           <Button
+            icon="pi pi-print"
+            size="small"
+            severity="success"
+            tooltip="Print Daftar Hadir"
+            tooltipOptions={{ position: "top" }}
+            onClick={() => handlePrintAbsensi(rowData)}
+          />
+          <Button
             icon="pi pi-users"
             size="small"
             severity="info"
@@ -325,7 +345,7 @@ export default function JadwalPage() {
           />
         </div>
       ),
-      style: { width: "160px" },
+      style: { width: "200px" },
     },
   ];
 
@@ -464,6 +484,28 @@ export default function JadwalPage() {
         jadwalData={selectedJadwalForSiswa}
         token={token}
       />
+
+      {/* Dialog Print Pengaturan */}
+      <AdjustPrintMarginAbsensi
+        adjustDialog={adjustDialog}
+        setAdjustDialog={setAdjustDialog}
+        jadwalData={selectedJadwalForPrint}
+        token={token}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+      />
+
+      {/* Dialog PDF Preview */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={() => setJsPdfPreviewOpen(false)}
+        modal
+        style={{ width: "90vw", height: "90vh" }}
+        header={`Preview - ${fileName}`}
+      >
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
+      </Dialog>
     </div>
   );
 }
