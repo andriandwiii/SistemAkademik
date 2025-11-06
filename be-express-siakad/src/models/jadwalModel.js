@@ -114,3 +114,46 @@ export const deleteJadwal = async (id) => {
   await db(table).where({ ID: id }).del();
   return existing;
 };
+
+// --- VVVV TAMBAHKAN FUNGSI BARU DI BAWAH INI VVVV ---
+
+/**
+ * 🔹 Cek bentrok jadwal untuk Guru atau Kelas (Versi Knex.js)
+ * Mencari jadwal yang ada pada HARI & KODE_JP yang sama,
+ * DAN (NIP yang sama ATAU KELAS_ID yang sama)
+ * @param {object} data - { HARI, KODE_JP, NIP, KELAS_ID, excludeId (opsional) }
+ * @returns {object|null} - Mengembalikan data bentrok jika ada, atau null jika tidak
+ */
+export const checkBentrok = async (data) => {
+  const { HARI, KODE_JP, NIP, KELAS_ID, excludeId = null } = data;
+
+  try {
+    // Buat query dasar
+    const query = db(table)
+      .select("NIP", "KELAS_ID") // Hanya butuh ini untuk info bentrok
+      .where({
+        HARI: HARI,
+        KODE_JP: KODE_JP,
+      })
+      .andWhere(function () {
+        // Ini akan membuat (NIP = ? OR KELAS_ID = ?)
+        this.where({ NIP: NIP }).orWhere({ KELAS_ID: KELAS_ID });
+      });
+
+    // Jika ini adalah 'update', kecualikan ID jadwal yang sedang diedit
+    if (excludeId) {
+      query.andWhere("ID", "!=", excludeId);
+    }
+
+    // Ambil 1 baris pertama saja. Jika tidak ada, 'row' akan undefined
+    const row = await query.first();
+
+    // Kembalikan 'row' (objek bentrok) jika ada, atau 'null' jika tidak ada
+    return row || null;
+
+  } catch (err) {
+    console.error("❌ Error checkBentrok Model:", err);
+    // Lemparkan error agar bisa ditangkap oleh controller
+    throw new Error(err.message || "Gagal melakukan pengecekan bentrok di model");
+  }
+};
