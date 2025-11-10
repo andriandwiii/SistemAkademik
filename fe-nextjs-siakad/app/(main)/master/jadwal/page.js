@@ -6,6 +6,7 @@ import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { Dropdown } from "primereact/dropdown";
 import { Dialog } from "primereact/dialog";
+import { ProgressSpinner } from "primereact/progressspinner";
 import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
 import CustomDataTable from "../../../components/DataTable";
@@ -15,7 +16,14 @@ import AdjustPrintMarginAbsensi from "./print/AdjustPrintMarginAbsensi";
 import AdjustPrintMarginJadwal from "./print/AdjustPrintMarginJadwal";
 import dynamic from "next/dynamic";
 
-const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <ProgressSpinner style={{ width: "50px", height: "50px" }} strokeWidth="4" />
+    </div>
+  ),
+  ssr: false,
+});
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -30,10 +38,9 @@ export default function JadwalPage() {
   const [selectedJadwal, setSelectedJadwal] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
 
-  // --- State untuk menyimpan data Waka Kurikulum ---
+  // State untuk menyimpan data Waka Kurikulum
   const [namaKurikulum, setNamaKurikulum] = useState("");
   const [nipKurikulum, setNipKurikulum] = useState("");
-  // --- BATAS TAMBAHAN STATE ---
 
   // Dialog Siswa
   const [siswaDialogVisible, setSiswaDialogVisible] = useState(false);
@@ -56,7 +63,6 @@ export default function JadwalPage() {
   const [tingkatanFilter, setTingkatanFilter] = useState(null);
   const [jurusanFilter, setJurusanFilter] = useState(null);
   const [kelasFilter, setKelasFilter] = useState(null);
-  const [searchKeyword, setSearchKeyword] = useState("");
 
   const [hariOptions, setHariOptions] = useState([]);
   const [tingkatanOptions, setTingkatanOptions] = useState([]);
@@ -70,9 +76,7 @@ export default function JadwalPage() {
     } else {
       setToken(t);
       fetchJadwal(t);
-      // --- PANGGILAN FUNGSI ---
       fetchDataKurikulum(t);
-      // --- BATAS PANGGILAN FUNGSI ---
     }
 
     return () => {
@@ -82,15 +86,8 @@ export default function JadwalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- FUNGSI BARU ---
-  /**
-   * Mengambil data user yang memiliki role KURIKULUM
-   * untuk digunakan pada TTD di cetak laporan.
-   */
   const fetchDataKurikulum = async (t) => {
     try {
-      // PENTING: Ganti 'users/kurikulum' dengan endpoint API Anda
-      // yang benar untuk mengambil user dengan role 'KURIKULUM'
       const res = await axios.get(`${API_URL}/users/kurikulum`, {
         headers: { Authorization: `Bearer ${t}` },
       });
@@ -98,12 +95,8 @@ export default function JadwalPage() {
       if (!isMounted.current) return;
 
       if (res.data.status === "00" && res.data.data) {
-        // Asumsi data yang dikembalikan adalah objek user: { name: "...", nip: "..." }
         setNamaKurikulum(res.data.data.name || "Nama Kurikulum Tidak Ditemukan");
-        
-        // Sesuaikan 'nip' dengan nama kolom di tabel 'users' Anda
-        // Jika tidak ada NIP di tabel users, ganti res.data.data.nip menjadi ""
-        setNipKurikulum(res.data.data.nip || ""); 
+        setNipKurikulum(res.data.data.nip || "");
       } else {
         setNamaKurikulum("Nama Kurikulum (error)");
       }
@@ -114,7 +107,6 @@ export default function JadwalPage() {
       }
     }
   };
-  // --- BATAS FUNGSI BARU ---
 
   const fetchJadwal = async (t) => {
     setIsLoading(true);
@@ -142,6 +134,7 @@ export default function JadwalPage() {
           if (j.kelas?.KELAS_ID) kelasSet.add(j.kelas.KELAS_ID);
         });
 
+        setJadwal(data);
         setOriginalData(data);
         setHariOptions(Array.from(hariSet).map((h) => ({ label: h, value: h })));
         setTingkatanOptions(Array.from(tingkatanSet).map((t) => ({ label: t, value: t })));
@@ -158,43 +151,59 @@ export default function JadwalPage() {
     }
   };
 
-  // EFEK TERPUSAT UNTUK FILTER DAN SEARCH
-  useEffect(() => {
-    let filtered = [...originalData];
-
-    // 1. Terapkan Filter Dropdown
-    if (hariFilter) {
-      filtered = filtered.filter((j) => j.hari?.HARI === hariFilter);
-    }
-    if (tingkatanFilter) {
-      filtered = filtered.filter((j) => j.tingkatan?.TINGKATAN === tingkatanFilter);
-    }
-    if (jurusanFilter) {
-      filtered = filtered.filter((j) => j.jurusan?.NAMA_JURUSAN === jurusanFilter);
-    }
-    if (kelasFilter) {
-      filtered = filtered.filter((j) => j.kelas?.KELAS_ID === kelasFilter);
-    }
-
-    // 2. Terapkan Filter Pencarian
-    if (searchKeyword) {
-      const keyword = searchKeyword.toLowerCase();
-      filtered = filtered.filter(
-        (j) =>
-          j.guru?.NAMA_GURU?.toLowerCase().includes(keyword) ||
-          j.guru?.NIP?.toLowerCase().includes(keyword) ||
-          j.mata_pelajaran?.NAMA_MAPEL?.toLowerCase().includes(keyword) ||
-          j.KODE_JADWAL?.toLowerCase().includes(keyword)
-      );
-    }
-
-    // 3. Set state jadwal yang akan ditampilkan
-    setJadwal(filtered);
-  }, [originalData, hariFilter, tingkatanFilter, jurusanFilter, kelasFilter, searchKeyword]);
-
   // Search handler
   const handleSearch = (keyword) => {
-    setSearchKeyword(keyword);
+    if (!keyword) {
+      applyFiltersWithValue(hariFilter, tingkatanFilter, jurusanFilter, kelasFilter);
+    } else {
+      let filtered = [...originalData];
+
+      // Apply dropdown filters first
+      if (hariFilter) {
+        filtered = filtered.filter((j) => j.hari?.HARI === hariFilter);
+      }
+      if (tingkatanFilter) {
+        filtered = filtered.filter((j) => j.tingkatan?.TINGKATAN === tingkatanFilter);
+      }
+      if (jurusanFilter) {
+        filtered = filtered.filter((j) => j.jurusan?.NAMA_JURUSAN === jurusanFilter);
+      }
+      if (kelasFilter) {
+        filtered = filtered.filter((j) => j.kelas?.KELAS_ID === kelasFilter);
+      }
+
+      // Then apply search keyword
+      const lowerKeyword = keyword.toLowerCase();
+      filtered = filtered.filter(
+        (j) =>
+          j.guru?.NAMA_GURU?.toLowerCase().includes(lowerKeyword) ||
+          j.guru?.NIP?.toLowerCase().includes(lowerKeyword) ||
+          j.mata_pelajaran?.NAMA_MAPEL?.toLowerCase().includes(lowerKeyword) ||
+          j.KODE_JADWAL?.toLowerCase().includes(lowerKeyword)
+      );
+
+      setJadwal(filtered);
+    }
+  };
+
+  // Apply all filters with values
+  const applyFiltersWithValue = (hari, tingkatan, jurusan, kelas) => {
+    let filtered = [...originalData];
+
+    if (hari) {
+      filtered = filtered.filter((j) => j.hari?.HARI === hari);
+    }
+    if (tingkatan) {
+      filtered = filtered.filter((j) => j.tingkatan?.TINGKATAN === tingkatan);
+    }
+    if (jurusan) {
+      filtered = filtered.filter((j) => j.jurusan?.NAMA_JURUSAN === jurusan);
+    }
+    if (kelas) {
+      filtered = filtered.filter((j) => j.kelas?.KELAS_ID === kelas);
+    }
+
+    setJadwal(filtered);
   };
 
   // Reset all filters
@@ -203,49 +212,44 @@ export default function JadwalPage() {
     setTingkatanFilter(null);
     setJurusanFilter(null);
     setKelasFilter(null);
-    setSearchKeyword("");
-    
-    // Jika HeaderBar Anda memerlukan 'value' prop untuk di-reset
-    // Anda bisa meneruskan searchKeyword sebagai prop 'value' atau 'searchValue'
+    setJadwal(originalData);
   };
 
   const handleSubmit = async (data) => {
-    
-    // --- VVVV TAMBAHKAN BLOK VALIDASI INI VVVV ---
-    // 'data' diasumsikan berisi: { HARI, KODE_JP, NIP, KELAS_ID, ... }
-    
-    // 1. Cek Bentrok Guru
-    // Cari jadwal lain (bukan jadwal yang sedang diedit)
-    // yang memiliki guru, hari, dan jam yang sama.
-    const bentrokGuru = originalData.find(j => 
+    // Validasi bentrok guru
+    const bentrokGuru = originalData.find(
+      (j) =>
         j.hari?.HARI === data.HARI &&
         j.jam_pelajaran?.KODE_JP === data.KODE_JP &&
         j.guru?.NIP === data.NIP &&
-        j.ID !== selectedJadwal?.ID // Abaikan diri sendiri saat edit
+        j.ID !== selectedJadwal?.ID
     );
 
     if (bentrokGuru) {
-        toastRef.current?.showToast("01", `Validasi Gagal: Guru (${bentrokGuru.guru?.NAMA_GURU}) sudah mengajar di kelas ${bentrokGuru.kelas?.KELAS_ID} pada hari dan jam yang sama.`);
-        return; // Hentikan fungsi
+      toastRef.current?.showToast(
+        "01",
+        `Validasi Gagal: Guru (${bentrokGuru.guru?.NAMA_GURU}) sudah mengajar di kelas ${bentrokGuru.kelas?.KELAS_ID} pada hari dan jam yang sama.`
+      );
+      return;
     }
 
-    // 2. Cek Bentrok Kelas
-    // Cari jadwal lain (bukan jadwal yang sedang diedit)
-    // yang memiliki kelas, hari, dan jam yang sama.
-    const bentrokKelas = originalData.find(j => 
+    // Validasi bentrok kelas
+    const bentrokKelas = originalData.find(
+      (j) =>
         j.hari?.HARI === data.HARI &&
         j.jam_pelajaran?.KODE_JP === data.KODE_JP &&
         j.kelas?.KELAS_ID === data.KELAS_ID &&
-        j.ID !== selectedJadwal?.ID // Abaikan diri sendiri saat edit
+        j.ID !== selectedJadwal?.ID
     );
 
     if (bentrokKelas) {
-        toastRef.current?.showToast("01", `Validasi Gagal: Kelas ${bentrokKelas.kelas?.KELAS_ID} sudah ada jadwal (${bentrokKelas.mata_pelajaran?.NAMA_MAPEL}) pada hari dan jam yang sama.`);
-        return; // Hentikan fungsi
+      toastRef.current?.showToast(
+        "01",
+        `Validasi Gagal: Kelas ${bentrokKelas.kelas?.KELAS_ID} sudah ada jadwal (${bentrokKelas.mata_pelajaran?.NAMA_MAPEL}) pada hari dan jam yang sama.`
+      );
+      return;
     }
-    // --- ^^^^ BATAS BLOK VALIDASI ^^^^ ---
 
-    // Jika lolos, lanjutkan ke try...catch
     try {
       if (selectedJadwal) {
         const res = await axios.put(`${API_URL}/jadwal/${selectedJadwal.ID}`, data, {
@@ -278,7 +282,6 @@ export default function JadwalPage() {
       }
     } catch (err) {
       console.error(err);
-      // Tangkap juga error validasi dari backend (status 400)
       if (err.response?.status === 400) {
         toastRef.current?.showToast("01", err.response.data.message || "Validasi dari server gagal.");
       } else {
@@ -320,6 +323,17 @@ export default function JadwalPage() {
   const handlePrintAbsensi = (rowData) => {
     setSelectedJadwalForPrint(rowData);
     setAdjustDialog(true);
+  };
+
+  const handlePrintJadwal = () => {
+    setAdjustJadwalDialog(true);
+  };
+
+  const handleClosePdfPreview = () => {
+    setJsPdfPreviewOpen(false);
+    setTimeout(() => {
+      setPdfUrl("");
+    }, 300);
   };
 
   const jadwalColumns = [
@@ -422,133 +436,120 @@ export default function JadwalPage() {
   ];
 
   return (
-    <div className="card p-6 bg-white rounded-lg shadow-sm">
+    <div className="card">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      {/* 1. HEADER UTAMA (HANYA JUDUL) */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-        <h3 className="text-2xl font-semibold">Master Jadwal Pelajaran</h3>
-      </div>
+      <h3 className="text-xl font-semibold mb-3">Master Jadwal Pelajaran</h3>
 
-      {/* 2. FILTER & TOOLBAR (SEMUA KONTROL DI SINI) */}
-      <div className="bg-gray-50 p-4 rounded-md mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
-          
-          {/* Filter Hari */}
-          <div style={{ minWidth: "140px" }}>
-            <label htmlFor="hari-filter" className="text-sm font-medium block mb-1">
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
+        {/* Filter Section */}
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex flex-column gap-2">
+            <label htmlFor="hari-filter" className="text-sm font-medium">
               Hari
             </label>
             <Dropdown
               id="hari-filter"
               value={hariFilter}
               options={hariOptions}
-              onChange={(e) => setHariFilter(e.value)}
+              onChange={(e) => {
+                setHariFilter(e.value);
+                applyFiltersWithValue(e.value, tingkatanFilter, jurusanFilter, kelasFilter);
+              }}
               placeholder="Pilih hari"
-              className="w-full"
+              className="w-48"
               showClear
             />
           </div>
 
-          {/* Filter Tingkatan */}
-          <div style={{ minWidth: "140px" }}>
-            <label htmlFor="tingkatan-filter" className="text-sm font-medium block mb-1">
+          <div className="flex flex-column gap-2">
+            <label htmlFor="tingkatan-filter" className="text-sm font-medium">
               Tingkatan
             </label>
             <Dropdown
               id="tingkatan-filter"
               value={tingkatanFilter}
               options={tingkatanOptions}
-              onChange={(e) => setTingkatanFilter(e.value)}
+              onChange={(e) => {
+                setTingkatanFilter(e.value);
+                applyFiltersWithValue(hariFilter, e.value, jurusanFilter, kelasFilter);
+              }}
               placeholder="Pilih tingkatan"
-              className="w-full"
+              className="w-48"
               showClear
             />
           </div>
 
-          {/* Filter Jurusan */}
-          <div style={{ minWidth: "140px" }}>
-            <label htmlFor="jurusan-filter" className="text-sm font-medium block mb-1">
+          <div className="flex flex-column gap-2">
+            <label htmlFor="jurusan-filter" className="text-sm font-medium">
               Jurusan
             </label>
             <Dropdown
               id="jurusan-filter"
               value={jurusanFilter}
               options={jurusanOptions}
-              onChange={(e) => setJurusanFilter(e.value)}
+              onChange={(e) => {
+                setJurusanFilter(e.value);
+                applyFiltersWithValue(hariFilter, tingkatanFilter, e.value, kelasFilter);
+              }}
               placeholder="Pilih jurusan"
-              className="w-full"
+              className="w-52"
               showClear
             />
           </div>
 
-          {/* Filter Kelas */}
-          <div style={{ minWidth: "140px" }}>
-            <label htmlFor="kelas-filter" className="text-sm font-medium block mb-1">
+          <div className="flex flex-column gap-2">
+            <label htmlFor="kelas-filter" className="text-sm font-medium">
               Kelas
             </label>
             <Dropdown
               id="kelas-filter"
               value={kelasFilter}
               options={kelasOptions}
-              onChange={(e) => setKelasFilter(e.value)}
+              onChange={(e) => {
+                setKelasFilter(e.value);
+                applyFiltersWithValue(hariFilter, tingkatanFilter, jurusanFilter, e.value);
+              }}
               placeholder="Pilih kelas"
-              className="w-full"
+              className="w-48"
               showClear
             />
           </div>
 
-          {/* Search Bar - Pindah ke kanan */}
-          {/* 'md:ml-auto' mendorong sisa item ke kanan di layar medium+ */}
-          <div className="flex-grow md:ml-auto" style={{ minWidth: "250px" }}>
-            <label className="text-sm font-medium block mb-1">
-              Cari (Kode, Guru, Mapel)
-            </label>
-            <HeaderBar
-              placeholder="Ketik untuk mencari..."
-              onSearch={handleSearch}
-              // Jika HeaderBar Anda memerlukan value untuk reset:
-              // searchValue={searchKeyword} 
-            />
-          </div>
+          <Button
+            icon="pi pi-refresh"
+            className="p-button-secondary mt-3"
+            tooltip="Reset Filter"
+            onClick={resetFilter}
+          />
+        </div>
 
-          {/* Grup Tombol Aksi (Reset, Print, Add) */}
-          <div className="flex gap-2">
-            <Button 
-              icon="pi pi-refresh" 
-              severity="secondary" 
-              tooltip="Reset Filter" 
-              tooltipOptions={{ position: "top" }}
-              onClick={resetFilter} 
-            />
-            <Button
-              icon="pi pi-print"
-              severity="info"
-              tooltip="Cetak Laporan Jadwal"
-              tooltipOptions={{ position: "top" }}
-              onClick={() => setAdjustJadwalDialog(true)}
-              disabled={jadwal.length === 0 || isLoading}
-            />
-            <Button
-              icon="pi pi-plus"
-              severity="primary"
-              tooltip="Tambah Jadwal"
-              tooltipOptions={{ position: "top" }}
-              onClick={() => {
-                setSelectedJadwal(null);
-                setDialogVisible(true);
-              }}
-            />
-          </div>
+        {/* Action Section */}
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            icon="pi pi-print"
+            className="p-button-warning mt-3"
+            tooltip="Cetak Laporan Jadwal"
+            onClick={handlePrintJadwal}
+            disabled={jadwal.length === 0 || isLoading}
+          />
 
+          <HeaderBar
+            title=""
+            placeholder="Cari jadwal (Guru, Mapel, Kode)"
+            onSearch={handleSearch}
+            onAddClick={() => {
+              setSelectedJadwal(null);
+              setDialogVisible(true);
+            }}
+          />
         </div>
       </div>
 
       {/* Tabel Data */}
-      <div className="overflow-auto rounded-md border border-gray-200">
-        <CustomDataTable data={jadwal} loading={isLoading} columns={jadwalColumns} />
-      </div>
+      <CustomDataTable data={jadwal} loading={isLoading} columns={jadwalColumns} />
 
       {/* Form Jadwal */}
       <FormJadwal
@@ -593,15 +594,26 @@ export default function JadwalPage() {
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
-        // --- PROPS UNTUK DIKIRIM ---
         namaKurikulum={namaKurikulum}
         nipKurikulum={nipKurikulum}
-        // --- BATAS TAMBAHAN PROPS ---
       />
 
-      {/* Dialog PDF Preview (Digunakan oleh kedua fungsi print) */}
-      <Dialog visible={jsPdfPreviewOpen} onHide={() => setJsPdfPreviewOpen(false)} modal style={{ width: "90vw", height: "90vh" }} header={`Preview - ${fileName}`}>
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
+      {/* Dialog PDF Preview */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={handleClosePdfPreview}
+        modal
+        maximizable
+        style={{ width: "90vw", height: "90vh" }}
+        header={
+          <div className="flex items-center gap-2">
+            <i className="pi pi-file-pdf text-red-500"></i>
+            <span>Preview - {fileName}</span>
+          </div>
+        }
+        contentStyle={{ height: "calc(90vh - 60px)", padding: 0 }}
+      >
+        {pdfUrl && <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />}
       </Dialog>
     </div>
   );

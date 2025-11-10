@@ -6,10 +6,24 @@ import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
+import { Dialog } from 'primereact/dialog';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import ToastNotifier from '@/app/components/ToastNotifier';
 import CustomDataTable from '@/app/components/DataTable';
 import { Skeleton } from 'primereact/skeleton';
 import FormAgendaMengajar from '@/app/(main)/guru/menu/agenda/components/FormAgenda';
+import AdjustPrintMarginAbsensi from './print/AdjustPrintMarginAbsensi';
+import AdjustPrintMarginJadwal from './print/AdjustPrintMarginJadwal';
+import dynamic from 'next/dynamic';
+
+const PDFViewer = dynamic(() => import('./print/PDFViewer'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <ProgressSpinner style={{ width: '50px', height: '50px' }} strokeWidth="4" />
+    </div>
+  ),
+  ssr: false,
+});
 
 export default function AgendaMengajarPage() {
   const toastRef = useRef(null);
@@ -35,6 +49,14 @@ export default function AgendaMengajarPage() {
   const [dialogMode, setDialogMode] = useState(null); // 'add' | 'edit'
   const [globalFilter, setGlobalFilter] = useState('');
   const [filterHari, setFilterHari] = useState(null);
+
+  // State untuk Print
+  const [adjustAbsensiDialog, setAdjustAbsensiDialog] = useState(false);
+  const [adjustJadwalDialog, setAdjustJadwalDialog] = useState(false);
+  const [selectedAgendaForPrint, setSelectedAgendaForPrint] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
   // Dropdown options untuk hari
   const hariOptions = [
@@ -162,13 +184,49 @@ export default function AgendaMengajarPage() {
     });
   };
 
+  const handlePrintAbsensiJadwal = (row) => {
+    setSelectedAgendaForPrint(row);
+    setAdjustAbsensiDialog(true);
+  };
+
+  const handlePrintAbsensi = (row) => {
+    setSelectedAgendaForPrint(row);
+    setAdjustAbsensiDialog(true);
+  };
+
+  const handlePrintJadwal = () => {
+    console.log('Data Jadwal Guru:', jadwalGuru);
+    console.log('Sample jadwal:', jadwalGuru[0]);
+    if (jadwalGuru.length > 0) {
+      console.log('Struktur hari:', jadwalGuru[0].hari);
+      console.log('Nilai HARI:', jadwalGuru[0].hari?.HARI);
+    }
+    setAdjustJadwalDialog(true);
+  };
+
+  const handleClosePdfPreview = () => {
+    setJsPdfPreviewOpen(false);
+    setTimeout(() => {
+      setPdfUrl('');
+    }, 300);
+  };
+
   const actionBodyTemplate = (row) => (
     <div className="flex gap-2">
+      <Button 
+        icon="pi pi-print" 
+        size="small" 
+        severity="success" 
+        tooltip="Print Daftar Hadir"
+        tooltipOptions={{ position: 'top' }}
+        onClick={() => handlePrintAbsensi(row)} 
+      />
       <Button 
         icon="pi pi-pencil" 
         size="small" 
         severity="warning" 
         tooltip="Edit Agenda"
+        tooltipOptions={{ position: 'top' }}
         onClick={() => { 
           setSelectedAgenda(row); 
           setDialogMode('edit'); 
@@ -179,6 +237,7 @@ export default function AgendaMengajarPage() {
         size="small" 
         severity="danger" 
         tooltip="Hapus Agenda"
+        tooltipOptions={{ position: 'top' }}
         onClick={() => handleDelete(row)} 
       />
     </div>
@@ -225,7 +284,7 @@ export default function AgendaMengajarPage() {
     { 
       header: 'Aksi', 
       body: actionBodyTemplate, 
-      style: { width: '120px' } 
+      style: { width: '180px' } 
     },
   ];
 
@@ -239,6 +298,11 @@ export default function AgendaMengajarPage() {
 
     return matchesSearch && matchesHari;
   });
+
+  // Filter jadwal for print based on filterHari
+  const filteredJadwalForPrint = filterHari 
+    ? jadwalGuru.filter(j => j.hari?.HARI === filterHari)
+    : jadwalGuru;
 
   if (loading) {
     return (
@@ -263,7 +327,7 @@ export default function AgendaMengajarPage() {
       </div>
 
       <div className="flex justify-content-between gap-3 mb-3 flex-wrap">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <span className="p-input-icon-left">
             <i className="pi pi-search" />
             <InputText
@@ -280,14 +344,24 @@ export default function AgendaMengajarPage() {
             style={{ width: '150px' }}
           />
         </div>
-        <Button
-          label="Tambah Agenda"
-          icon="pi pi-plus"
-          onClick={() => { 
-            setSelectedAgenda(emptyAgenda); 
-            setDialogMode('add'); 
-          }}
-        />
+        <div className="flex gap-2">
+          <Button
+            icon="pi pi-print"
+            className="p-button-warning"
+            tooltip="Cetak Jadwal Mengajar"
+            tooltipOptions={{ position: 'top' }}
+            onClick={handlePrintJadwal}
+            disabled={jadwalGuru.length === 0}
+          />
+          <Button
+            label="Tambah Agenda"
+            icon="pi pi-plus"
+            onClick={() => { 
+              setSelectedAgenda(emptyAgenda); 
+              setDialogMode('add'); 
+            }}
+          />
+        </div>
       </div>
 
       {/* Tabel Jadwal Guru */}
@@ -340,6 +414,22 @@ export default function AgendaMengajarPage() {
                 header: 'Mata Pelajaran',
                 body: (row) => row.mata_pelajaran?.NAMA_MAPEL || '-'
               },
+              { 
+                header: 'Aksi', 
+                body: (row) => (
+                  <div className="flex gap-2">
+                    <Button 
+                      icon="pi pi-print" 
+                      size="small" 
+                      severity="success" 
+                      tooltip="Print Daftar Hadir"
+                      tooltipOptions={{ position: 'top' }}
+                      onClick={() => handlePrintAbsensiJadwal(row)} 
+                    />
+                  </div>
+                ),
+                style: { width: '100px' }
+              },
             ]} 
             paginator 
             rows={10} 
@@ -386,6 +476,47 @@ export default function AgendaMengajarPage() {
         mode={dialogMode}
         statusOptions={statusOptions}
       />
+
+      {/* Dialog Print Absensi (per agenda) */}
+      <AdjustPrintMarginAbsensi
+        adjustDialog={adjustAbsensiDialog}
+        setAdjustDialog={setAdjustAbsensiDialog}
+        jadwalData={selectedAgendaForPrint}
+        token={getToken()}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+      />
+
+      {/* Dialog Print Jadwal (Semua Jadwal) */}
+      <AdjustPrintMarginJadwal
+        adjustDialog={adjustJadwalDialog}
+        setAdjustDialog={setAdjustJadwalDialog}
+        jadwalToPrint={filteredJadwalForPrint}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        namaKurikulum={userProfile?.name || ''}
+        nipKurikulum={userProfile?.guru?.NIP || ''}
+      />
+
+      {/* Dialog PDF Preview */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={handleClosePdfPreview}
+        modal
+        maximizable
+        style={{ width: '90vw', height: '90vh' }}
+        header={
+          <div className="flex items-center gap-2">
+            <i className="pi pi-file-pdf text-red-500"></i>
+            <span>Preview - {fileName}</span>
+          </div>
+        }
+        contentStyle={{ height: 'calc(90vh - 60px)', padding: 0 }}
+      >
+        {pdfUrl && <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />}
+      </Dialog>
 
       <ConfirmDialog />
       <ToastNotifier ref={toastRef} />
