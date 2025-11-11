@@ -386,7 +386,7 @@ export default function AdjustPrintMarginAbsensi({
 
       pertemuanColumns.forEach(p => {
         dynamicColumnStyles[`p${p}`] = {
-          cellWidth: 8, 
+          cellWidth: 9, 
           halign: "center",
         };
       });
@@ -422,9 +422,9 @@ export default function AdjustPrintMarginAbsensi({
         no: { cellWidth: 8, halign: "center", fontSize: 7 },
         nama: { cellWidth: 40, halign: "left", fontSize: 7 },
         ...dynamicColumnStyles, // Terapkan style dinamis (baik mode semester/pertemuan)
-        s: { cellWidth: 6, halign: "center", fontStyle: "bold", fontSize: 7 },
-        i: { cellWidth: 6, halign: "center", fontStyle: "bold", fontSize: 7 },
-        a: { cellWidth: 6, halign: "center", fontStyle: "bold", fontSize: 7 },
+        s: { cellWidth: 7, halign: "center", fontStyle: "bold", fontSize: 7 },
+        i: { cellWidth: 7, halign: "center", fontStyle: "bold", fontSize: 7 },
+        a: { cellWidth: 7, halign: "center", fontStyle: "bold", fontSize: 7 },
       },
       alternateRowStyles: {
         fillColor: [255, 255, 255],
