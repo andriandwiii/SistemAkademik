@@ -12,7 +12,9 @@ import dynamic from "next/dynamic";
 import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
 import CustomDataTable from "../../../components/DataTable";
-import FormTransaksi from "./components/FormTransaksi";
+// VVVV INI PENTING VVVV
+// Pastikan ini adalah form untuk 1 SISWA (FormTransaksi.js), BUKAN FormKenaikanKelas.js
+import FormTransaksi from "./components/FormTransaksi"; 
 import AdjustPrintMarginLaporan from "./print/AdjustPrintMarginLaporan";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -36,18 +38,17 @@ export default function TransaksiSiswaPage() {
   const [originalData, setOriginalData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTransaksi, setSelectedTransaksi] = useState(null);
-  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false); // Hanya dialog untuk FormTransaksi
 
   // Filter
   const [tingkatanFilter, setTingkatanFilter] = useState(null);
   const [jurusanFilter, setJurusanFilter] = useState(null);
   const [kelasFilter, setKelasFilter] = useState(null);
-  const [tahunAjaranFilter, setTahunAjaranFilter] = useState(null);
+  // [DIHAPUS] Filter tahun ajaran tidak diperlukan
 
   const [tingkatanOptions, setTingkatanOptions] = useState([]);
   const [jurusanOptions, setJurusanOptions] = useState([]);
   const [kelasOptions, setKelasOptions] = useState([]);
-  const [tahunAjaranOptions, setTahunAjaranOptions] = useState([]);
 
   // Print
   const [adjustDialog, setAdjustDialog] = useState(false);
@@ -73,6 +74,7 @@ export default function TransaksiSiswaPage() {
   const fetchTransaksi = async (t) => {
     setIsLoading(true);
     try {
+      // API ini (jika modelnya benar) HANYA mengambil data TAHUN AKTIF
       const res = await axios.get(`${API_URL}/transaksi-siswa`, {
         headers: { Authorization: `Bearer ${t}` },
       });
@@ -86,14 +88,11 @@ export default function TransaksiSiswaPage() {
         const tingkatanSet = new Set();
         const jurusanSet = new Set();
         const kelasSet = new Set();
-        const tahunSet = new Set();
 
         data.forEach((item) => {
           if (item.tingkatan?.TINGKATAN) tingkatanSet.add(item.tingkatan.TINGKATAN);
           if (item.jurusan?.NAMA_JURUSAN) jurusanSet.add(item.jurusan.NAMA_JURUSAN);
           if (item.kelas?.KELAS_ID) kelasSet.add(item.kelas.KELAS_ID);
-          if (item.tahun_ajaran?.NAMA_TAHUN_AJARAN)
-            tahunSet.add(item.tahun_ajaran.NAMA_TAHUN_AJARAN);
         });
 
         setTransaksi(data);
@@ -101,7 +100,6 @@ export default function TransaksiSiswaPage() {
         setTingkatanOptions(Array.from(tingkatanSet).map((t) => ({ label: t, value: t })));
         setJurusanOptions(Array.from(jurusanSet).map((j) => ({ label: j, value: j })));
         setKelasOptions(Array.from(kelasSet).map((k) => ({ label: k, value: k })));
-        setTahunAjaranOptions(Array.from(tahunSet).map((y) => ({ label: y, value: y })));
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal memuat data transaksi siswa");
       }
@@ -113,28 +111,31 @@ export default function TransaksiSiswaPage() {
     }
   };
 
-  // Search handler
+  // Search handler (filter di sisi client)
   const handleSearch = (keyword) => {
+    let filtered = [...originalData];
+    if (tingkatanFilter) filtered = filtered.filter((t) => t.tingkatan?.TINGKATAN === tingkatanFilter);
+    if (jurusanFilter) filtered = filtered.filter((t) => t.jurusan?.NAMA_JURUSAN === jurusanFilter);
+    if (kelasFilter) filtered = filtered.filter((t) => t.kelas?.KELAS_ID === kelasFilter);
+
     if (!keyword) {
-      setTransaksi(originalData);
+      setTransaksi(filtered);
     } else {
-      const filtered = originalData.filter(
+      const searchFiltered = filtered.filter(
         (t) =>
           t.siswa?.NAMA?.toLowerCase().includes(keyword.toLowerCase()) ||
           t.siswa?.NIS?.toLowerCase().includes(keyword.toLowerCase())
       );
-      setTransaksi(filtered);
+      setTransaksi(searchFiltered);
     }
   };
-
-  const applyFiltersWithValue = (tingkatan, jurusan, kelas, tahun) => {
+  
+  // Filter handler (filter di sisi client)
+  const applyFiltersWithValue = (tingkatan, jurusan, kelas) => {
     let filtered = [...originalData];
-
     if (tingkatan) filtered = filtered.filter((t) => t.tingkatan?.TINGKATAN === tingkatan);
     if (jurusan) filtered = filtered.filter((t) => t.jurusan?.NAMA_JURUSAN === jurusan);
     if (kelas) filtered = filtered.filter((t) => t.kelas?.KELAS_ID === kelas);
-    if (tahun) filtered = filtered.filter((t) => t.tahun_ajaran?.NAMA_TAHUN_AJARAN === tahun);
-
     setTransaksi(filtered);
   };
 
@@ -142,27 +143,25 @@ export default function TransaksiSiswaPage() {
     setTingkatanFilter(null);
     setJurusanFilter(null);
     setKelasFilter(null);
-    setTahunAjaranFilter(null);
     setTransaksi(originalData);
   };
 
+  // Handler untuk Tambah / Edit 1 Siswa
   const handleSubmit = async (data) => {
     try {
       if (selectedTransaksi) {
-        // Edit
+        // Edit (PUT)
         const res = await axios.put(
           `${API_URL}/transaksi-siswa/${selectedTransaksi.ID}`,
           data,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         toastRef.current?.showToast(
           res.data.status === "00" ? "00" : "01",
           res.data.message || "Perbarui transaksi siswa"
         );
       } else {
-        // Add
+        // Add (POST)
         const res = await axios.post(`${API_URL}/transaksi-siswa`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -179,7 +178,7 @@ export default function TransaksiSiswaPage() {
       }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Gagal menyimpan transaksi siswa");
+      toastRef.current?.showToast("01", err.response?.data?.message || "Gagal menyimpan transaksi siswa");
     }
   };
 
@@ -253,6 +252,8 @@ export default function TransaksiSiswaPage() {
             icon="pi pi-pencil"
             size="small"
             severity="warning"
+            tooltip="Edit"
+            tooltipOptions={{ position: "top" }}
             onClick={() => {
               setSelectedTransaksi(rowData);
               setDialogVisible(true);
@@ -262,6 +263,8 @@ export default function TransaksiSiswaPage() {
             icon="pi pi-trash"
             size="small"
             severity="danger"
+            tooltip="Hapus"
+            tooltipOptions={{ position: "top" }}
             onClick={() => handleDelete(rowData)}
           />
         </div>
@@ -287,7 +290,7 @@ export default function TransaksiSiswaPage() {
             options={tingkatanOptions}
             onChange={(e) => {
               setTingkatanFilter(e.value);
-              applyFiltersWithValue(e.value, jurusanFilter, kelasFilter, tahunAjaranFilter);
+              applyFiltersWithValue(e.value, jurusanFilter, kelasFilter);
             }}
             placeholder="Tingkatan"
             className="w-48"
@@ -299,7 +302,7 @@ export default function TransaksiSiswaPage() {
             options={jurusanOptions}
             onChange={(e) => {
               setJurusanFilter(e.value);
-              applyFiltersWithValue(tingkatanFilter, e.value, kelasFilter, tahunAjaranFilter);
+              applyFiltersWithValue(tingkatanFilter, e.value, kelasFilter);
             }}
             placeholder="Jurusan"
             className="w-52"
@@ -311,22 +314,10 @@ export default function TransaksiSiswaPage() {
             options={kelasOptions}
             onChange={(e) => {
               setKelasFilter(e.value);
-              applyFiltersWithValue(tingkatanFilter, jurusanFilter, e.value, tahunAjaranFilter);
+              applyFiltersWithValue(tingkatanFilter, jurusanFilter, e.value);
             }}
             placeholder="Kelas"
             className="w-48"
-            showClear
-          />
-          <Dropdown
-            id="tahun-filter"
-            value={tahunAjaranFilter}
-            options={tahunAjaranOptions}
-            onChange={(e) => {
-              setTahunAjaranFilter(e.value);
-              applyFiltersWithValue(tingkatanFilter, jurusanFilter, kelasFilter, e.value);
-            }}
-            placeholder="Tahun Ajaran"
-            className="w-56"
             showClear
           />
           <Button
@@ -350,9 +341,9 @@ export default function TransaksiSiswaPage() {
             title=""
             placeholder="Cari siswa (Nama, NIS)"
             onSearch={handleSearch}
-            onAddClick={() => {
+            onAddClick={() => { // Tombol Tambah (+)
               setSelectedTransaksi(null);
-              setDialogVisible(true);
+              setDialogVisible(true); // Membuka dialog FormTransaksi (1 siswa)
             }}
           />
         </div>
@@ -360,21 +351,21 @@ export default function TransaksiSiswaPage() {
 
       <CustomDataTable data={transaksi} loading={isLoading} columns={transaksiColumns} />
 
-      {/* FORM */}
+      {/* FORM (SINGLE ADD/EDIT) */}
       <FormTransaksi
         visible={dialogVisible}
         onHide={() => setDialogVisible(false)}
         selectedTransaksi={selectedTransaksi}
-        onSave={handleSubmit}
+        onSave={handleSubmit} 
         token={token}
-        transaksiList={transaksi}
+        transaksiList={originalData} // Kirim data asli
       />
 
       {/* PRINT DIALOG */}
       <AdjustPrintMarginLaporan
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
-        dataTransaksi={transaksi}
+        dataTransaksi={transaksi} // Kirim data yang sudah difilter
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
