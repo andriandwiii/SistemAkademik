@@ -1,8 +1,9 @@
+// File: models/transaksiSiswaKelasModel.js
+
 import { db } from "../core/config/knex.js";
 
 const table = "transaksi_siswa_kelas";
 
-// Format data hasil query (Tidak berubah)
 const formatRow = (r) => ({
   ID: r.ID,
   TRANSAKSI_ID: r.TRANSAKSI_ID,
@@ -33,11 +34,8 @@ const formatRow = (r) => ({
   updated_at: r.updated_at,
 });
 
-// ==========================================================
-// VVVV PERBAIKAN: Query join (Dibuat agar bisa menerima 'trx' untuk transaksi) VVVV
-// ==========================================================
-const baseQuery = (trx = db) => // <-- Tambahkan parameter opsional trx
-  trx(`${table} as t`) // <-- Gunakan trx atau db
+const baseQuery = (trx = db) =>
+  trx(`${table} as t`)
     .select(
       "t.*",
       "s.NAMA as NAMA_SISWA",
@@ -56,36 +54,24 @@ const baseQuery = (trx = db) => // <-- Tambahkan parameter opsional trx
     .leftJoin("master_ruang as r", "k.RUANG_ID", "r.RUANG_ID")
     .leftJoin("master_tahun_ajaran as ta", "t.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID");
 
-// Ambil semua transaksi
 export const getAllTransaksi = async () => {
-  // 1. Dapatkan dulu ID Tahun Ajaran yang AKTIF
-  // ==========================================================
-  // VVVV PERBAIKAN WAJIB: Sesuaikan dengan data Anda ('Aktif' bukan 'AKTIF') VVVV
-  // ==========================================================
   const ta = await db("master_tahun_ajaran").where("STATUS", "Aktif").first();
   if (!ta) throw new Error("Tidak ada Tahun Ajaran yang aktif!");
   
-  // 2. Ambil transaksi HANYA dari tahun ajaran aktif
-  const rows = await baseQuery() // <-- baseQuery() otomatis pakai 'db'
-    .where("t.TAHUN_AJARAN_ID", ta.TAHUN_AJARAN_ID) // <-- FILTER AKTIF
+  const rows = await baseQuery()
+    .where("t.TAHUN_AJARAN_ID", ta.TAHUN_AJARAN_ID)
     .orderBy("t.ID", "desc");
 
   return rows.map(formatRow);
 };
 
-// Tambah transaksi baru (misal: siswa baru masuk)
 export const createTransaksi = async (data) => {
-  // ==========================================================
-  // VVVV PERBAIKAN KEAMANAN: Bungkus dengan Transaksi VVVV
-  // Ini untuk mencegah 2 admin membuat TRXS_ID yang sama di waktu bersamaan
-  // ==========================================================
   return db.transaction(async (trx) => {
-    // 🔹 Ambil transaksi terakhir (di dalam transaksi + dikunci)
-    const last = await trx(table) // <-- Gunakan 'trx'
+    const last = await trx(table)
       .select("TRANSAKSI_ID")
       .orderBy("ID", "desc")
       .first()
-      .forUpdate(); // <-- Kunci baris ini agar ID aman
+      .forUpdate();
 
     let nextNumber = 1;
     if (last && last.TRANSAKSI_ID) {
@@ -94,8 +80,7 @@ export const createTransaksi = async (data) => {
     }
     const newId = `TRXS${nextNumber.toString().padStart(6, "0")}`;
 
-    // 🔹 Cek duplikat (di dalam transaksi)
-    const existing = await trx(table) // <-- Gunakan 'trx'
+    const existing = await trx(table)
       .where({ NIS: data.NIS, TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID })
       .first();
     if (existing) {
@@ -104,19 +89,15 @@ export const createTransaksi = async (data) => {
     
     const insertData = {
       ...data,
-      TRANSAKSI_ID: newId, // otomatis
+      TRANSAKSI_ID: newId,
     };
 
-    const [id] = await trx(table).insert(insertData); // <-- Gunakan 'trx'
-    
-    // Kita panggil baseQuery dengan 'trx'
+    const [id] = await trx(table).insert(insertData);
     const row = await baseQuery(trx).where("t.ID", id).first(); 
     return formatRow(row);
   });
-  // ==========================================================
 };
 
-// Update transaksi (misal: siswa salah input kelas di TAHUN YG SAMA)
 export const updateTransaksi = async (id, data) => {
   const existing = await db(table).where({ ID: id }).first();
   if (!existing) return null;
@@ -126,7 +107,6 @@ export const updateTransaksi = async (id, data) => {
   return formatRow(row);
 };
 
-// Hapus transaksi
 export const deleteTransaksi = async (id) => {
   const existing = await db(table).where({ ID: id }).first();
   if (!existing) return null;
@@ -135,12 +115,8 @@ export const deleteTransaksi = async (id) => {
   return existing;
 };
 
-// =================================================================
-// FUNGSI BARU UNTUK KENAIKAN KELAS (Sudah Aman)
-// =================================================================
-
 /**
- * 🔹 [BARU] Helper: Ambil semua NIS siswa dari kelas & tahun tertentu
+ * 🔹 Helper: Ambil semua NIS siswa dari kelas & tahun tertentu
  */
 export const getSiswaDiKelas = async (kelasId, tahunAjaranId, trx) => {
   const dbInstance = trx || db;
@@ -148,31 +124,47 @@ export const getSiswaDiKelas = async (kelasId, tahunAjaranId, trx) => {
     .select("NIS")
     .where({ KELAS_ID: kelasId, TAHUN_AJARAN_ID: tahunAjaranId });
   
-  return rows.map((r) => r.NIS); // Cth: ['1001', '1002', '1003']
+  return rows.map((r) => r.NIS);
 };
 
+/**
+ * 🔹 Ambil Data Transaksi Lama Siswa (untuk riwayat)
+ * Digunakan saat proses kenaikan kelas untuk mendapatkan data asal
+ */
+export const getTransaksiLamaSiswa = async (nisArray, tahunAjaranLamaId, trx) => {
+  const dbInstance = trx || db;
+  
+  const rows = await dbInstance(table)
+    .select("*")
+    .whereIn("NIS", nisArray)
+    .where("TAHUN_AJARAN_ID", tahunAjaranLamaId);
+  
+  // Convert to Map untuk mudah akses by NIS
+  const map = new Map();
+  rows.forEach(r => {
+    map.set(r.NIS, r);
+  });
+  
+  return map;
+};
 
 /**
- * 🔹 [BARU] Fitur Inti: Memproses kenaikan/tinggal kelas (Bulk Insert)
+ * 🔹 Fitur Inti: Memproses kenaikan/tinggal kelas (Bulk Insert)
+ * RETURN: Array of inserted transaction IDs dengan data lengkap
  */
 export const prosesKenaikanRombel = async (
   nisSiswaArray,
-  dataBaru, // Cth: { TINGKATAN_ID: "TI11", JURUSAN_ID: "J011", KELAS_ID: "XIMA", TAHUN_AJARAN_ID: "TA2026" }
-  trx // Wajib diisi 'trx' dari controller
+  dataBaru,
+  trx
 ) => {
-  
-  const dbInstance = trx; // HANYA gunakan 'trx' untuk fungsi ini
+  const dbInstance = trx;
 
   try {
-    // 1. Ambil ID Transaksi terakhir (Aman karena 'trx' sudah dikunci controllernya)
-    // ==========================================================
-    // VVVV PERBAIKAN KEAMANAN: Tambah .forUpdate() VVVV
-    // ==========================================================
     const last = await dbInstance(table)
       .select("TRANSAKSI_ID")
       .orderBy("ID", "desc")
       .first()
-      .forUpdate(); // <-- Kunci tabel agar ID tidak bentrok
+      .forUpdate();
       
     let nextNumber = 1;
     if (last && last.TRANSAKSI_ID) {
@@ -180,7 +172,6 @@ export const prosesKenaikanRombel = async (
       if (!isNaN(numericPart)) nextNumber = numericPart + 1;
     }
 
-    // 2. Siapkan data riwayat baru untuk di-INSERT
     const dataRiwayatBaru = nisSiswaArray.map((nis, index) => {
       const currentNumber = nextNumber + index;
       const newId = `TRXS${currentNumber.toString().padStart(6, "0")}`;
@@ -199,18 +190,16 @@ export const prosesKenaikanRombel = async (
 
     if (dataRiwayatBaru.length === 0) {
        console.log("Tidak ada siswa untuk diproses di kelas ini.");
-       return 0; // Mengembalikan 0 siswa diproses
+       return [];
     }
 
-    // 3. INSERT semua siswa (misal 30 data baru) sekaligus
-    await dbInstance("transaksi_siswa_kelas").insert(dataRiwayatBaru);
+    await dbInstance(table).insert(dataRiwayatBaru);
     
-    return dataRiwayatBaru.length;
+    // Return data yang di-insert (untuk keperluan riwayat)
+    return dataRiwayatBaru;
 
   } catch (error) {
     console.error("Gagal prosesKenaikanRombel:", error);
-    // Lemparkan error agar transaksi di controller bisa di-rollback
-    // Ini PENTING jika ada 1 siswa melanggar constraint 'uniq_siswa_tahun'
     throw error;
   }
 };

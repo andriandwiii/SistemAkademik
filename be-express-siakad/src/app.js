@@ -103,7 +103,6 @@ app.use("/api/master-mata-pelajaran", masterMataPelajaranRoutes);
 app.use("/api/master-jam-pelajaran", masterJamPelajaranRoutes);
 app.use("/api/agama", agamaRoutes);
 app.use("/api/transaksi-wakel", transaksiWakelRoutes);
-
 app.use("/api/kenaikan-kelas", transaksiKenaikanKelasRoutes);
 
 

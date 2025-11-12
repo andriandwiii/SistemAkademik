@@ -1,17 +1,17 @@
-// File baru: src/routes/transaksiKenaikanKelasRoutes.js
-
+// File: routes/transaksiKenaikanKelasRoutes.js
 import express from "express";
-// Import controller yang sudah kita buat
-import { prosesKenaikanRombelController } from "../controllers/transaksiKenaikakanKelasController.js";
-// (Pastikan nama 'transaksiKenaikakanKelasController.js' sudah benar)
+import {
+  prosesKenaikanRombelController,
+  getRiwayatKenaikanKelasController,
+  deleteRiwayatKenaikanController,
+  getRiwayatByNISController,
+} from "../controllers/transaksiKenaikanKelasController.js";
 
 const router = express.Router();
 
-/**
- * @route   POST /api/kenaikan-kelas
- * @desc    Endpoint utama untuk memproses kenaikan kelas/tinggal kelas/kelulusan.
- * @access  Private (Admin/Kurikulum)
- */
+router.get("/", getRiwayatKenaikanKelasController);
+router.get("/siswa/:nis", getRiwayatByNISController);
 router.post("/", prosesKenaikanRombelController);
+router.delete("/:id", deleteRiwayatKenaikanController);
 
 export default router;
