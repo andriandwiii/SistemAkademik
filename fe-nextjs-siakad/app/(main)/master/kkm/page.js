@@ -8,13 +8,11 @@ import { Dialog } from "primereact/dialog";
 import ToastNotifier from "../../../components/ToastNotifier";
 import CustomDataTable from "../../../components/DataTable";
 import FormKKM from "./components/FormKKM";
-
 import dynamic from "next/dynamic";
 
-// 🔹 Komponen print (tanpa SSR)
 const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
-const AdjustPrintMarginLaporan = dynamic(
-  () => import("./print/AdjustPrintMarginLaporan"),
+const AdjustPrintMarginLaporanKKM = dynamic(
+  () => import("./print/AdjustPrintMarginLaporanKKM"),
   { ssr: false }
 );
 
@@ -26,31 +24,19 @@ export default function MasterKKMPage() {
   const [dialogMode, setDialogMode] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState("");
 
-  // untuk print/pdf
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
-  const [dataAdjust, setDataAdjust] = useState({
-    marginTop: 15,
-    marginBottom: 15,
-    marginRight: 15,
-    marginLeft: 15,
-    paperSize: "A4",
-    orientation: "portrait",
-  });
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
 
-  // 🔹 Ambil data awal
   useEffect(() => {
     if (!token) window.location.href = "/";
     else fetchKKM();
   }, [token]);
 
-  // 🔹 Fetch data dari backend
   const fetchKKM = async () => {
     setLoading(true);
     try {
@@ -71,12 +57,10 @@ export default function MasterKKMPage() {
     }
   };
 
-  // 🔍 Pencarian KKM
   const handleSearch = (keyword) => {
     setSearchKeyword(keyword);
-    if (!keyword) {
-      fetchKKM();
-    } else {
+    if (!keyword) fetchKKM();
+    else {
       const filtered = kkmList.filter(
         (item) =>
           item.KODE_KKM?.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -87,7 +71,6 @@ export default function MasterKKMPage() {
     }
   };
 
-  // 💾 Simpan data (tambah/edit)
   const handleSave = async (data) => {
     setLoading(true);
     try {
@@ -128,10 +111,9 @@ export default function MasterKKMPage() {
     }
   };
 
-  // ❌ Hapus data
   const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin ingin menghapus data KKM "${row.KODE_KKM}" (${row.KODE_MAPEL})?`,
+      message: `Yakin ingin menghapus data KKM "${row.KODE_KKM}" (${row.NAMA_MAPEL || row.KODE_MAPEL})?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
       acceptLabel: "Hapus",
@@ -160,18 +142,14 @@ export default function MasterKKMPage() {
     });
   };
 
-  // 🧾 Kolom tabel sesuai field DB dan controller
   const columns = [
-    { field: "ID", header: "ID", style: { width: "60px", textAlign: "center" } },
     { field: "KODE_KKM", header: "Kode KKM", style: { width: "120px" } },
-    { field: "KODE_MAPEL", header: "Kode Mapel", style: { width: "120px" } },
-     { field: "NAMA_MAPEL", header: "Nama Mata Pelajaran", style: { width: "200px" } },
-    { field: "KOMPLEKSITAS", header: "Kompleksitas", style: { width: "120px", textAlign: "center" } },
-    { field: "DAYA_DUKUNG", header: "Daya Dukung", style: { width: "120px", textAlign: "center" } },
-    { field: "INTAKE", header: "Intake", style: { width: "120px", textAlign: "center" } },
-    { field: "KKM", header: "Nilai KKM", style: { width: "100px", textAlign: "center" } },
-    { field: "KETERANGAN", header: "Keterangan", style: { minWidth: "250px" } },
-    { field: "STATUS", header: "Status", style: { width: "120px", textAlign: "center" } },
+    { field: "NAMA_MAPEL", header: "Nama Mapel", style: { width: "220px" } },
+    { field: "KOMPLEKSITAS", header: "Kompleksitas", style: { width: "120px" } },
+    { field: "DAYA_DUKUNG", header: "Daya Dukung", style: { width: "120px" } },
+    { field: "INTAKE", header: "Intake", style: { width: "100px" } },
+    { field: "KKM", header: "Nilai KKM", style: { width: "100px" } },
+    { field: "STATUS", header: "Status", style: { width: "100px" } },
     {
       header: "Aksi",
       body: (row) => (
@@ -180,7 +158,7 @@ export default function MasterKKMPage() {
             icon="pi pi-pencil"
             size="small"
             severity="warning"
-            tooltip="Edit"
+            rounded
             onClick={() => {
               setSelectedItem(row);
               setDialogMode("edit");
@@ -190,50 +168,30 @@ export default function MasterKKMPage() {
             icon="pi pi-trash"
             size="small"
             severity="danger"
-            tooltip="Hapus"
+            rounded
             onClick={() => handleDelete(row)}
           />
         </div>
       ),
-      style: { width: "130px", textAlign: "center" },
+      style: { width: "120px", textAlign: "center" },
     },
   ];
 
   return (
-    <div className="card p-4">
+    <div className="p-6 bg-white rounded-xl shadow-sm">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-4">
-        Master Kriteria Ketuntasan Minimal (KKM)
-      </h3>
-
-      {/* 🔹 Toolbar (Print - Search - Tambah) */}
-      <div className="flex justify-between flex-wrap items-center mb-3 gap-3">
-        {/* Tombol Print di kiri */}
+      {/* Header Section */}
+      <div className="flex justify-between items-center mb-6 border-b pb-3">
+        <h2 className="text-2xl font-semibold text-gray-700">
+          Master Kriteria Ketuntasan Minimal (KKM)
+        </h2>
         <Button
-          icon="pi pi-print"
-          severity="warning"
-          tooltip="Cetak Laporan"
-          onClick={() => setAdjustDialog(true)}
-        />
-
-        {/* Pencarian di tengah */}
-        <span className="p-input-icon-left">
-          <i className="pi pi-search" />
-          <InputText
-            value={searchKeyword}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Cari KKM, mapel, atau keterangan..."
-            className="w-64"
-          />
-        </span>
-
-        {/* Tombol Tambah di kanan */}
-        <Button
-          label="Tambah KKM"
           icon="pi pi-plus"
+          label="Tambah KKM"
           severity="info"
+          className="font-medium"
           onClick={() => {
             setDialogMode("add");
             setSelectedItem(null);
@@ -241,7 +199,32 @@ export default function MasterKKMPage() {
         />
       </div>
 
-      {/* 🔹 Tabel utama */}
+      {/* Toolbar Section */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Button
+            icon="pi pi-print"
+            label="Cetak"
+            severity="secondary"
+            className="font-medium"
+            onClick={() => setAdjustDialog(true)}
+          />
+        </div>
+
+        <div className="flex items-center">
+          <span className="p-input-icon-left">
+            <i className="pi pi-search text-gray-500" />
+            <InputText
+              value={searchKeyword}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Cari KKM, mapel, atau keterangan..."
+              className="w-72"
+            />
+          </span>
+        </div>
+      </div>
+
+      {/* DataTable */}
       <CustomDataTable
         data={kkmList}
         loading={loading}
@@ -249,7 +232,7 @@ export default function MasterKKMPage() {
         title="Daftar Data KKM"
       />
 
-      {/* 🔹 Form Tambah/Edit */}
+      {/* Form Dialog */}
       <FormKKM
         visible={dialogMode !== null}
         onHide={() => {
@@ -261,19 +244,17 @@ export default function MasterKKMPage() {
         token={token}
       />
 
-      {/* 🔹 Dialog Pengaturan Print */}
-      <AdjustPrintMarginLaporan
+      {/* Print Dialog */}
+      <AdjustPrintMarginLaporanKKM
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
-        dataKelas={kkmList}
+        dataKKM={kkmList}
         setPdfUrl={setPdfUrl}
         setFileName={setFileName}
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
-        dataAdjust={dataAdjust}
-        setDataAdjust={setDataAdjust}
       />
 
-      {/* 🔹 Preview PDF */}
+      {/* Preview PDF */}
       <Dialog
         visible={jsPdfPreviewOpen}
         onHide={() => setJsPdfPreviewOpen(false)}
