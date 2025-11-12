@@ -2,7 +2,9 @@ import { db } from "../core/config/knex.js";
 
 const table = "master_jadwal";
 
-// Format data hasil query
+// =============================================================
+// 🔹 Format hasil query
+// =============================================================
 const formatRow = (r) => ({
   ID: r.ID,
   KODE_JADWAL: r.KODE_JADWAL,
@@ -37,11 +39,17 @@ const formatRow = (r) => ({
     WAKTU_MULAI: r.WAKTU_MULAI,
     WAKTU_SELESAI: r.WAKTU_SELESAI,
   },
+  tahun_ajaran: {
+    TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID,
+    NAMA_TAHUN_AJARAN: r.NAMA_TAHUN_AJARAN,
+  },
   created_at: r.created_at,
   updated_at: r.updated_at,
 });
 
-// Query join antar tabel utama
+// =============================================================
+// 🔹 Query join antar tabel utama
+// =============================================================
 const baseQuery = () =>
   db(`${table} as j`)
     .select(
@@ -55,7 +63,8 @@ const baseQuery = () =>
       "mp.NAMA_MAPEL",
       "jp.JP_KE",
       "jp.WAKTU_MULAI",
-      "jp.WAKTU_SELESAI"
+      "jp.WAKTU_SELESAI",
+      "ta.NAMA_TAHUN_AJARAN"
     )
     .leftJoin("master_hari as h", "j.HARI", "h.NAMA_HARI")
     .leftJoin("master_tingkatan as ti", "j.TINGKATAN_ID", "ti.TINGKATAN_ID")
@@ -64,17 +73,35 @@ const baseQuery = () =>
     .leftJoin("master_ruang as r", "k.RUANG_ID", "r.RUANG_ID")
     .leftJoin("master_guru as g", "j.NIP", "g.NIP")
     .leftJoin("master_mata_pelajaran as mp", "j.KODE_MAPEL", "mp.KODE_MAPEL")
-    .leftJoin("master_jam_pelajaran as jp", "j.KODE_JP", "jp.KODE_JP");
+    .leftJoin("master_jam_pelajaran as jp", "j.KODE_JP", "jp.KODE_JP")
+    .leftJoin("master_tahun_ajaran as ta", "j.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID");
 
-// Ambil semua jadwal
+// =============================================================
+// 🔹 AMBIL SEMUA JADWAL (Hanya Tahun Ajaran Aktif)
+// =============================================================
 export const getAllJadwal = async () => {
-  const rows = await baseQuery().orderBy("j.ID", "desc");
+  const daftarTA = await db("master_tahun_ajaran")
+    .where("STATUS", "Aktif")
+    .select("TAHUN_AJARAN_ID");
+
+  const daftarID_TA = daftarTA.map((ta) => ta.TAHUN_AJARAN_ID);
+
+  if (!daftarID_TA || daftarID_TA.length === 0) {
+    console.warn("⚠️ Tidak ada Tahun Ajaran Aktif ditemukan di database.");
+    return [];
+  }
+
+  const rows = await baseQuery()
+    .whereIn("j.TAHUN_AJARAN_ID", daftarID_TA)
+    .orderBy("j.ID", "desc");
+
   return rows.map(formatRow);
 };
 
-// Tambah jadwal baru (KODE_JADWAL generate otomatis)
+// =============================================================
+// 🔹 TAMBAH JADWAL BARU
+// =============================================================
 export const createJadwal = async (data) => {
-  // 🔹 Ambil jadwal terakhir untuk generate kode berikutnya
   const last = await db(table).select("KODE_JADWAL").orderBy("ID", "desc").first();
 
   let nextNumber = 1;
@@ -83,12 +110,11 @@ export const createJadwal = async (data) => {
     if (!isNaN(numericPart)) nextNumber = numericPart + 1;
   }
 
-  // 🔹 Format: JDW + angka 3 digit
   const newKode = `JDW${nextNumber.toString().padStart(3, "0")}`;
 
   const insertData = {
     ...data,
-    KODE_JADWAL: newKode, // otomatis
+    KODE_JADWAL: newKode,
   };
 
   const [id] = await db(table).insert(insertData);
@@ -96,7 +122,9 @@ export const createJadwal = async (data) => {
   return formatRow(row);
 };
 
-// Update jadwal
+// =============================================================
+// 🔹 UPDATE JADWAL
+// =============================================================
 export const updateJadwal = async (id, data) => {
   const existing = await db(table).where({ ID: id }).first();
   if (!existing) return null;
@@ -106,7 +134,9 @@ export const updateJadwal = async (id, data) => {
   return formatRow(row);
 };
 
-// Hapus jadwal
+// =============================================================
+// 🔹 HAPUS JADWAL
+// =============================================================
 export const deleteJadwal = async (id) => {
   const existing = await db(table).where({ ID: id }).first();
   if (!existing) return null;
@@ -115,45 +145,39 @@ export const deleteJadwal = async (id) => {
   return existing;
 };
 
-// --- VVVV TAMBAHKAN FUNGSI BARU DI BAWAH INI VVVV ---
-
-/**
- * 🔹 Cek bentrok jadwal untuk Guru atau Kelas (Versi Knex.js)
- * Mencari jadwal yang ada pada HARI & KODE_JP yang sama,
- * DAN (NIP yang sama ATAU KELAS_ID yang sama)
- * @param {object} data - { HARI, KODE_JP, NIP, KELAS_ID, excludeId (opsional) }
- * @returns {object|null} - Mengembalikan data bentrok jika ada, atau null jika tidak
- */
+// =============================================================
+// 🔹 CEK BENTROK JADWAL (Guru / Kelas + Tahun Ajaran)
+// =============================================================
 export const checkBentrok = async (data) => {
-  const { HARI, KODE_JP, NIP, KELAS_ID, excludeId = null } = data;
+  const {
+    HARI,
+    KODE_JP,
+    NIP,
+    KELAS_ID,
+    TAHUN_AJARAN_ID,
+    excludeId = null,
+  } = data;
 
   try {
-    // Buat query dasar
     const query = db(table)
-      .select("NIP", "KELAS_ID") // Hanya butuh ini untuk info bentrok
+      .select("ID", "NIP", "KELAS_ID", "TAHUN_AJARAN_ID")
       .where({
-        HARI: HARI,
-        KODE_JP: KODE_JP,
+        HARI,
+        KODE_JP,
+        TAHUN_AJARAN_ID, // ✅ Pastikan hanya dicek di tahun ajaran yang sama
       })
       .andWhere(function () {
-        // Ini akan membuat (NIP = ? OR KELAS_ID = ?)
-        this.where({ NIP: NIP }).orWhere({ KELAS_ID: KELAS_ID });
+        this.where({ NIP }).orWhere({ KELAS_ID });
       });
 
-    // Jika ini adalah 'update', kecualikan ID jadwal yang sedang diedit
     if (excludeId) {
       query.andWhere("ID", "!=", excludeId);
     }
 
-    // Ambil 1 baris pertama saja. Jika tidak ada, 'row' akan undefined
     const row = await query.first();
-
-    // Kembalikan 'row' (objek bentrok) jika ada, atau 'null' jika tidak ada
     return row || null;
-
   } catch (err) {
     console.error("❌ Error checkBentrok Model:", err);
-    // Lemparkan error agar bisa ditangkap oleh controller
     throw new Error(err.message || "Gagal melakukan pengecekan bentrok di model");
   }
 };

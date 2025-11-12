@@ -22,6 +22,7 @@ const FormJadwal = ({
   const [nip, setNip] = useState(null);
   const [kodeMapel, setKodeMapel] = useState(null);
   const [kodeJp, setKodeJp] = useState(null);
+  const [tahunAjaranId, setTahunAjaranId] = useState(null); // 🟢 baru
 
   const [hariOptions, setHariOptions] = useState([]);
   const [tingkatanOptions, setTingkatanOptions] = useState([]);
@@ -30,7 +31,8 @@ const FormJadwal = ({
   const [guruOptions, setGuruOptions] = useState([]);
   const [mapelOptions, setMapelOptions] = useState([]);
   const [jamPelajaranOptions, setJamPelajaranOptions] = useState([]);
-  
+  const [tahunAjaranOptions, setTahunAjaranOptions] = useState([]); // 🟢 baru
+
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -63,6 +65,7 @@ const FormJadwal = ({
         fetchGuru(),
         fetchMapel(),
         fetchJamPelajaran(),
+        fetchTahunAjaran(), // 🟢 baru
       ]);
       setLoadingData(false);
 
@@ -76,6 +79,7 @@ const FormJadwal = ({
         setNip(selectedJadwal.guru?.NIP || null);
         setKodeMapel(selectedJadwal.mata_pelajaran?.KODE_MAPEL || null);
         setKodeJp(selectedJadwal.jam_pelajaran?.KODE_JP || null);
+        setTahunAjaranId(selectedJadwal.tahun_ajaran?.ID_TAHUN_AJARAN || null); // 🟢 baru
       } else {
         // Mode TAMBAH
         const newKode = generateKodeJadwal();
@@ -87,6 +91,7 @@ const FormJadwal = ({
         setNip(null);
         setKodeMapel(null);
         setKodeJp(null);
+        setTahunAjaranId(null); // 🟢 baru
       }
     };
 
@@ -99,7 +104,6 @@ const FormJadwal = ({
       const res = await fetch(`${API_URL}/master-hari`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
       const json = await res.json();
       const data = json.data || [];
       setHariOptions(
@@ -161,7 +165,7 @@ const FormJadwal = ({
       const data = json.data || [];
       setKelasOptions(
         data.map((k) => ({
-          label: k.KELAS_ID,
+          label: k.NAMA_KELAS || k.KELAS_ID,
           value: k.KELAS_ID,
         }))
       );
@@ -176,15 +180,15 @@ const FormJadwal = ({
       const res = await fetch(`${API_URL}/master-guru`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
       const json = await res.json();
-      let guruData = json.data || json || [];
-      guruData.sort((a, b) => (a.NAMA || "").localeCompare(b.NAMA || ""));
-      const options = guruData.map((g) => ({
-        label: `${g.NIP} | ${g.NAMA}`,
-        value: g.NIP,
-      }));
-      setGuruOptions(options);
+      const data = json.data || [];
+      data.sort((a, b) => (a.NAMA || "").localeCompare(b.NAMA || ""));
+      setGuruOptions(
+        data.map((g) => ({
+          label: `${g.NIP} | ${g.NAMA}`,
+          value: g.NIP,
+        }))
+      );
     } catch (err) {
       console.error("Gagal fetch guru:", err);
     }
@@ -205,7 +209,7 @@ const FormJadwal = ({
         }))
       );
     } catch (err) {
-      console.error("Gagal fetch mata pelajaran:", err);
+      console.error("Gagal fetch mapel:", err);
     }
   };
 
@@ -219,7 +223,7 @@ const FormJadwal = ({
       const data = json.data || [];
       setJamPelajaranOptions(
         data.map((jp) => ({
-          label: `Jam ke-${jp.JP_KE || '-'} | ${jp.WAKTU_MULAI || ''} - ${jp.WAKTU_SELESAI || ''}`,
+          label: `Jam ke-${jp.JP_KE} | ${jp.WAKTU_MULAI} - ${jp.WAKTU_SELESAI}`,
           value: jp.KODE_JP,
         }))
       );
@@ -228,9 +232,38 @@ const FormJadwal = ({
     }
   };
 
+  // === FETCH TAHUN AJARAN ===
+  const fetchTahunAjaran = async () => {
+    try {
+      const res = await fetch(`${API_URL}/master-tahun-ajaran`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      const data = json.data || [];
+
+      setTahunAjaranOptions(
+        data.map((ta) => ({
+          label: ta.NAMA_TAHUN_AJARAN,
+          value: ta.TAHUN_AJARAN_ID,
+        }))
+      );
+    } catch (err) {
+      console.error("Gagal fetch tahun ajaran:", err);
+    }
+  };
+
   // === SUBMIT FORM ===
   const handleSubmit = async () => {
-    if (!hari || !tingkatanId || !jurusanId || !kelasId || !nip || !kodeMapel || !kodeJp) {
+    if (
+      !hari ||
+      !tingkatanId ||
+      !jurusanId ||
+      !kelasId ||
+      !nip ||
+      !kodeMapel ||
+      !kodeJp ||
+      !tahunAjaranId // 🟢 validasi baru
+    ) {
       return alert("Lengkapi semua field!");
     }
 
@@ -242,6 +275,7 @@ const FormJadwal = ({
       NIP: nip,
       KODE_MAPEL: kodeMapel,
       KODE_JP: kodeJp,
+      ID_TAHUN_AJARAN: tahunAjaranId, // 🟢 dikirim ke backend
     };
 
     setLoading(true);
@@ -260,26 +294,32 @@ const FormJadwal = ({
       <div className="p-fluid">
         {loadingData && (
           <div className="text-center mb-3">
-            <i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem' }}></i>
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: "2rem" }}></i>
             <p>Memuat data...</p>
           </div>
         )}
 
-        {/* Kode Jadwal */}
+        {/* === Kode Jadwal === */}
         <div className="field">
           <label htmlFor="kodeJadwal">Kode Jadwal</label>
-          <InputText
-            id="kodeJadwal"
-            value={kodeJadwal}
-            readOnly
-            disabled
-            className="p-disabled"
+          <InputText value={kodeJadwal} readOnly disabled className="p-disabled" />
+          {!selectedJadwal && <small>Kode di-generate otomatis</small>}
+        </div>
+
+        {/* Tahun Ajaran */}
+        <div className="field">
+          <label htmlFor="tahunAjaran">
+            Tahun Ajaran 
+          </label>
+          <Dropdown
+            id="tahunAjaran"
+            value={tahunAjaranId}
+            options={tahunAjaranOptions}
+            onChange={(e) => setTahunAjaranId(e.value)}
+            placeholder="Pilih tahun ajaran"
+            showClear
+            disabled={loadingData}
           />
-          {!selectedJadwal && (
-            <small className="text-gray-500">
-              Kode akan di-generate otomatis
-            </small>
-          )}
         </div>
 
         {/* Hari */}
@@ -352,7 +392,6 @@ const FormJadwal = ({
             filter
             showClear
             disabled={loadingData}
-            emptyMessage="Tidak ada data guru"
           />
         </div>
 
@@ -368,7 +407,6 @@ const FormJadwal = ({
             filter
             showClear
             disabled={loadingData}
-            emptyMessage="Tidak ada data mata pelajaran"
           />
         </div>
 
@@ -387,7 +425,7 @@ const FormJadwal = ({
           />
         </div>
 
-        {/* Tombol */}
+        {/* Tombol Aksi */}
         <div className="flex justify-content-end gap-2 mt-3">
           <Button
             label="Batal"
