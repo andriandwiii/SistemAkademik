@@ -20,7 +20,9 @@ const allColumnOptions = [
   { name: "NIP Guru", value: "guru.NIP", dataKey: "guru.NIP" },
   { name: "Mata Pelajaran", value: "mata_pelajaran.NAMA_MAPEL", dataKey: "mata_pelajaran.NAMA_MAPEL" },
   { name: "Jam Ke", value: "jam_pelajaran.JP_KE", dataKey: "jam_pelajaran.JP_KE" },
-  { name: "Waktu", value: "waktu", dataKey: "waktu" }, // Ini adalah field kustom
+  { name: "Waktu", value: "waktu", dataKey: "waktu" },
+  // 🟢 Tambahan baru:
+  { name: "Tahun Ajaran", value: "tahun_ajaran.NAMA_TAHUN_AJARAN", dataKey: "tahun_ajaran.NAMA_TAHUN_AJARAN" },
 ];
 
 // 2. Definisikan kolom default yang terpilih
@@ -35,7 +37,7 @@ const defaultSelectedColumns = [
 // 3. Opsi Kertas
 const paperSizes = [
   { name: "A4", value: "A4" },
-  { name: "F4", value: [210, 330] }, // Ukuran F4 dalam mm
+  { name: "F4", value: [210, 330] },
   { name: "Letter", value: "Letter" },
 ];
 
@@ -52,11 +54,9 @@ export default function AdjustPrintMarginJadwal({
   setPdfUrl,
   setFileName,
   setJsPdfPreviewOpen,
-  // ===========================================
-  // VVVV TERIMA PROPS BARU DARI INDUK VVVV
   namaKurikulum,
   nipKurikulum,
-  // ===========================================
+  tahunAjaranAktif,
 }) {
   const [config, setConfig] = useState({
     marginTop: 10,
@@ -83,7 +83,6 @@ export default function AdjustPrintMarginJadwal({
       format: config.paperSize,
     });
 
-    // ... (Logika Header PDF, Tabel, dll. biarkan sama) ...
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     const mL = parseFloat(config.marginLeft);
@@ -97,28 +96,21 @@ export default function AdjustPrintMarginJadwal({
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text("JADWAL PELAJARAN", pageWidth / 2, currentY, {
-      align: "center",
-    });
-    
+    doc.text("JADWAL PELAJARAN", pageWidth / 2, currentY, { align: "center" });
+
     currentY += 6;
     doc.setFontSize(14);
-    doc.text(
-      "SEKOLAH MENENGAH ATAS NEGERI 1 MADIUN",
-      pageWidth / 2,
-      currentY,
-      { align: "center" }
-    );
-    
+    doc.text("SEKOLAH MENENGAH ATAS NEGERI 1 MADIUN", pageWidth / 2, currentY, { align: "center" });
+
     currentY += 6;
-    const tahunPelajaran = new Date().getFullYear();
+    // === Gunakan tahun ajaran dari props jika ada ===
+    const tahunPelajaran =
+      tahunAjaranAktif && tahunAjaranAktif.NAMA_TAHUN_AJARAN
+        ? tahunAjaranAktif.NAMA_TAHUN_AJARAN
+        : `TAHUN PELAJARAN ${new Date().getFullYear()}/${new Date().getFullYear() + 1}`;
+
     doc.setFontSize(12);
-    doc.text(
-      `TAHUN PELAJARAN ${tahunPelajaran}/${tahunPelajaran + 1}`,
-      pageWidth / 2,
-      currentY,
-      { align: "center" }
-    );
+    doc.text(tahunPelajaran, pageWidth / 2, currentY, { align: "center" });
 
     currentY += 8;
     doc.setDrawColor(0, 0, 0);
@@ -126,7 +118,7 @@ export default function AdjustPrintMarginJadwal({
     doc.line(mL, currentY, pageWidth - mR, currentY);
     currentY += 8;
 
-    // --- Logika Tabel ---
+    // --- Tabel ---
     const tableColumn = config.selectedColumns.map((colValue) => {
       const colConfig = allColumnOptions.find((c) => c.value === colValue);
       return { header: colConfig.name, dataKey: colConfig.dataKey };
@@ -134,20 +126,19 @@ export default function AdjustPrintMarginJadwal({
 
     const tableRows = jadwalToPrint.map((jadwal) => {
       const getNestedValue = (obj, path) => {
-          const keys = path.split('.');
-          return keys.reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : "-", obj);
-      }
+        const keys = path.split(".");
+        return keys.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : "-"), obj);
+      };
       const row = {};
-      config.selectedColumns.forEach(colKey => {
-           if (colKey === "waktu") {
-             row.waktu =
-               jadwal.jam_pelajaran?.WAKTU_MULAI &&
-               jadwal.jam_pelajaran?.WAKTU_SELESAI
-                 ? `${jadwal.jam_pelajaran.WAKTU_MULAI} - ${jadwal.jam_pelajaran.WAKTU_SELESAI}`
-                 : "-";
-           } else {
-             row[colKey] = getNestedValue(jadwal, colKey);
-           }
+      config.selectedColumns.forEach((colKey) => {
+        if (colKey === "waktu") {
+          row.waktu =
+            jadwal.jam_pelajaran?.WAKTU_MULAI && jadwal.jam_pelajaran?.WAKTU_SELESAI
+              ? `${jadwal.jam_pelajaran.WAKTU_MULAI} - ${jadwal.jam_pelajaran.WAKTU_SELESAI}`
+              : "-";
+        } else {
+          row[colKey] = getNestedValue(jadwal, colKey);
+        }
       });
       return row;
     });
@@ -157,13 +148,7 @@ export default function AdjustPrintMarginJadwal({
       columns: tableColumn,
       body: tableRows,
       margin: { left: mL, right: mR, bottom: mB },
-      // ... (styles, headStyles, dll. biarkan sama) ...
-      styles: {
-        fontSize: 9,
-        cellPadding: 2,
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1,
-      },
+      styles: { fontSize: 9, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
       headStyles: {
         fillColor: [230, 230, 230],
         textColor: [0, 0, 0],
@@ -171,20 +156,14 @@ export default function AdjustPrintMarginJadwal({
         halign: "center",
         valign: "middle",
       },
-      bodyStyles: {
-        textColor: [0, 0, 0],
-      },
-      alternateRowStyles: {
-        fillColor: [248, 248, 248],
-      },
-      didDrawPage: (data) => {
+      bodyStyles: { textColor: [0, 0, 0] },
+      alternateRowStyles: { fillColor: [248, 248, 248] },
+      didDrawPage: () => {
         const pageCount = doc.internal.getNumberOfPages();
         doc.setFontSize(8);
         doc.setTextColor(100);
         doc.text(
-          `Halaman ${
-            doc.internal.getCurrentPageInfo().pageNumber
-          } dari ${pageCount}`,
+          `Halaman ${doc.internal.getCurrentPageInfo().pageNumber} dari ${pageCount}`,
           pageWidth - mR,
           pageHeight - 5,
           { align: "right" }
@@ -204,7 +183,7 @@ export default function AdjustPrintMarginJadwal({
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    
+
     const today = new Date();
     const ttdDate = today.toLocaleDateString("id-ID", {
       day: "numeric",
@@ -214,23 +193,14 @@ export default function AdjustPrintMarginJadwal({
 
     doc.text(`Madiun, ${ttdDate}`, ttdX, ttdY);
     doc.text("Waka. Kurikulum,", ttdX, ttdY + 6);
-    
+
     ttdY += 24;
     doc.text("(..............................)", ttdX, ttdY);
 
-    // ========================================================
-    // VVVV PERUBAHAN UTAMA: GUNAKAN PROPS DINAMIS VVVV
     doc.setFont("helvetica", "bold");
-    // Gunakan prop 'namaKurikulum', beri fallback jika kosong
     doc.text(namaKurikulum || "(Nama Waka Kurikulum)", ttdX, ttdY + 6);
-    
     doc.setFont("helvetica", "normal");
-    // Gunakan prop 'nipKurikulum', beri fallback jika kosong
-    // (Jika NIP tidak ada di tabel users, Anda bisa hapus prop ini
-    // dan biarkan NIP dummy, atau kirim string kosong)
-    doc.text(`NIP: ${nipKurikulum || ".............................."}`, ttdX, ttdY + 12); 
-    // ========================================================
-    // --- AKHIR BLOK TTD ---
+    doc.text(`NIP: ${nipKurikulum || ".............................."}`, ttdX, ttdY + 12);
 
     return doc;
   };
@@ -278,7 +248,6 @@ export default function AdjustPrintMarginJadwal({
       footer={footer}
     >
       <div className="mb-3">
-        {/* ... (Isi Dialog biarkan sama) ... */}
         <p className="text-sm text-gray-600">
           Anda akan mencetak{" "}
           <strong>{jadwalToPrint.length} data jadwal</strong>. Silakan pilih
@@ -287,7 +256,6 @@ export default function AdjustPrintMarginJadwal({
       </div>
 
       <div className="grid p-fluid">
-        {/* ... (Field Ukuran Kertas, Orientasi, Kolom, Margin biarkan sama) ... */}
         <div className="col-12">
           <h6 className="mb-3">Pengaturan Cetak</h6>
         </div>
@@ -317,21 +285,21 @@ export default function AdjustPrintMarginJadwal({
             </small>
           </div>
         </div>
-        
+
         <div className="col-12">
-           <div className="field">
-             <label>Pilih Kolom yang Akan Dicetak</label>
-             <MultiSelect
-               value={config.selectedColumns}
-               options={allColumnOptions}
-               onChange={(e) => onChangeSelect(e, "selectedColumns")}
-               optionLabel="name"
-               optionValue="value"
-               placeholder="Pilih kolom"
-               className="w-full"
-             />
-           </div>
+          <div className="field">
+            <label>Pilih Kolom yang Akan Dicetak</label>
+            <MultiSelect
+              value={config.selectedColumns}
+              options={allColumnOptions}
+              onChange={(e) => onChangeSelect(e, "selectedColumns")}
+              optionLabel="name"
+              optionValue="value"
+              placeholder="Pilih kolom"
+              className="w-full"
+            />
           </div>
+        </div>
 
         <div className="col-12 md:col-6">
           <div className="field">
@@ -341,7 +309,8 @@ export default function AdjustPrintMarginJadwal({
                 <InputNumber
                   value={config.marginTop}
                   onChange={(e) => onChangeNumber(e, "marginTop")}
-                  min={5} max={30}
+                  min={5}
+                  max={30}
                   suffix=" mm"
                   placeholder="Top"
                 />
@@ -350,7 +319,8 @@ export default function AdjustPrintMarginJadwal({
                 <InputNumber
                   value={config.marginLeft}
                   onChange={(e) => onChangeNumber(e, "marginLeft")}
-                  min={5} max={30}
+                  min={5}
+                  max={30}
                   suffix=" mm"
                   placeholder="Left"
                 />
@@ -358,7 +328,7 @@ export default function AdjustPrintMarginJadwal({
             </div>
           </div>
         </div>
-        
+
         <div className="col-12 md:col-6">
           <div className="field">
             <label>Margin Bawah & Kanan (mm)</label>
@@ -367,7 +337,8 @@ export default function AdjustPrintMarginJadwal({
                 <InputNumber
                   value={config.marginBottom}
                   onChange={(e) => onChangeNumber(e, "marginBottom")}
-                  min={5} max={30}
+                  min={5}
+                  max={30}
                   suffix=" mm"
                   placeholder="Bottom"
                 />
@@ -376,7 +347,8 @@ export default function AdjustPrintMarginJadwal({
                 <InputNumber
                   value={config.marginRight}
                   onChange={(e) => onChangeNumber(e, "marginRight")}
-                  min={5} max={30}
+                  min={5}
+                  max={30}
                   suffix=" mm"
                   placeholder="Right"
                 />
