@@ -7,19 +7,38 @@ import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 
-const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
+const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
   const [kodeKKM, setKodeKKM] = useState("");
-  const [mapelId, setMapelId] = useState("");
+  const [mapelId, setMapelId] = useState(null);
   const [kompleksitas, setKompleksitas] = useState(0);
   const [dayaDukung, setDayaDukung] = useState(0);
   const [intake, setIntake] = useState(0);
   const [keterangan, setKeterangan] = useState("");
   const [status, setStatus] = useState("Aktif");
 
-  const [mapelList, setMapelList] = useState([]);
+  const [mapelOptions, setMapelOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  // 🔹 Hitung otomatis nilai KKM
+  // Generate Kode KKM Otomatis
+  const generateKodeKKM = () => {
+    if (!kkmList || kkmList.length === 0) {
+      return "KKM001";
+    }
+
+    const lastKKM = kkmList[0];
+    const lastKode = lastKKM?.KODE_KKM || "KKM000";
+    
+    const numericPartMatch = lastKode.match(/\d+$/);
+    const numericPart = numericPartMatch ? parseInt(numericPartMatch[0], 10) : 0;
+    
+    const nextNumber = numericPart + 1;
+    return `KKM${nextNumber.toString().padStart(3, "0")}`;
+  };
+
+  // Hitung otomatis nilai KKM
   const hitungKKM = () => {
     if (kompleksitas && dayaDukung && intake) {
       return Math.round(
@@ -29,51 +48,69 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
     return 0;
   };
 
-  // 🔹 Reset / isi data saat dialog dibuka
+  // Inisialisasi form
   useEffect(() => {
-    if (selectedKKM) {
-      // Mode edit
-      setKodeKKM(selectedKKM.KODE_KKM || "");
-      setMapelId(selectedKKM.KODE_MAPEL || "");
-      setKompleksitas(selectedKKM.KOMPLEKSITAS || 0);
-      setDayaDukung(selectedKKM.DAYA_DUKUNG || 0);
-      setIntake(selectedKKM.INTAKE || 0);
-      setKeterangan(selectedKKM.KETERANGAN || "");
-      setStatus(selectedKKM.STATUS || "Aktif");
-    } else if (visible) {
-      // Mode tambah
-      setKodeKKM(""); // dikosongkan, backend yang buat
-      setMapelId("");
-      setKompleksitas(0);
-      setDayaDukung(0);
-      setIntake(0);
-      setKeterangan("");
-      setStatus("Aktif");
-    }
-  }, [selectedKKM, visible]);
+    const initForm = async () => {
+      if (!visible) return;
 
-  // 🔹 Ambil daftar mata pelajaran
-  useEffect(() => {
-    if (token) fetchMapel();
-  }, [token]);
+      setLoadingData(true);
+      await fetchMapel();
+      setLoadingData(false);
 
+      if (selectedKKM) {
+        // MODE EDIT
+        setKodeKKM(selectedKKM.KODE_KKM || "");
+        setMapelId(selectedKKM.KODE_MAPEL || null);
+        setKompleksitas(selectedKKM.KOMPLEKSITAS || 0);
+        setDayaDukung(selectedKKM.DAYA_DUKUNG || 0);
+        setIntake(selectedKKM.INTAKE || 0);
+        setKeterangan(selectedKKM.KETERANGAN || "");
+        setStatus(selectedKKM.STATUS || "Aktif");
+      } else {
+        // MODE TAMBAH
+        const newKode = generateKodeKKM();
+        setKodeKKM(newKode);
+        setMapelId(null);
+        setKompleksitas(0);
+        setDayaDukung(0);
+        setIntake(0);
+        setKeterangan("");
+        setStatus("Aktif");
+      }
+    };
+
+    initForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, selectedKKM, token]);
+
+  // Fetch Mata Pelajaran
   const fetchMapel = async () => {
     try {
       const res = await fetch(`${API_URL}/master-mata-pelajaran`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      setMapelList(json.data || []);
+      const data = json.data || [];
+
+      setMapelOptions(
+        data.map((m) => ({
+          label: `${m.KODE_MAPEL} | ${m.NAMA_MAPEL}`,
+          value: m.KODE_MAPEL,
+        }))
+      );
     } catch (err) {
       console.error("Gagal memuat data mapel:", err);
     }
   };
 
-  // 🔹 Simpan data
-  const handleSubmit = () => {
+  // Submit Form
+  const handleSubmit = async () => {
+    // Validasi
+    if (!mapelId || kompleksitas === 0 || dayaDukung === 0 || intake === 0) {
+      return alert("Mohon lengkapi semua field formulir!");
+    }
+
     const data = {
-      // ❌ Jangan kirim kodeKKM untuk tambah data (backend auto)
-      ...(selectedKKM && { KODE_KKM: kodeKKM }),
       KODE_MAPEL: mapelId,
       KOMPLEKSITAS: kompleksitas,
       DAYA_DUKUNG: dayaDukung,
@@ -81,46 +118,56 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
       KETERANGAN: keterangan,
       STATUS: status,
     };
-    onSave(data);
+
+    setLoading(true);
+    await onSave(data);
+    setLoading(false);
   };
 
   return (
     <Dialog
       header={selectedKKM ? "Edit Data KKM" : "Tambah Data KKM"}
       visible={visible}
-      style={{ width: "35vw" }}
+      style={{ width: "30vw" }}
       modal
       onHide={onHide}
     >
       <div className="p-fluid">
-        {/* 🔹 KODE KKM (readonly / otomatis) */}
+        {loadingData && (
+          <div className="text-center mb-3">
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem' }}></i>
+            <p>Memuat data...</p>
+          </div>
+        )}
+
+        {/* Kode KKM */}
         <div className="field">
-          <label htmlFor="kodeKKM">Kode KKM (Otomatis)</label>
+          <label htmlFor="kodeKKM">Kode KKM</label>
           <InputText
             id="kodeKKM"
             value={kodeKKM}
-            placeholder="Akan dibuat otomatis"
             disabled
+            className="p-disabled"
           />
+          {!selectedKKM && <small className="text-gray-500">Kode dibuat otomatis</small>}
         </div>
 
-        {/* 🔹 MATA PELAJARAN */}
+        {/* Mata Pelajaran */}
         <div className="field">
           <label htmlFor="mapel">Mata Pelajaran</label>
           <Dropdown
             id="mapel"
             value={mapelId}
-            options={mapelList.map((m) => ({
-              label: m.NAMA_MAPEL,
-              value: m.KODE_MAPEL,
-            }))}
+            options={mapelOptions}
             onChange={(e) => setMapelId(e.value)}
             placeholder="Pilih Mata Pelajaran"
             filter
+            showClear
+            disabled={loadingData}
           />
         </div>
 
-        {/* 🔹 KOMPLEKSITAS */}
+        {/* Kompleksitas */}
         <div className="field">
           <label htmlFor="kompleksitas">Kompleksitas</label>
           <InputNumber
@@ -130,10 +177,11 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
             showButtons
             min={0}
             max={100}
+            disabled={loadingData}
           />
         </div>
 
-        {/* 🔹 DAYA DUKUNG */}
+        {/* Daya Dukung */}
         <div className="field">
           <label htmlFor="dayaDukung">Daya Dukung</label>
           <InputNumber
@@ -143,10 +191,11 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
             showButtons
             min={0}
             max={100}
+            disabled={loadingData}
           />
         </div>
 
-        {/* 🔹 INTAKE */}
+        {/* Intake */}
         <div className="field">
           <label htmlFor="intake">Intake</label>
           <InputNumber
@@ -156,12 +205,13 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
             showButtons
             min={0}
             max={100}
+            disabled={loadingData}
           />
         </div>
 
-        {/* 🔹 NILAI KKM OTOMATIS */}
+        {/* Nilai KKM (Otomatis) */}
         <div className="field">
-          <label htmlFor="kkm">Nilai KKM (otomatis dihitung)</label>
+          <label htmlFor="kkm">Nilai KKM (Dihitung Otomatis)</label>
           <InputNumber
             id="kkm"
             value={hitungKKM()}
@@ -169,10 +219,14 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
             minFractionDigits={0}
             maxFractionDigits={2}
             disabled
+            className="p-disabled"
           />
+          <small className="text-gray-500">
+            Rumus: (Kompleksitas + Daya Dukung + Intake) / 3
+          </small>
         </div>
 
-        {/* 🔹 KETERANGAN */}
+        {/* Keterangan */}
         <div className="field">
           <label htmlFor="keterangan">Keterangan</label>
           <InputText
@@ -180,10 +234,11 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
             value={keterangan}
             onChange={(e) => setKeterangan(e.target.value)}
             placeholder="Contoh: Standar minimal ketuntasan"
+            disabled={loadingData}
           />
         </div>
 
-        {/* 🔹 STATUS */}
+        {/* Status */}
         <div className="field">
           <label htmlFor="status">Status</label>
           <Dropdown
@@ -195,18 +250,25 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token }) => {
             ]}
             onChange={(e) => setStatus(e.value)}
             placeholder="Pilih Status"
+            disabled={loadingData}
           />
         </div>
 
-        {/* 🔹 TOMBOL */}
+        {/* Footer Tombol */}
         <div className="flex justify-content-end gap-2 mt-3">
           <Button
             label="Batal"
             icon="pi pi-times"
             className="p-button-text"
             onClick={onHide}
+            disabled={loading}
           />
-          <Button label="Simpan" icon="pi pi-check" onClick={handleSubmit} />
+          <Button
+            label={loading ? "Menyimpan..." : "Simpan"}
+            icon="pi pi-check"
+            onClick={handleSubmit}
+            disabled={loading || loadingData}
+          />
         </div>
       </div>
     </Dialog>

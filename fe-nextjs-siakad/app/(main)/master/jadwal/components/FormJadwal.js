@@ -24,6 +24,7 @@ const FormJadwal = ({
   const [kodeMapel, setKodeMapel] = useState(null);
   const [kodeJp, setKodeJp] = useState(null);
   const [tahunAjaranId, setTahunAjaranId] = useState(null);
+  const [semester, setSemester] = useState("GANJIL");
 
   // === STATE OPSI DROPDOWN ===
   const [hariOptions, setHariOptions] = useState([]);
@@ -36,21 +37,20 @@ const FormJadwal = ({
   const [tahunAjaranOptions, setTahunAjaranOptions] = useState([]);
 
   // === STATE LOADING ===
-  const [loading, setLoading] = useState(false); // Loading saat tombol simpan ditekan
-  const [loadingData, setLoadingData] = useState(false); // Loading saat ambil data master
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  // 🔹 Generate Kode Jadwal Otomatis (Client Side Logic)
+  // Generate Kode Jadwal Otomatis
   const generateKodeJadwal = () => {
     if (!jadwalList || jadwalList.length === 0) {
       return "JDW001";
     }
-    // Ambil kode terakhir, misal "JDW025", ambil angkanya saja
-    const lastJadwal = jadwalList[0]; // Asumsi list sudah di-sort desc dari parent
+
+    const lastJadwal = jadwalList[0];
     const lastKode = lastJadwal?.KODE_JADWAL || "JDW000";
     
-    // Regex untuk mengambil angka di belakang
     const numericPartMatch = lastKode.match(/\d+$/);
     const numericPart = numericPartMatch ? parseInt(numericPartMatch[0], 10) : 0;
     
@@ -58,14 +58,13 @@ const FormJadwal = ({
     return `JDW${nextNumber.toString().padStart(3, "0")}`;
   };
 
-  // 🔹 Efek saat Modal Dibuka (Init Data)
+  // Efek saat Modal Dibuka (Init Data)
   useEffect(() => {
     const initForm = async () => {
       if (!visible) return;
 
       setLoadingData(true);
       
-      // 1. Ambil semua data master untuk dropdown
       await Promise.all([
         fetchHari(),
         fetchTingkatan(),
@@ -79,11 +78,10 @@ const FormJadwal = ({
 
       setLoadingData(false);
 
-      // 2. Set Nilai Form
       if (selectedJadwal) {
-        // === MODE EDIT ===
+        // MODE EDIT
         setKodeJadwal(selectedJadwal.KODE_JADWAL || "");
-        setHari(selectedJadwal.HARI || null); // Pastikan key sesuai dengan respons API (biasanya HARI langsung)
+        setHari(selectedJadwal.HARI || null);
         setTingkatanId(selectedJadwal.TINGKATAN_ID || selectedJadwal.tingkatan?.TINGKATAN_ID || null);
         setJurusanId(selectedJadwal.JURUSAN_ID || selectedJadwal.jurusan?.JURUSAN_ID || null);
         setKelasId(selectedJadwal.KELAS_ID || selectedJadwal.kelas?.KELAS_ID || null);
@@ -91,8 +89,9 @@ const FormJadwal = ({
         setKodeMapel(selectedJadwal.KODE_MAPEL || selectedJadwal.mata_pelajaran?.KODE_MAPEL || null);
         setKodeJp(selectedJadwal.KODE_JP || selectedJadwal.jam_pelajaran?.KODE_JP || null);
         setTahunAjaranId(selectedJadwal.TAHUN_AJARAN_ID || selectedJadwal.tahun_ajaran?.TAHUN_AJARAN_ID || null);
+        setSemester(selectedJadwal.SEMESTER || "GANJIL");
       } else {
-        // === MODE TAMBAH ===
+        // MODE TAMBAH
         const newKode = generateKodeJadwal();
         setKodeJadwal(newKode);
         setHari(null);
@@ -103,6 +102,7 @@ const FormJadwal = ({
         setKodeMapel(null);
         setKodeJp(null);
         setTahunAjaranId(null);
+        setSemester("GANJIL");
       }
     };
 
@@ -120,7 +120,9 @@ const FormJadwal = ({
       const json = await res.json();
       const data = json.data || [];
       setHariOptions(data.map((h) => ({ label: h.NAMA_HARI, value: h.NAMA_HARI })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchTingkatan = async () => {
@@ -131,7 +133,9 @@ const FormJadwal = ({
       const json = await res.json();
       const data = json.data || [];
       setTingkatanOptions(data.map((t) => ({ label: t.TINGKATAN, value: t.TINGKATAN_ID })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchJurusan = async () => {
@@ -142,7 +146,9 @@ const FormJadwal = ({
       const json = await res.json();
       const data = json.data || [];
       setJurusanOptions(data.map((j) => ({ label: j.NAMA_JURUSAN, value: j.JURUSAN_ID })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchKelas = async () => {
@@ -153,7 +159,9 @@ const FormJadwal = ({
       const json = await res.json();
       const data = json.data || [];
       setKelasOptions(data.map((k) => ({ label: k.NAMA_KELAS || k.KELAS_ID, value: k.KELAS_ID })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchGuru = async () => {
@@ -163,10 +171,11 @@ const FormJadwal = ({
       });
       const json = await res.json();
       const data = json.data || [];
-      // Sort guru by nama
       data.sort((a, b) => (a.NAMA || "").localeCompare(b.NAMA || ""));
       setGuruOptions(data.map((g) => ({ label: `${g.NIP} | ${g.NAMA}`, value: g.NIP })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchMapel = async () => {
@@ -177,7 +186,9 @@ const FormJadwal = ({
       const json = await res.json();
       const data = json.data || [];
       setMapelOptions(data.map((mp) => ({ label: `${mp.KODE_MAPEL} | ${mp.NAMA_MAPEL}`, value: mp.KODE_MAPEL })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchJamPelajaran = async () => {
@@ -191,7 +202,9 @@ const FormJadwal = ({
         label: `Jam ke-${jp.JP_KE} | ${jp.WAKTU_MULAI} - ${jp.WAKTU_SELESAI}`, 
         value: jp.KODE_JP 
       })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchTahunAjaran = async () => {
@@ -205,13 +218,15 @@ const FormJadwal = ({
         label: ta.NAMA_TAHUN_AJARAN || ta.TAHUN_AJARAN_ID, 
         value: ta.TAHUN_AJARAN_ID 
       })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // ================= SUBMIT LOGIC =================
 
   const handleSubmit = async () => {
-    // 1. Validasi Frontend
+    // Validasi Frontend
     if (
       !hari ||
       !tingkatanId ||
@@ -220,12 +235,13 @@ const FormJadwal = ({
       !nip ||
       !kodeMapel ||
       !kodeJp ||
-      !tahunAjaranId // Wajib ada
+      !tahunAjaranId ||
+      !semester
     ) {
       return alert("Mohon lengkapi semua field formulir!");
     }
 
-    // 2. Persiapan Data (Sesuaikan Key dengan Backend Controller)
+    // Persiapan Data
     const data = {
       HARI: hari,
       TINGKATAN_ID: tingkatanId,
@@ -234,12 +250,10 @@ const FormJadwal = ({
       NIP: nip,
       KODE_MAPEL: kodeMapel,
       KODE_JP: kodeJp,
-      TAHUN_AJARAN_ID: tahunAjaranId, // ✅ KEY SUDAH DIPERBAIKI (Match Backend)
+      TAHUN_AJARAN_ID: tahunAjaranId,
+      SEMESTER: semester,
     };
 
-    console.log("📤 Mengirim Data:", data);
-
-    // 3. Kirim ke Parent Component
     setLoading(true);
     await onSave(data);
     setLoading(false);
@@ -249,154 +263,180 @@ const FormJadwal = ({
     <Dialog
       header={selectedJadwal ? "Edit Jadwal Pelajaran" : "Tambah Jadwal Pelajaran"}
       visible={visible}
-      style={{ width: "450px" }} // Sedikit diperlebar agar nyaman
+      style={{ width: "30vw" }}
       modal
       onHide={onHide}
-      className="p-fluid"
     >
-      {loadingData ? (
-        <div className="flex flex-column align-items-center justify-content-center p-5">
-          <i className="pi pi-spin pi-spinner" style={{ fontSize: "2rem", color: "var(--primary-color)" }}></i>
-          <span className="mt-2">Memuat data master...</span>
+      <div className="p-fluid">
+        {loadingData && (
+          <div className="text-center mb-3">
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem' }}></i>
+            <p>Memuat data...</p>
+          </div>
+        )}
+
+        {/* Kode Jadwal */}
+        <div className="field">
+          <label htmlFor="kodeJadwal">Kode Jadwal</label>
+          <InputText
+            id="kodeJadwal"
+            value={kodeJadwal}
+            disabled
+            className="p-disabled"
+          />
+          {!selectedJadwal && <small className="text-gray-500">Kode dibuat otomatis</small>}
         </div>
-      ) : (
-        <div className="formgrid grid">
-          
-          {/* Kode Jadwal */}
-          <div className="field col-12">
-            <label htmlFor="kodeJadwal">Kode Jadwal</label>
-            <InputText id="kodeJadwal" value={kodeJadwal} disabled className="p-disabled opacity-100 font-bold" />
-            {!selectedJadwal && <small className="text-gray-500">Kode dibuat otomatis</small>}
-          </div>
 
-          {/* Tahun Ajaran */}
-          <div className="field col-12">
-            <label htmlFor="tahunAjaran">Tahun Ajaran <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="tahunAjaran"
-              value={tahunAjaranId}
-              options={tahunAjaranOptions}
-              onChange={(e) => setTahunAjaranId(e.value)}
-              placeholder="Pilih Tahun Ajaran"
-              filter
-              showClear
-            />
-          </div>
-
-          {/* Hari */}
-          <div className="field col-12 md:col-6">
-            <label htmlFor="hari">Hari <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="hari"
-              value={hari}
-              options={hariOptions}
-              onChange={(e) => setHari(e.value)}
-              placeholder="Pilih Hari"
-              showClear
-            />
-          </div>
-
-          {/* Tingkatan */}
-          <div className="field col-12 md:col-6">
-            <label htmlFor="tingkatan">Tingkatan <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="tingkatan"
-              value={tingkatanId}
-              options={tingkatanOptions}
-              onChange={(e) => setTingkatanId(e.value)}
-              placeholder="Pilih Tingkatan"
-              showClear
-            />
-          </div>
-
-          {/* Jurusan */}
-          <div className="field col-12">
-            <label htmlFor="jurusan">Jurusan <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="jurusan"
-              value={jurusanId}
-              options={jurusanOptions}
-              onChange={(e) => setJurusanId(e.value)}
-              placeholder="Pilih Jurusan"
-              filter
-              showClear
-            />
-          </div>
-
-          {/* Kelas */}
-          <div className="field col-12">
-            <label htmlFor="kelas">Kelas <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="kelas"
-              value={kelasId}
-              options={kelasOptions}
-              onChange={(e) => setKelasId(e.value)}
-              placeholder="Pilih Kelas"
-              filter
-              showClear
-            />
-          </div>
-
-          {/* Mata Pelajaran */}
-          <div className="field col-12">
-            <label htmlFor="mapel">Mata Pelajaran <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="mapel"
-              value={kodeMapel}
-              options={mapelOptions}
-              onChange={(e) => setKodeMapel(e.value)}
-              placeholder="Cari Mata Pelajaran..."
-              filter
-              showClear
-            />
-          </div>
-
-          {/* Guru */}
-          <div className="field col-12">
-            <label htmlFor="guru">Guru Pengajar <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="guru"
-              value={nip}
-              options={guruOptions}
-              onChange={(e) => setNip(e.value)}
-              placeholder="Cari Guru (Nama/NIP)..."
-              filter
-              showClear
-            />
-          </div>
-
-          {/* Jam Pelajaran */}
-          <div className="field col-12">
-            <label htmlFor="jp">Jam Pelajaran <span className="text-red-500">*</span></label>
-            <Dropdown
-              id="jp"
-              value={kodeJp}
-              options={jamPelajaranOptions}
-              onChange={(e) => setKodeJp(e.value)}
-              placeholder="Pilih Jam..."
-              filter
-              showClear
-            />
-          </div>
-
+        {/* Tahun Ajaran */}
+        <div className="field">
+          <label htmlFor="tahunAjaran">Tahun Ajaran</label>
+          <Dropdown
+            id="tahunAjaran"
+            value={tahunAjaranId}
+            options={tahunAjaranOptions}
+            onChange={(e) => setTahunAjaranId(e.value)}
+            placeholder="Pilih Tahun Ajaran"
+            filter
+            showClear
+            disabled={loadingData}
+          />
         </div>
-      )}
 
-      {/* Footer Tombol */}
-      <div className="flex justify-content-end gap-2 mt-4">
-        <Button 
-          label="Batal" 
-          icon="pi pi-times" 
-          className="p-button-text p-button-secondary" 
-          onClick={onHide} 
-          disabled={loading}
-        />
-        <Button 
-          label={loading ? "Menyimpan..." : "Simpan Jadwal"} 
-          icon={loading ? "pi pi-spin pi-spinner" : "pi pi-check"} 
-          onClick={handleSubmit} 
-          disabled={loading || loadingData} 
-        />
+        {/* Semester */}
+        <div className="field">
+          <label htmlFor="semester">Semester</label>
+          <Dropdown
+            id="semester"
+            value={semester}
+            options={[
+              { label: "Ganjil", value: "GANJIL" },
+              { label: "Genap", value: "GENAP" }
+            ]}
+            onChange={(e) => setSemester(e.value)}
+            placeholder="Pilih Semester"
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Hari */}
+        <div className="field">
+          <label htmlFor="hari">Hari</label>
+          <Dropdown
+            id="hari"
+            value={hari}
+            options={hariOptions}
+            onChange={(e) => setHari(e.value)}
+            placeholder="Pilih Hari"
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Tingkatan */}
+        <div className="field">
+          <label htmlFor="tingkatan">Tingkatan</label>
+          <Dropdown
+            id="tingkatan"
+            value={tingkatanId}
+            options={tingkatanOptions}
+            onChange={(e) => setTingkatanId(e.value)}
+            placeholder="Pilih Tingkatan"
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Jurusan */}
+        <div className="field">
+          <label htmlFor="jurusan">Jurusan</label>
+          <Dropdown
+            id="jurusan"
+            value={jurusanId}
+            options={jurusanOptions}
+            onChange={(e) => setJurusanId(e.value)}
+            placeholder="Pilih Jurusan"
+            filter
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Kelas */}
+        <div className="field">
+          <label htmlFor="kelas">Kelas</label>
+          <Dropdown
+            id="kelas"
+            value={kelasId}
+            options={kelasOptions}
+            onChange={(e) => setKelasId(e.value)}
+            placeholder="Pilih Kelas"
+            filter
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Mata Pelajaran */}
+        <div className="field">
+          <label htmlFor="mapel">Mata Pelajaran</label>
+          <Dropdown
+            id="mapel"
+            value={kodeMapel}
+            options={mapelOptions}
+            onChange={(e) => setKodeMapel(e.value)}
+            placeholder="Cari Mata Pelajaran..."
+            filter
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Guru */}
+        <div className="field">
+          <label htmlFor="guru">Guru Pengajar</label>
+          <Dropdown
+            id="guru"
+            value={nip}
+            options={guruOptions}
+            onChange={(e) => setNip(e.value)}
+            placeholder="Cari Guru (Nama/NIP)..."
+            filter
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Jam Pelajaran */}
+        <div className="field">
+          <label htmlFor="jp">Jam Pelajaran</label>
+          <Dropdown
+            id="jp"
+            value={kodeJp}
+            options={jamPelajaranOptions}
+            onChange={(e) => setKodeJp(e.value)}
+            placeholder="Pilih Jam..."
+            filter
+            showClear
+            disabled={loadingData}
+          />
+        </div>
+
+        {/* Footer Tombol */}
+        <div className="flex justify-content-end gap-2 mt-3">
+          <Button 
+            label="Batal" 
+            icon="pi pi-times" 
+            className="p-button-text" 
+            onClick={onHide} 
+            disabled={loading}
+          />
+          <Button 
+            label={loading ? "Menyimpan..." : "Simpan"} 
+            icon="pi pi-check"
+            onClick={handleSubmit} 
+            disabled={loading || loadingData} 
+          />
+        </div>
       </div>
     </Dialog>
   );

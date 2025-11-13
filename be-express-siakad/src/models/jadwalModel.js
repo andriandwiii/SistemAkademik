@@ -8,41 +8,50 @@ const table = "master_jadwal";
 const formatRow = (r) => ({
   ID: r.ID,
   KODE_JADWAL: r.KODE_JADWAL,
+  HARI: r.HARI, // ✅ Tambah field flat untuk kemudahan akses
   hari: {
     HARI: r.HARI,
   },
+  TINGKATAN_ID: r.TINGKATAN_ID, // ✅ Tambah field flat
   tingkatan: {
     TINGKATAN_ID: r.TINGKATAN_ID,
     TINGKATAN: r.TINGKATAN,
   },
+  JURUSAN_ID: r.JURUSAN_ID, // ✅ Tambah field flat
   jurusan: {
     JURUSAN_ID: r.JURUSAN_ID,
     NAMA_JURUSAN: r.NAMA_JURUSAN,
   },
+  KELAS_ID: r.KELAS_ID, // ✅ Tambah field flat
   kelas: {
     KELAS_ID: r.KELAS_ID,
     GEDUNG_ID: r.GEDUNG_ID,
     RUANG_ID: r.RUANG_ID,
     NAMA_RUANG: r.NAMA_RUANG,
   },
+  NIP: r.NIP, // ✅ Tambah field flat
   guru: {
     NIP: r.NIP,
     NAMA_GURU: r.NAMA_GURU,
   },
+  KODE_MAPEL: r.KODE_MAPEL, // ✅ Tambah field flat
   mata_pelajaran: {
     KODE_MAPEL: r.KODE_MAPEL,
     NAMA_MAPEL: r.NAMA_MAPEL,
   },
+  KODE_JP: r.KODE_JP, // ✅ Tambah field flat
   jam_pelajaran: {
     KODE_JP: r.KODE_JP,
     JP_KE: r.JP_KE,
     WAKTU_MULAI: r.WAKTU_MULAI,
     WAKTU_SELESAI: r.WAKTU_SELESAI,
   },
+  TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID, // ✅ Tambah field flat
   tahun_ajaran: {
     TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID,
     NAMA_TAHUN_AJARAN: r.NAMA_TAHUN_AJARAN,
   },
+  SEMESTER: r.SEMESTER, // ✅ PENTING: Field ini hilang di kode lama!
   created_at: r.created_at,
   updated_at: r.updated_at,
 });
@@ -53,7 +62,7 @@ const formatRow = (r) => ({
 const baseQuery = () =>
   db(`${table} as j`)
     .select(
-      "j.*",
+      "j.*", // ✅ Ini sudah include SEMESTER dari tabel master_jadwal
       "ti.TINGKATAN",
       "ju.NAMA_JURUSAN",
       "k.GEDUNG_ID",
@@ -77,9 +86,17 @@ const baseQuery = () =>
     .leftJoin("master_tahun_ajaran as ta", "j.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID");
 
 // =============================================================
-// 🔹 AMBIL SEMUA JADWAL (Hanya Tahun Ajaran Aktif)
+// 🔹 AMBIL SEMUA JADWAL (SEMUA Data, Tidak Filter Status)
 // =============================================================
 export const getAllJadwal = async () => {
+  const rows = await baseQuery().orderBy("j.ID", "desc");
+  return rows.map(formatRow);
+};
+
+// =============================================================
+// 🔹 AMBIL JADWAL (Filter Tahun Ajaran Aktif) - OPSIONAL
+// =============================================================
+export const getJadwalByActiveTahunAjaran = async () => {
   const daftarTA = await db("master_tahun_ajaran")
     .where("STATUS", "Aktif")
     .select("TAHUN_AJARAN_ID");
@@ -87,7 +104,6 @@ export const getAllJadwal = async () => {
   const daftarID_TA = daftarTA.map((ta) => ta.TAHUN_AJARAN_ID);
 
   if (!daftarID_TA || daftarID_TA.length === 0) {
-    console.warn("⚠️ Tidak ada Tahun Ajaran Aktif ditemukan di database.");
     return [];
   }
 

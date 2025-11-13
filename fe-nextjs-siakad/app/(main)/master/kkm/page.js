@@ -1,250 +1,397 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import axios from "axios";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "primereact/button";
-import { InputText } from "primereact/inputtext";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Dropdown } from "primereact/dropdown";
 import { Dialog } from "primereact/dialog";
-import ToastNotifier from "../../../components/ToastNotifier";
-import CustomDataTable from "../../../components/DataTable";
-import FormKKM from "./components/FormKKM";
+import { ProgressSpinner } from "primereact/progressspinner";
 import dynamic from "next/dynamic";
 
-const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
-const AdjustPrintMarginLaporanKKM = dynamic(
-  () => import("./print/AdjustPrintMarginLaporanKKM"),
-  { ssr: false }
-);
+import ToastNotifier from "../../../components/ToastNotifier";
+import HeaderBar from "../../../components/headerbar";
+import CustomDataTable from "../../../components/DataTable";
+import FormKKM from "./components/FormKKM";
+import AdjustPrintMarginLaporanKKM from "./print/AdjustPrintMarginLaporanKKM";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <ProgressSpinner style={{ width: "50px", height: "50px" }} strokeWidth="4" />
+    </div>
+  ),
+  ssr: false,
+});
 
 export default function MasterKKMPage() {
   const toastRef = useRef(null);
-  const [kkmList, setKkmList] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [dialogMode, setDialogMode] = useState(null);
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const isMounted = useRef(true);
 
+  const [token, setToken] = useState("");
+  const [kkmList, setKkmList] = useState([]);
+  const [originalData, setOriginalData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedKKM, setSelectedKKM] = useState(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+
+  // Print
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  // Filter
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [mapelFilter, setMapelFilter] = useState(null);
+
+  const [statusOptions, setStatusOptions] = useState([]);
+  const [mapelOptions, setMapelOptions] = useState([]);
 
   useEffect(() => {
-    if (!token) window.location.href = "/";
-    else fetchKKM();
-  }, [token]);
+    const t = localStorage.getItem("token");
+    if (!t) {
+      window.location.href = "/";
+    } else {
+      setToken(t);
+      fetchKKM(t);
+    }
 
-  const fetchKKM = async () => {
-    setLoading(true);
+    return () => {
+      isMounted.current = false;
+      toastRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchKKM = async (t) => {
+    setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/master-kkm`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await axios.get(`${API_URL}/master-kkm`, {
+        headers: { Authorization: `Bearer ${t}` },
       });
-      const json = await res.json();
-      if (res.ok && json.data) {
-        setKkmList(json.data);
+
+      if (!isMounted.current) return;
+
+      if (res.data.status === "00") {
+        const data = res.data.data || [];
+        data.sort((a, b) => a.ID - b.ID);
+
+        // Build filter options
+        const statusSet = new Set();
+        const mapelSet = new Set();
+
+        data.forEach((k) => {
+          if (k.STATUS) statusSet.add(k.STATUS);
+          if (k.NAMA_MAPEL) mapelSet.add(k.NAMA_MAPEL);
+        });
+
+        setKkmList(data);
+        setOriginalData(data);
+        setStatusOptions(Array.from(statusSet).map((s) => ({ label: s, value: s })));
+        setMapelOptions(Array.from(mapelSet).map((m) => ({ label: m, value: m })));
       } else {
-        toastRef.current?.showToast("01", json.message || "Gagal memuat data KKM");
+        toastRef.current?.showToast("01", res.data.message || "Gagal memuat data KKM");
       }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Kesalahan koneksi server");
+      toastRef.current?.showToast("01", "Gagal memuat data KKM");
     } finally {
-      setLoading(false);
+      if (isMounted.current) setIsLoading(false);
     }
   };
 
+  // Search handler
   const handleSearch = (keyword) => {
-    setSearchKeyword(keyword);
-    if (!keyword) fetchKKM();
-    else {
-      const filtered = kkmList.filter(
+    if (!keyword) {
+      applyFiltersWithValue(statusFilter, mapelFilter);
+    } else {
+      let filtered = [...originalData];
+
+      // Apply dropdown filters first
+      if (statusFilter) {
+        filtered = filtered.filter((k) => k.STATUS === statusFilter);
+      }
+      if (mapelFilter) {
+        filtered = filtered.filter((k) => k.NAMA_MAPEL === mapelFilter);
+      }
+
+      // Then apply search keyword
+      const lowerKeyword = keyword.toLowerCase();
+      filtered = filtered.filter(
         (item) =>
-          item.KODE_KKM?.toLowerCase().includes(keyword.toLowerCase()) ||
-          item.KODE_MAPEL?.toLowerCase().includes(keyword.toLowerCase()) ||
-          item.KETERANGAN?.toLowerCase().includes(keyword.toLowerCase())
+          item.KODE_KKM?.toLowerCase().includes(lowerKeyword) ||
+          item.KODE_MAPEL?.toLowerCase().includes(lowerKeyword) ||
+          item.NAMA_MAPEL?.toLowerCase().includes(lowerKeyword) ||
+          item.KETERANGAN?.toLowerCase().includes(lowerKeyword)
       );
+
       setKkmList(filtered);
     }
   };
 
-  const handleSave = async (data) => {
-    setLoading(true);
+  // Apply all filters with values
+  const applyFiltersWithValue = (status, mapel) => {
+    let filtered = [...originalData];
+
+    if (status) {
+      filtered = filtered.filter((k) => k.STATUS === status);
+    }
+    if (mapel) {
+      filtered = filtered.filter((k) => k.NAMA_MAPEL === mapel);
+    }
+
+    setKkmList(filtered);
+  };
+
+  // Reset all filters
+  const resetFilter = () => {
+    setStatusFilter(null);
+    setMapelFilter(null);
+    setKkmList(originalData);
+  };
+
+  const handleSubmit = async (data) => {
     try {
-      const method = dialogMode === "add" ? "POST" : "PUT";
-      const url =
-        dialogMode === "add"
-          ? `${API_URL}/master-kkm`
-          : `${API_URL}/master-kkm/${selectedItem?.ID}`;
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        toastRef.current?.showToast(
-          "00",
-          dialogMode === "add"
-            ? "Data KKM berhasil ditambahkan"
-            : "Data KKM berhasil diperbarui"
+      if (selectedKKM) {
+        const res = await axios.put(
+          `${API_URL}/master-kkm/${selectedKKM.ID}`,
+          data,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-        fetchKKM();
-        setDialogMode(null);
-        setSelectedItem(null);
+
+        if (res.data.status === "00") {
+          toastRef.current?.showToast("00", "Data KKM berhasil diperbarui");
+        } else {
+          toastRef.current?.showToast("01", res.data.message || "Gagal memperbarui data KKM");
+          return;
+        }
       } else {
-        toastRef.current?.showToast("01", result.message || "Gagal menyimpan data KKM");
+        const res = await axios.post(`${API_URL}/master-kkm`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data.status === "00") {
+          toastRef.current?.showToast("00", "Data KKM berhasil ditambahkan");
+        } else {
+          toastRef.current?.showToast("01", res.data.message || "Gagal menambahkan data KKM");
+          return;
+        }
+      }
+
+      if (isMounted.current) {
+        await fetchKKM(token);
+        setDialogVisible(false);
+        setSelectedKKM(null);
       }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Kesalahan server saat menyimpan data");
-    } finally {
-      setLoading(false);
+      toastRef.current?.showToast("01", err.response?.data?.message || "Gagal menyimpan data KKM");
     }
   };
 
-  const handleDelete = (row) => {
+  const handleDelete = (rowData) => {
     confirmDialog({
-      message: `Yakin ingin menghapus data KKM "${row.KODE_KKM}" (${row.NAMA_MAPEL || row.KODE_MAPEL})?`,
+      message: `Yakin ingin menghapus data KKM "${rowData.KODE_KKM}" (${rowData.NAMA_MAPEL || rowData.KODE_MAPEL})?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
-      acceptLabel: "Hapus",
+      acceptLabel: "Ya",
       rejectLabel: "Batal",
       acceptClassName: "p-button-danger",
       accept: async () => {
-        setLoading(true);
         try {
-          const res = await fetch(`${API_URL}/master-kkm/${row.ID}`, {
-            method: "DELETE",
+          await axios.delete(`${API_URL}/master-kkm/${rowData.ID}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-          if (res.ok) {
-            toastRef.current?.showToast("00", "Data KKM berhasil dihapus");
-            fetchKKM();
-          } else {
-            toastRef.current?.showToast("01", "Gagal menghapus data KKM");
+          toastRef.current?.showToast("00", "Data KKM berhasil dihapus");
+          if (isMounted.current) {
+            await fetchKKM(token);
           }
         } catch (err) {
           console.error(err);
-          toastRef.current?.showToast("01", "Kesalahan koneksi server");
-        } finally {
-          setLoading(false);
+          toastRef.current?.showToast("01", "Gagal menghapus data KKM");
         }
       },
     });
   };
 
-  const columns = [
-    { field: "KODE_KKM", header: "Kode KKM", style: { width: "120px" } },
-    { field: "NAMA_MAPEL", header: "Nama Mapel", style: { width: "220px" } },
-    { field: "KOMPLEKSITAS", header: "Kompleksitas", style: { width: "120px" } },
-    { field: "DAYA_DUKUNG", header: "Daya Dukung", style: { width: "120px" } },
-    { field: "INTAKE", header: "Intake", style: { width: "100px" } },
-    { field: "KKM", header: "Nilai KKM", style: { width: "100px" } },
-    { field: "STATUS", header: "Status", style: { width: "100px" } },
+  const handleClosePdfPreview = () => {
+    setJsPdfPreviewOpen(false);
+    setTimeout(() => {
+      setPdfUrl("");
+    }, 300);
+  };
+
+  const kkmColumns = [
+    { field: "ID", header: "ID", style: { width: "60px" } },
+    { field: "KODE_KKM", header: "Kode KKM", style: { minWidth: "120px" } },
+    {
+      field: "NAMA_MAPEL",
+      header: "Mata Pelajaran",
+      style: { minWidth: "200px" },
+      body: (row) => row.NAMA_MAPEL || row.KODE_MAPEL || "-",
+    },
+    {
+      field: "KOMPLEKSITAS",
+      header: "Kompleksitas",
+      style: { minWidth: "120px", textAlign: "center" },
+    },
+    {
+      field: "DAYA_DUKUNG",
+      header: "Daya Dukung",
+      style: { minWidth: "120px", textAlign: "center" },
+    },
+    {
+      field: "INTAKE",
+      header: "Intake",
+      style: { minWidth: "100px", textAlign: "center" },
+    },
+    {
+      field: "KKM",
+      header: "Nilai KKM",
+      style: { minWidth: "100px", textAlign: "center" },
+    },
+    {
+      field: "STATUS",
+      header: "Status",
+      style: { minWidth: "100px" },
+      body: (row) => (
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            row.STATUS === "Aktif"
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+          }`}
+        >
+          {row.STATUS}
+        </span>
+      ),
+    },
     {
       header: "Aksi",
-      body: (row) => (
-        <div className="flex gap-2 justify-center">
+      body: (rowData) => (
+        <div className="flex gap-2">
           <Button
             icon="pi pi-pencil"
             size="small"
             severity="warning"
-            rounded
+            tooltip="Edit"
+            tooltipOptions={{ position: "top" }}
             onClick={() => {
-              setSelectedItem(row);
-              setDialogMode("edit");
+              setSelectedKKM(rowData);
+              setDialogVisible(true);
             }}
           />
           <Button
             icon="pi pi-trash"
             size="small"
             severity="danger"
-            rounded
-            onClick={() => handleDelete(row)}
+            tooltip="Hapus"
+            tooltipOptions={{ position: "top" }}
+            onClick={() => handleDelete(rowData)}
           />
         </div>
       ),
-      style: { width: "120px", textAlign: "center" },
+      style: { width: "120px" },
     },
   ];
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-sm">
+    <div className="card">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-6 border-b pb-3">
-        <h2 className="text-2xl font-semibold text-gray-700">
-          Master Kriteria Ketuntasan Minimal (KKM)
-        </h2>
-        <Button
-          icon="pi pi-plus"
-          label="Tambah KKM"
-          severity="info"
-          className="font-medium"
-          onClick={() => {
-            setDialogMode("add");
-            setSelectedItem(null);
-          }}
-        />
-      </div>
+      <h3 className="text-xl font-semibold mb-3">Master Kriteria Ketuntasan Minimal (KKM)</h3>
 
-      {/* Toolbar Section */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
+        {/* Filter Section */}
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex flex-column gap-2">
+            <label htmlFor="status-filter" className="text-sm font-medium">
+              Status
+            </label>
+            <Dropdown
+              id="status-filter"
+              value={statusFilter}
+              options={statusOptions}
+              onChange={(e) => {
+                setStatusFilter(e.value);
+                applyFiltersWithValue(e.value, mapelFilter);
+              }}
+              placeholder="Pilih status"
+              className="w-48"
+              showClear
+            />
+          </div>
+
+          <div className="flex flex-column gap-2">
+            <label htmlFor="mapel-filter" className="text-sm font-medium">
+              Mata Pelajaran
+            </label>
+            <Dropdown
+              id="mapel-filter"
+              value={mapelFilter}
+              options={mapelOptions}
+              onChange={(e) => {
+                setMapelFilter(e.value);
+                applyFiltersWithValue(statusFilter, e.value);
+              }}
+              placeholder="Pilih mata pelajaran"
+              className="w-52"
+              showClear
+            />
+          </div>
+
           <Button
-            icon="pi pi-print"
-            label="Cetak"
-            severity="secondary"
-            className="font-medium"
-            onClick={() => setAdjustDialog(true)}
+            icon="pi pi-refresh"
+            className="p-button-secondary mt-3"
+            tooltip="Reset Filter"
+            onClick={resetFilter}
           />
         </div>
 
-        <div className="flex items-center">
-          <span className="p-input-icon-left">
-            <i className="pi pi-search text-gray-500" />
-            <InputText
-              value={searchKeyword}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Cari KKM, mapel, atau keterangan..."
-              className="w-72"
-            />
-          </span>
+        {/* Action Section */}
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            icon="pi pi-print"
+            className="p-button-warning mt-3"
+            tooltip="Cetak Laporan KKM"
+            onClick={() => setAdjustDialog(true)}
+            disabled={kkmList.length === 0 || isLoading}
+          />
+
+          <HeaderBar
+            title=""
+            placeholder="Cari KKM (Kode, Mapel, Keterangan)"
+            onSearch={handleSearch}
+            onAddClick={() => {
+              setSelectedKKM(null);
+              setDialogVisible(true);
+            }}
+          />
         </div>
       </div>
 
-      {/* DataTable */}
-      <CustomDataTable
-        data={kkmList}
-        loading={loading}
-        columns={columns}
-        title="Daftar Data KKM"
-      />
+      {/* Tabel Data */}
+      <CustomDataTable data={kkmList} loading={isLoading} columns={kkmColumns} />
 
-      {/* Form Dialog */}
+      {/* Form KKM */}
       <FormKKM
-        visible={dialogMode !== null}
+        visible={dialogVisible}
         onHide={() => {
-          setDialogMode(null);
-          setSelectedItem(null);
+          setDialogVisible(false);
+          setSelectedKKM(null);
         }}
-        selectedKKM={selectedItem}
-        onSave={handleSave}
+        selectedKKM={selectedKKM}
+        onSave={handleSubmit}
         token={token}
+        kkmList={originalData}
       />
 
-      {/* Print Dialog */}
+      {/* Dialog Print */}
       <AdjustPrintMarginLaporanKKM
         adjustDialog={adjustDialog}
         setAdjustDialog={setAdjustDialog}
@@ -254,16 +401,22 @@ export default function MasterKKMPage() {
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
       />
 
-      {/* Preview PDF */}
+      {/* Dialog PDF Preview */}
       <Dialog
         visible={jsPdfPreviewOpen}
-        onHide={() => setJsPdfPreviewOpen(false)}
+        onHide={handleClosePdfPreview}
         modal
+        maximizable
         style={{ width: "90vw", height: "90vh" }}
-        header="Preview Laporan KKM"
-        blockScroll
+        header={
+          <div className="flex items-center gap-2">
+            <i className="pi pi-file-pdf text-red-500"></i>
+            <span>Preview - {fileName}</span>
+          </div>
+        }
+        contentStyle={{ height: "calc(90vh - 60px)", padding: 0 }}
       >
-        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
+        {pdfUrl && <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />}
       </Dialog>
     </div>
   );

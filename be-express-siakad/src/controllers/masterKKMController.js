@@ -29,11 +29,18 @@ export const createKKM = async (req, res) => {
     } = req.body;
 
     // Validasi field wajib
-    if (!KODE_MAPEL || !KOMPLEKSITAS || !DAYA_DUKUNG || !INTAKE) {
+    if (!KODE_MAPEL || KOMPLEKSITAS === undefined || DAYA_DUKUNG === undefined || INTAKE === undefined) {
       return res.status(400).json({
         status: "99",
-        message:
-          "Semua field wajib diisi (KODE_MAPEL, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
+        message: "Semua field wajib diisi (KODE_MAPEL, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
+      });
+    }
+
+    // Validasi nilai numeric
+    if (isNaN(KOMPLEKSITAS) || isNaN(DAYA_DUKUNG) || isNaN(INTAKE)) {
+      return res.status(400).json({
+        status: "99",
+        message: "KOMPLEKSITAS, DAYA_DUKUNG, dan INTAKE harus berupa angka",
       });
     }
 
@@ -46,11 +53,11 @@ export const createKKM = async (req, res) => {
     const result = await MasterKKMModel.createKKM({
       KODE_KKM,
       KODE_MAPEL,
-      KOMPLEKSITAS,
-      DAYA_DUKUNG,
-      INTAKE,
+      KOMPLEKSITAS: Number(KOMPLEKSITAS),
+      DAYA_DUKUNG: Number(DAYA_DUKUNG),
+      INTAKE: Number(INTAKE),
       KKM,
-      KETERANGAN,
+      KETERANGAN: KETERANGAN || "-",
       STATUS: STATUS || "Aktif",
     });
 
@@ -78,7 +85,6 @@ export const updateKKM = async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      KODE_KKM,
       KODE_MAPEL,
       KOMPLEKSITAS,
       DAYA_DUKUNG,
@@ -87,12 +93,19 @@ export const updateKKM = async (req, res) => {
       STATUS,
     } = req.body;
 
-    // Validasi field wajib
-    if (!KODE_KKM || !KODE_MAPEL || !KOMPLEKSITAS || !DAYA_DUKUNG || !INTAKE) {
+    // Validasi field wajib - KODE_KKM tidak perlu dikirim dari frontend
+    if (!KODE_MAPEL || KOMPLEKSITAS === undefined || DAYA_DUKUNG === undefined || INTAKE === undefined) {
       return res.status(400).json({
         status: "99",
-        message:
-          "Semua field wajib diisi (KODE_KKM, KODE_MAPEL, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
+        message: "Semua field wajib diisi (KODE_MAPEL, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
+      });
+    }
+
+    // Validasi nilai numeric
+    if (isNaN(KOMPLEKSITAS) || isNaN(DAYA_DUKUNG) || isNaN(INTAKE)) {
+      return res.status(400).json({
+        status: "99",
+        message: "KOMPLEKSITAS, DAYA_DUKUNG, dan INTAKE harus berupa angka",
       });
     }
 
@@ -109,14 +122,14 @@ export const updateKKM = async (req, res) => {
     const KKM = Math.round((Number(KOMPLEKSITAS) + Number(DAYA_DUKUNG) + Number(INTAKE)) / 3);
 
     const updated = await MasterKKMModel.updateKKM(id, {
-      KODE_KKM,
+      KODE_KKM: existing.KODE_KKM, // Gunakan kode KKM yang sudah ada
       KODE_MAPEL,
-      KOMPLEKSITAS,
-      DAYA_DUKUNG,
-      INTAKE,
+      KOMPLEKSITAS: Number(KOMPLEKSITAS),
+      DAYA_DUKUNG: Number(DAYA_DUKUNG),
+      INTAKE: Number(INTAKE),
       KKM,
-      KETERANGAN,
-      STATUS,
+      KETERANGAN: KETERANGAN || "-",
+      STATUS: STATUS || "Aktif",
     });
 
     res.status(200).json({
