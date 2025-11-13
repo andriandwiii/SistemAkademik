@@ -263,7 +263,7 @@ const FormJadwal = ({
     <Dialog
       header={selectedJadwal ? "Edit Jadwal Pelajaran" : "Tambah Jadwal Pelajaran"}
       visible={visible}
-      style={{ width: "30vw" }}
+      style={{ width: "32vw" }}
       modal
       onHide={onHide}
     >
@@ -274,7 +274,7 @@ const FormJadwal = ({
             <p>Memuat data...</p>
           </div>
         )}
-
+  
         {/* Kode Jadwal */}
         <div className="field">
           <label htmlFor="kodeJadwal">Kode Jadwal</label>
