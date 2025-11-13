@@ -1,5 +1,46 @@
 import * as JadwalModel from "../models/jadwalModel.js";
 
+// 🛠️ HELPER: Fungsi Validasi Input & Cek Bentrok
+// Fungsi ini dipisahkan agar bisa dipakai oleh Create maupun Update
+const validateJadwal = async (data, isUpdate = false, id = null) => {
+  const { HARI, TINGKATAN_ID, JURUSAN_ID, KELAS_ID, NIP, KODE_MAPEL, KODE_JP, TAHUN_AJARAN_ID } = data;
+
+  // 1. Cek Field Wajib
+  if (!HARI || !TINGKATAN_ID || !JURUSAN_ID || !KELAS_ID || !NIP || !KODE_MAPEL || !KODE_JP || !TAHUN_AJARAN_ID) {
+    // Kita throw error object agar bisa ditangkap di catch block controller
+    throw {
+      status: 400,
+      customStatus: "01",
+      message: "Semua field wajib diisi (HARI, TINGKATAN_ID, JURUSAN_ID, KELAS_ID, NIP, KODE_MAPEL, KODE_JP, TAHUN_AJARAN_ID)",
+    };
+  }
+
+  // 2. Cek Bentrok ke Database
+  const checkParams = {
+    HARI,
+    KODE_JP,
+    NIP,
+    KELAS_ID,
+    TAHUN_AJARAN_ID,
+    // Jika sedang update, kita kirim ID jadwal ini agar tidak dianggap bentrok dengan dirinya sendiri
+    ...(isUpdate && { excludeId: id }), 
+  };
+
+  const bentrok = await JadwalModel.checkBentrok(checkParams);
+
+  // Jika ada data bentrok dan tahun ajarannya sama
+  if (bentrok && bentrok.TAHUN_AJARAN_ID === TAHUN_AJARAN_ID) {
+    let message;
+    if (bentrok.NIP === NIP) {
+      message = `Validasi Gagal: Guru (NIP: ${NIP}) sudah mengajar di kelas lain (ID Kelas: ${bentrok.KELAS_ID}) pada hari & jam yang sama.`;
+    } else {
+      message = `Validasi Gagal: Kelas (ID: ${KELAS_ID}) sudah memiliki jadwal lain (Guru NIP: ${bentrok.NIP}) pada hari & jam yang sama.`;
+    }
+    // Throw error bentrok
+    throw { status: 400, customStatus: "01", message };
+  }
+};
+
 /** 🔹 Ambil semua jadwal */
 export const getAllJadwal = async (req, res) => {
   try {
@@ -16,68 +57,14 @@ export const getAllJadwal = async (req, res) => {
   }
 };
 
-/** 🔹 Tambah jadwal baru (KODE_JADWAL generate otomatis) */
+/** 🔹 Tambah jadwal baru */
 export const createJadwal = async (req, res) => {
   try {
-    const {
-      HARI,
-      TINGKATAN_ID,
-      JURUSAN_ID,
-      KELAS_ID,
-      NIP,
-      KODE_MAPEL,
-      KODE_JP,
-      TAHUN_AJARAN_ID,
-    } = req.body;
+    // 1. Panggil Helper Validasi
+    await validateJadwal(req.body);
 
-    // ✅ Validasi wajib
-    if (
-      !HARI ||
-      !TINGKATAN_ID ||
-      !JURUSAN_ID ||
-      !KELAS_ID ||
-      !NIP ||
-      !KODE_MAPEL ||
-      !KODE_JP ||
-      !TAHUN_AJARAN_ID
-    ) {
-      return res.status(400).json({
-        status: "01",
-        message:
-          "Semua field wajib diisi (HARI, TINGKATAN_ID, JURUSAN_ID, KELAS_ID, NIP, KODE_MAPEL, KODE_JP, TAHUN_AJARAN_ID)",
-      });
-    }
-
-    // 🛡️ VALIDASI BENTROK berdasarkan hari, jam, guru, kelas, dan tahun ajaran
-    const bentrok = await JadwalModel.checkBentrok({
-      HARI,
-      KODE_JP,
-      NIP,
-      KELAS_ID,
-      TAHUN_AJARAN_ID,
-    });
-
-    if (bentrok && bentrok.TAHUN_AJARAN_ID === TAHUN_AJARAN_ID) {
-      let message;
-      if (bentrok.NIP === NIP) {
-        message = `Validasi Gagal: Guru (NIP: ${NIP}) sudah mengajar di kelas lain (ID Kelas: ${bentrok.KELAS_ID}) pada hari & jam yang sama di tahun ajaran ini.`;
-      } else {
-        message = `Validasi Gagal: Kelas (ID: ${KELAS_ID}) sudah memiliki jadwal lain (Guru NIP: ${bentrok.NIP}) pada hari & jam yang sama di tahun ajaran ini.`;
-      }
-      return res.status(400).json({ status: "01", message });
-    }
-
-    // ✅ Tambah jadwal
-    const result = await JadwalModel.createJadwal({
-      HARI,
-      TINGKATAN_ID,
-      JURUSAN_ID,
-      KELAS_ID,
-      NIP,
-      KODE_MAPEL,
-      KODE_JP,
-      TAHUN_AJARAN_ID,
-    });
+    // 2. Jika lolos, simpan data
+    const result = await JadwalModel.createJadwal(req.body);
 
     res.status(201).json({
       status: "00",
@@ -85,6 +72,10 @@ export const createJadwal = async (req, res) => {
       data: result,
     });
   } catch (err) {
+    // Tangkap error custom dari helper (status 400) atau error server (status 500)
+    if (err.customStatus) {
+      return res.status(err.status).json({ status: err.customStatus, message: err.message });
+    }
     console.error("❌ Error createJadwal:", err);
     res.status(500).json({ status: "99", message: err.message });
   }
@@ -94,64 +85,12 @@ export const createJadwal = async (req, res) => {
 export const updateJadwal = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      HARI,
-      TINGKATAN_ID,
-      JURUSAN_ID,
-      KELAS_ID,
-      NIP,
-      KODE_MAPEL,
-      KODE_JP,
-      TAHUN_AJARAN_ID,
-    } = req.body;
 
-    if (
-      !HARI ||
-      !TINGKATAN_ID ||
-      !JURUSAN_ID ||
-      !KELAS_ID ||
-      !NIP ||
-      !KODE_MAPEL ||
-      !KODE_JP ||
-      !TAHUN_AJARAN_ID
-    ) {
-      return res.status(400).json({
-        status: "01",
-        message:
-          "Semua field wajib diisi (HARI, TINGKATAN_ID, JURUSAN_ID, KELAS_ID, NIP, KODE_MAPEL, KODE_JP, TAHUN_AJARAN_ID)",
-      });
-    }
+    // 1. Panggil Helper Validasi (Mode Update = true, sertakan ID)
+    await validateJadwal(req.body, true, id);
 
-    // 🛡️ VALIDASI BENTROK update (kecuali dirinya sendiri)
-    const bentrok = await JadwalModel.checkBentrok({
-      HARI,
-      KODE_JP,
-      NIP,
-      KELAS_ID,
-      TAHUN_AJARAN_ID,
-      excludeId: id,
-    });
-
-    if (bentrok && bentrok.TAHUN_AJARAN_ID === TAHUN_AJARAN_ID) {
-      let message;
-      if (bentrok.NIP === NIP) {
-        message = `Validasi Gagal: Guru (NIP: ${NIP}) sudah mengajar di kelas lain (ID Kelas: ${bentrok.KELAS_ID}) pada hari & jam yang sama di tahun ajaran ini.`;
-      } else {
-        message = `Validasi Gagal: Kelas (ID: ${KELAS_ID}) sudah memiliki jadwal lain (Guru NIP: ${bentrok.NIP}) pada hari & jam yang sama di tahun ajaran ini.`;
-      }
-      return res.status(400).json({ status: "01", message });
-    }
-
-    const updated = await JadwalModel.updateJadwal(id, {
-      HARI,
-      TINGKATAN_ID,
-      JURUSAN_ID,
-      KELAS_ID,
-      NIP,
-      KODE_MAPEL,
-      KODE_JP,
-      TAHUN_AJARAN_ID,
-    });
+    // 2. Update data
+    const updated = await JadwalModel.updateJadwal(id, req.body);
 
     if (!updated) {
       return res.status(404).json({
@@ -166,6 +105,9 @@ export const updateJadwal = async (req, res) => {
       data: updated,
     });
   } catch (err) {
+    if (err.customStatus) {
+      return res.status(err.status).json({ status: err.customStatus, message: err.message });
+    }
     console.error("❌ Error updateJadwal:", err);
     res.status(500).json({ status: "99", message: err.message });
   }

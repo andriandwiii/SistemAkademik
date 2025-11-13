@@ -1,11 +1,11 @@
 import express from "express";
-import * as MasterKKMController from "../controllers/masterKKMController.js";
+import * as TransaksiController from "../controllers/transaksiSiswaController.js";
 
 const router = express.Router();
 
-router.get("/", MasterKKMController.getAllKKM);
-router.post("/", MasterKKMController.createKKM);
-router.put("/:id", MasterKKMController.updateKKM);
-router.delete("/:id", MasterKKMController.deleteKKM);
+router.get("/", TransaksiController.getAllTransaksi);
+router.post("/", TransaksiController.createTransaksi);
+router.put('/:id', TransaksiController.updateTransaksi);
+router.delete("/:id", TransaksiController.deleteTransaksi);
 
 export default router;
