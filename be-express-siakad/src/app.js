@@ -108,7 +108,6 @@ app.use("/api/transaksi-wakel", transaksiWakelRoutes);
 app.use("/api/kenaikan-kelas", transaksiKenaikanKelasRoutes);
 app.use("/api/master-kkm", masterKKMRoutes);
 app.use("/api/transaksi-kkm", transaksiKkmRoutes);
-
 app.use("/api/master-predikat", masterPredikatRoutes);
 
 export default app;
