@@ -1,5 +1,5 @@
 /**
- * Migration: Create Transaksi KKM (Final Fix)
+ * Migration: Create Transaksi KKM (Fixed KODE_KKM)
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
@@ -56,16 +56,15 @@ export async function up(knex) {
       .onUpdate("CASCADE")
       .index("idx_tahun");
 
-    // KKM
+    // --- PERUBAHAN DI SINI: MENGGUNAKAN KODE_KKM ---
     table
-      .bigint("KKM_ID")
-      .unsigned()
+      .string("KODE_KKM", 8) // Sesuaikan panjang string dengan di master_kkm
       .notNullable()
-      .references("ID")
+      .references("KODE_KKM") // Referensi ke kolom KODE_KKM di master
       .inTable("master_kkm")
       .onDelete("RESTRICT")
       .onUpdate("CASCADE")
-      .index("idx_kkm");
+      .index("idx_kode_kkm");
 
     // Timestamp
     table.timestamp("created_at").defaultTo(knex.fn.now());
