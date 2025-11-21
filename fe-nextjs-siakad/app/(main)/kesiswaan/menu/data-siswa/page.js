@@ -1,168 +1,253 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { Button } from 'primereact/button';
-import { Dialog } from 'primereact/dialog';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import ToastNotifier from '../../../../components/ToastNotifier';
-import UserFormModal from './components/SiswaFormModal';
-import {
-  getUsersByRole,
-  createUser,
-  updateUser,
-  deleteUser,
-} from '../../../../(main)/superadmin/menu/users/utils/api';
-import CustomDataTable from '../../../../components/DataTable';
+import axios from "axios";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "primereact/button";
+import { Dialog } from "primereact/dialog";
+import { ProgressSpinner } from "primereact/progressspinner";
+import dynamic from "next/dynamic";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import ToastNotifier from "../../../../components/ToastNotifier";
+import HeaderBar from "../../../../components/headerbar";
+import FilterTanggal from "../../../../components/filterTanggal";
+import TabelSiswa from "./components/TabelSiswa";
+import FormDialogSiswa from "./components/FormDialogSiswa";
+import AdjustPrintMarginLaporan from "./print/AdjustPrintMarginLaporan";
 
-export default function SiswaPage() {
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Dynamic import PDFViewer dengan loading fallback
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), {
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <ProgressSpinner style={{ width: "50px", height: "50px" }} strokeWidth="4" />
+    </div>
+  ),
+  ssr: false,
+});
+
+const SiswaPage = () => {
   const toastRef = useRef(null);
+  const [token, setToken] = useState("");
 
-  const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [dialogMode, setDialogMode] = useState(null); // 'add' | 'edit' | null
-  const [token, setToken] = useState('');
+  const [data, setData] = useState([]);
+  const [originalData, setOriginalData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [dialogVisible, setDialogVisible] = useState(false);
+
+  const [selectedSiswa, setSelectedSiswa] = useState(null);
+
+  // Filter tanggal
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+
+  // PDF Preview
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
   useEffect(() => {
-    const t = localStorage.getItem('token');
-    if (!t) window.location.href = '/';
-    else setToken(t);
+    const t = localStorage.getItem("token");
+    if (!t) {
+      window.location.href = "/";
+    } else {
+      setToken(t);
+      fetchSiswa(t);
+    }
   }, []);
 
-  useEffect(() => {
-    if (token) fetchUsers();
-  }, [token]);
-
-  const fetchUsers = async () => {
-    setIsLoading(true);
+  const fetchSiswa = async (t) => {
+    setLoading(true);
     try {
-      // Ambil hanya siswa
-      const res = await getUsersByRole(token, 'SISWA');
-      setUsers(res || []);
-    } catch (err) {
-      console.error(err);
-      toastRef.current?.showToast('01', 'Gagal memuat data siswa');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = async (data) => {
-    if (!dialogMode) return;
-
-    try {
-      if (dialogMode === 'add') {
-        await createUser(token, data);
-        toastRef.current?.showToast('00', 'Siswa berhasil dibuat');
-      } else if (dialogMode === 'edit' && selectedUser) {
-        await updateUser(token, selectedUser.id, data);
-        toastRef.current?.showToast('00', 'Siswa berhasil diupdate');
+      const res = await axios.get(`${API_URL}/siswa`, {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      if (res.data.status === "00") {
+        const siswaData = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
+        const sorted = siswaData.sort((a, b) => a.SISWA_ID - b.SISWA_ID);
+        setData(sorted);
+        setOriginalData(sorted);
+      } else {
+        toastRef.current?.showToast("01", res.data.message || "Gagal mengambil data");
       }
-      fetchUsers();
-      setDialogMode(null);
-      setSelectedUser(null);
     } catch (err) {
-      console.error(err);
-      toastRef.current?.showToast('01', 'Gagal menyimpan data siswa');
+      console.error("Gagal mengambil data:", err);
+      toastRef.current?.showToast("01", "Gagal mengambil data");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = (user) => {
+  const handleSearch = (keyword) => {
+    if (!keyword) {
+      setData(originalData);
+    } else {
+      const filtered = originalData.filter(
+        (item) =>
+          item.NIS?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.NISN?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.NAMA?.toLowerCase().includes(keyword.toLowerCase()) ||
+          item.EMAIL?.toLowerCase().includes(keyword.toLowerCase())
+      );
+      setData(filtered);
+    }
+  };
+
+  // Filter tanggal lahir
+  const handleDateFilter = () => {
+    if (!startDate && !endDate) return setData(originalData);
+    const filtered = originalData.filter((item) => {
+      const birthDate = new Date(item.TGL_LAHIR);
+      const from = startDate ? new Date(startDate.setHours(0, 0, 0, 0)) : null;
+      const to = endDate ? new Date(endDate.setHours(23, 59, 59, 999)) : null;
+      return (!from || birthDate >= from) && (!to || birthDate <= to);
+    });
+    setData(filtered);
+  };
+
+  const resetFilter = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setData(originalData);
+  };
+
+  const handleEdit = (row) => {
+    setSelectedSiswa(row);
+    setDialogVisible(true);
+  };
+
+  const handleDelete = (row) => {
     confirmDialog({
-      message: `Yakin ingin menghapus siswa "${user.name}"?`,
-      header: 'Konfirmasi Hapus',
-      icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Hapus',
-      rejectLabel: 'Batal',
-      acceptClassName: 'p-button-danger',
+      message: `Apakah Anda yakin ingin menghapus siswa ${row.NAMA}?`,
+      header: "Konfirmasi Hapus",
+      icon: "pi pi-exclamation-triangle",
+      acceptLabel: "Ya",
+      rejectLabel: "Batal",
+      acceptClassName: "p-button-danger",
       accept: async () => {
         try {
-          await deleteUser(token, user.id);
-          toastRef.current?.showToast('00', 'Siswa berhasil dihapus');
-          setUsers((prev) => prev.filter((u) => u.id !== user.id));
+          await axios.delete(`${API_URL}/siswa/${row.SISWA_ID}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          fetchSiswa(token);
+          toastRef.current?.showToast("00", "Data berhasil dihapus");
         } catch (err) {
-          console.error(err);
-          toastRef.current?.showToast('01', 'Gagal menghapus siswa');
+          console.error("Gagal menghapus data:", err);
+          toastRef.current?.showToast("01", "Gagal menghapus data");
         }
       },
     });
   };
 
-  const actionBodyTemplate = (rowData) => (
-    <div className="flex gap-2">
-      <Button
-        icon="pi pi-pencil"
-        size="small"
-        severity="warning"
-        onClick={() => {
-          setSelectedUser(rowData);
-          setDialogMode('edit');
-        }}
-      />
-      <Button
-        icon="pi pi-trash"
-        size="small"
-        severity="danger"
-        onClick={() => handleDelete(rowData)}
-      />
-    </div>
-  );
+  const handlePrintClick = () => {
+    handleDateFilter();
+    setAdjustDialog(true);
+  };
 
-  // Kolom untuk CustomDataTable
-  const userColumns = [
-    { field: 'id', header: 'ID', style: { width: '60px' } },
-    { field: 'name', header: 'Nama', filter: true },
-    { field: 'email', header: 'Email', filter: true },
-    {
-      field: 'created_at',
-      header: 'Dibuat',
-      body: (row) =>
-        row.created_at ? new Date(row.created_at).toLocaleString() : '-',
-    },
-    {
-      field: 'updated_at',
-      header: 'Diperbarui',
-      body: (row) =>
-        row.updated_at ? new Date(row.updated_at).toLocaleString() : '-',
-    },
-    {
-      header: 'Aksi',
-      body: actionBodyTemplate,
-      style: { width: '120px' },
-    },
-  ];
+  const handleClosePdfPreview = () => {
+    setJsPdfPreviewOpen(false);
+    // Clear PDF URL untuk free memory
+    setTimeout(() => {
+      setPdfUrl("");
+    }, 300);
+  };
 
   return (
-    <div className="card p-4">
-      <h3 className="text-xl font-semibold mb-4">Manajemen Siswa</h3>
-
-      <div className="flex justify-content-end mb-3">
-        <Button
-          label="Tambah Siswa"
-          icon="pi pi-plus"
-          onClick={() => {
-            setDialogMode('add');
-            setSelectedUser(null);
-          }}
-        />
-      </div>
-
-      <CustomDataTable data={users} loading={isLoading} columns={userColumns} />
-
+    <div className="card">
+      <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <UserFormModal
-        isOpen={dialogMode !== null}
-        onClose={() => {
-          setDialogMode(null);
-          setSelectedUser(null);
-        }}
-        user={selectedUser}
-        onSubmit={handleSubmit}
-        mode={dialogMode}
+      <h3 className="text-xl font-semibold mb-3">Master Siswa</h3>
+
+      {/* Filter & Toolbar */}
+      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
+        <FilterTanggal
+          startDate={startDate}
+          endDate={endDate}
+          setStartDate={setStartDate}
+          setEndDate={setEndDate}
+          handleDateFilter={handleDateFilter}
+          resetFilter={resetFilter}
+        />
+
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            icon="pi pi-print"
+            className="p-button-warning mt-3"
+            tooltip="Cetak Laporan"
+            onClick={handlePrintClick}
+            disabled={data.length === 0}
+          />
+
+          <HeaderBar
+            title=""
+            placeholder="Cari siswa (NIS, NISN, Nama, Email)"
+            onSearch={handleSearch}
+            onAddClick={() => {
+              setSelectedSiswa(null);
+              setDialogVisible(true);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Tabel Siswa */}
+      <TabelSiswa
+        data={data}
+        loading={loading}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
 
-      <ToastNotifier ref={toastRef} />
+      {/* Form Dialog */}
+      <FormDialogSiswa
+        visible={dialogVisible}
+        onHide={() => {
+          setDialogVisible(false);
+          setSelectedSiswa(null);
+        }}
+        selectedSiswa={selectedSiswa}
+        token={token}
+        reloadData={() => fetchSiswa(token)}
+        toastRef={toastRef}
+      />
+
+      {/* Dialog Adjust Print Margin */}
+      <AdjustPrintMarginLaporan
+        adjustDialog={adjustDialog}
+        setAdjustDialog={setAdjustDialog}
+        dataSiswa={data}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+      />
+
+      {/* Dialog PDF Preview */}
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={handleClosePdfPreview}
+        modal
+        maximizable
+        style={{ width: "90vw", height: "90vh" }}
+        header={
+          <div className="flex items-center gap-2">
+            <i className="pi pi-file-pdf text-red-500"></i>
+            <span>Preview Laporan Siswa</span>
+          </div>
+        }
+        contentStyle={{ height: "calc(90vh - 60px)", padding: 0 }}
+      >
+        {pdfUrl && (
+          <PDFViewer
+            pdfUrl={pdfUrl}
+            fileName={fileName || "laporan-siswa"}
+            paperSize="A4"
+          />
+        )}
+      </Dialog>
     </div>
   );
-}
+};
+
+export default SiswaPage;
