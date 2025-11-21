@@ -125,7 +125,8 @@ const AppMenu = () => {
                 label: "Data Siswa",
                 items: [
                         { label: "Manajemen Data Siswa", icon: "pi pi-fw pi-users", to: "/kesiswaan/menu/data-siswa" },
-                        { label: "Profil Siswa", icon: "pi pi-fw pi-id-card", to: "/kesiswaan/profil-siswa" },
+                        { label: "Kenaikan Kelas", icon: "pi pi-fw pi-arrow-up", to: "/kesiswaan/menu/kenaikan-kelas" },
+                        { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/kesiswaan/menu/transaksi-siswa" },
                 ],
             },
         ];
