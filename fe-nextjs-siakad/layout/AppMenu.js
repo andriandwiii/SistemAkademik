@@ -67,7 +67,7 @@ const AppMenu = () => {
                             { label: "Manajemen Siswa", icon: "pi pi-fw pi-users", to: "/master/siswa" },
                             { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/master/informasi_sekolah" },
                             { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa" },
-                            { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
+                            { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-arrow-up", to: "/master/transaksi-siswa-naik" },
                             { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" }
                         ]
                     },
