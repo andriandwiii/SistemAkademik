@@ -9,14 +9,18 @@ import { Dialog } from "primereact/dialog";
 import { ProgressSpinner } from "primereact/progressspinner";
 import dynamic from "next/dynamic";
 
+// --- COMPONENTS ---
+// Pastikan path import ini sesuai dengan struktur folder proyek Anda
+
 import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
-import CustomDataTable from "../../../components/DataTable";
-import FormPredikat from "./components/FormPredikat";
+import CustomDataTable from "../../../components/DataTable"
+import FormPredikat from "./components/FormPredikat"; 
 import AdjustPrintMarginLaporanPredikat from "./print/AdjustPrintMarginLaporanPredikat";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// Dynamic Import PDF Viewer
 const PDFViewer = dynamic(() => import("../kkm/print/PDFViewer"), {
   loading: () => (
     <div className="flex items-center justify-center h-full">
@@ -30,6 +34,7 @@ export default function MasterPredikatPage() {
   const toastRef = useRef(null);
   const isMounted = useRef(true);
 
+  // --- STATE DATA ---
   const [token, setToken] = useState("");
   const [predikatList, setPredikatList] = useState([]);
   const [originalData, setOriginalData] = useState([]);
@@ -37,11 +42,13 @@ export default function MasterPredikatPage() {
   const [selectedPredikat, setSelectedPredikat] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
 
+  // --- STATE PRINT ---
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
+  // --- STATE FILTER ---
   const [tingkatFilter, setTingkatFilter] = useState(null);
   const [jurusanFilter, setJurusanFilter] = useState(null);
   const [kelasFilter, setKelasFilter] = useState(null);
@@ -52,6 +59,7 @@ export default function MasterPredikatPage() {
   const [kelasOptions, setKelasOptions] = useState([]);
   const [mapelOptions, setMapelOptions] = useState([]);
 
+  // --- 1. INITIAL LOAD ---
   useEffect(() => {
     const t = localStorage.getItem("token");
     if (!t) {
@@ -65,8 +73,10 @@ export default function MasterPredikatPage() {
       isMounted.current = false;
       toastRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // --- 2. FETCH DATA ---
   const fetchPredikat = async (t) => {
     setIsLoading(true);
     try {
@@ -78,16 +88,18 @@ export default function MasterPredikatPage() {
 
       if (res.data.status === "00") {
         const data = res.data.data || [];
+        
+        // --- SORTING DARI A KE B (ASCENDING) ---
+        data.sort((a, b) => a.ID - b.ID); 
 
-        data.sort((a, b) => a.ID - b.ID);
-
+        // --- Build Filter Options ---
         const tingkatSet = new Set();
         const jurusanSet = new Set();
         const kelasSet = new Set();
         const mapelSet = new Set();
 
         data.forEach((item) => {
-          if (item.tingkatan?.TINGKATAN) tingkatSet.add(item.tingkatan.TINGKATAN);
+          if (item.target?.TINGKATAN_ID) tingkatSet.add(item.target.TINGKATAN_ID);
           if (item.target?.NAMA_JURUSAN) jurusanSet.add(item.target.NAMA_JURUSAN);
           if (item.target?.KELAS_ID) kelasSet.add(item.target.KELAS_ID);
           if (item.mapel?.NAMA_MAPEL) mapelSet.add(item.mapel.NAMA_MAPEL);
@@ -95,7 +107,7 @@ export default function MasterPredikatPage() {
 
         setPredikatList(data);
         setOriginalData(data);
-
+        
         setTingkatOptions(Array.from(tingkatSet).map((s) => ({ label: s, value: s })));
         setJurusanOptions(Array.from(jurusanSet).map((s) => ({ label: s, value: s })));
         setKelasOptions(Array.from(kelasSet).map((s) => ({ label: s, value: s })));
@@ -111,46 +123,45 @@ export default function MasterPredikatPage() {
     }
   };
 
-  const applyFiltersWithValue = (tingkat, jurusan, kelas, mapel) => {
-    let filtered = [...originalData];
-
-    if (tingkat) filtered = filtered.filter((item) => item.tingkatan?.TINGKATAN === tingkat);
-    if (jurusan) filtered = filtered.filter((item) => item.target?.NAMA_JURUSAN === jurusan);
-    if (kelas) filtered = filtered.filter((item) => item.target?.KELAS_ID === kelas);
-    if (mapel) filtered = filtered.filter((item) => item.mapel?.NAMA_MAPEL === mapel);
-
-    setPredikatList(filtered);
-  };
-
+  // --- 3. HANDLE SEARCH & FILTER ---
   const handleSearch = (keyword) => {
     if (!keyword) {
       applyFiltersWithValue(tingkatFilter, jurusanFilter, kelasFilter, mapelFilter);
-      return;
-    }
+    } else {
+      let filtered = [...originalData];
 
-    const lower = keyword.toLowerCase();
+      // Apply dropdown filters first
+      if (tingkatFilter) filtered = filtered.filter((item) => item.target?.TINGKATAN_ID === tingkatFilter);
+      if (jurusanFilter) filtered = filtered.filter((item) => item.target?.NAMA_JURUSAN === jurusanFilter);
+      if (kelasFilter) filtered = filtered.filter((item) => item.target?.KELAS_ID === kelasFilter);
+      if (mapelFilter) filtered = filtered.filter((item) => item.mapel?.NAMA_MAPEL === mapelFilter);
+
+      const lowerKeyword = keyword.toLowerCase();
+      filtered = filtered.filter((item) => {
+        const mapelName = item.mapel?.NAMA_MAPEL?.toLowerCase() || "";
+        const kodeMapel = item.mapel?.KODE_MAPEL?.toLowerCase() || "";
+        const jurusan = item.target?.NAMA_JURUSAN?.toLowerCase() || "";
+        const kelas = item.target?.KELAS_ID?.toLowerCase() || "";
+        
+        return (
+          mapelName.includes(lowerKeyword) ||
+          kodeMapel.includes(lowerKeyword) ||
+          jurusan.includes(lowerKeyword) ||
+          kelas.includes(lowerKeyword)
+        );
+      });
+
+      setPredikatList(filtered);
+    }
+  };
+
+  const applyFiltersWithValue = (tingkat, jurusan, kelas, mapel) => {
     let filtered = [...originalData];
 
-    if (tingkatFilter) filtered = filtered.filter((item) => item.tingkatan?.TINGKATAN === tingkatFilter);
-    if (jurusanFilter) filtered = filtered.filter((item) => item.target?.NAMA_JURUSAN === jurusanFilter);
-    if (kelasFilter) filtered = filtered.filter((item) => item.target?.KELAS_ID === kelasFilter);
-    if (mapelFilter) filtered = filtered.filter((item) => item.mapel?.NAMA_MAPEL === mapelFilter);
-
-    filtered = filtered.filter((item) => {
-      const mapel = item.mapel?.NAMA_MAPEL?.toLowerCase() || "";
-      const kode = item.mapel?.KODE_MAPEL?.toLowerCase() || "";
-      const jurusan = item.target?.NAMA_JURUSAN?.toLowerCase() || "";
-      const kelas = item.target?.KELAS_ID?.toLowerCase() || "";
-      const tingkat = item.tingkatan?.TINGKATAN?.toLowerCase() || "";
-
-      return (
-        mapel.includes(lower) ||
-        kode.includes(lower) ||
-        jurusan.includes(lower) ||
-        kelas.includes(lower) ||
-        tingkat.includes(lower)
-      );
-    });
+    if (tingkat) filtered = filtered.filter((item) => item.target?.TINGKATAN_ID === tingkat);
+    if (jurusan) filtered = filtered.filter((item) => item.target?.NAMA_JURUSAN === jurusan);
+    if (kelas) filtered = filtered.filter((item) => item.target?.KELAS_ID === kelas);
+    if (mapel) filtered = filtered.filter((item) => item.mapel?.NAMA_MAPEL === mapel);
 
     setPredikatList(filtered);
   };
@@ -163,38 +174,46 @@ export default function MasterPredikatPage() {
     setPredikatList(originalData);
   };
 
+  // --- 4. CRUD ACTIONS ---
   const handleSubmit = async (data) => {
     try {
       if (selectedPredikat) {
-        const res = await axios.put(`${API_URL}/master-predikat/${selectedPredikat.ID}`, data, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // UPDATE
+        const res = await axios.put(
+          `${API_URL}/master-predikat/${selectedPredikat.ID}`,
+          data,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-        if (res.data.status !== "00") {
+        if (res.data.status === "00") {
+          toastRef.current?.showToast("00", "Data Predikat berhasil diperbarui");
+        } else {
           toastRef.current?.showToast("01", res.data.message || "Gagal update");
           return;
         }
-
-        toastRef.current?.showToast("00", "Data berhasil diperbarui");
       } else {
+        // CREATE
         const res = await axios.post(`${API_URL}/master-predikat`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.data.status !== "00") {
+        if (res.data.status === "00") {
+          toastRef.current?.showToast("00", "Data Predikat berhasil ditambahkan");
+        } else {
           toastRef.current?.showToast("01", res.data.message || "Gagal tambah");
           return;
         }
-
-        toastRef.current?.showToast("00", "Data berhasil ditambahkan");
       }
 
-      await fetchPredikat(token);
-      setDialogVisible(false);
-      setSelectedPredikat(null);
+      if (isMounted.current) {
+        await fetchPredikat(token);
+        setDialogVisible(false);
+        setSelectedPredikat(null);
+      }
     } catch (err) {
       console.error(err);
-      toastRef.current?.showToast("01", "Gagal menyimpan data");
+      const msg = err.response?.data?.message || "Gagal menyimpan data";
+      toastRef.current?.showToast("01", msg);
     }
   };
 
@@ -212,7 +231,9 @@ export default function MasterPredikatPage() {
             headers: { Authorization: `Bearer ${token}` },
           });
           toastRef.current?.showToast("00", "Data berhasil dihapus");
-          await fetchPredikat(token);
+          if (isMounted.current) {
+            await fetchPredikat(token);
+          }
         } catch (err) {
           console.error(err);
           toastRef.current?.showToast("01", "Gagal menghapus data");
@@ -223,71 +244,97 @@ export default function MasterPredikatPage() {
 
   const handleClosePdfPreview = () => {
     setJsPdfPreviewOpen(false);
-    setTimeout(() => setPdfUrl(""), 300);
+    setTimeout(() => {
+      setPdfUrl("");
+    }, 300);
   };
 
+  // --- 6. TABLE COLUMNS ---
   const predikatColumns = [
-    { field: "ID", header: "ID", style: { width: "50px", textAlign: "center" }, body: (r) => r.ID },
+    { 
+      field: "ID", 
+      header: "ID", 
+      style: { width: "50px", textAlign: "center" },
+      body: (row) => row.ID
+    },
     {
       field: "KODE_MAPEL",
       header: "Kode",
-      body: (r) => <span className="font-medium">{r.mapel?.KODE_MAPEL}</span>,
+      style: { minWidth: "100px" },
+      body: (row) => <span className="font-medium">{row.mapel?.KODE_MAPEL || "-"}</span>
     },
     {
       field: "NAMA_MAPEL",
       header: "Mata Pelajaran",
-      body: (r) => <span className="font-bold">{r.mapel?.NAMA_MAPEL}</span>,
+      style: { minWidth: "180px" },
+      body: (row) => <span className="font-bold text-gray-700">{row.mapel?.NAMA_MAPEL || "-"}</span>
     },
+    // --- KOLOM TINGKATAN ---
     {
-      field: "TINGKAT",
+      field: "TINGKATAN",
       header: "Tingkat",
-      style: { minWidth: "60px", textAlign: "center" },
-      body: (r) => r.target?.TINGKATAN || "-",
+      style: { minWidth: "80px", textAlign: "center" },
+      body: (row) => row.target?.TINGKATAN_ID || "-"
     },
+    // --- KOLOM JURUSAN ---
     {
       field: "JURUSAN",
       header: "Jurusan",
-      body: (r) => r.target?.NAMA_JURUSAN || <span className="text-gray-500 italic">Umum</span>,
+      style: { minWidth: "120px" },
+      body: (row) => row.target?.NAMA_JURUSAN || <span className="text-gray-500 italic">Umum</span>
     },
-    {
+    // --- KOLOM KELAS ---
+   {
       field: "KELAS",
       header: "Kelas",
-      body: (r) =>
-        r.target?.KELAS_ID ? (
-          <span className="text-sm font-medium">{r.target.KELAS_ID}</span>
-        ) : (
-          <span className="text-gray-400 text-xs italic">Semua</span>
-        ),
+      style: { minWidth: "100px", textAlign: "center" },
+      body: (row) => (
+        row.target?.KELAS_ID ? 
+        // Class pewarnaan dihapus, ganti font-medium saja biar rapi
+        <span className="text-sm font-medium text-gray-700">
+          {row.target.KELAS_ID}
+        </span> : 
+        <span className="text-gray-400 text-xs italic">Semua</span>
+      )
     },
+    // --- PREDIKAT A ---
     {
-      field: "A",
+      field: "DESKRIPSI_A",
       header: "Predikat A",
-      body: (r) => <div className="line-clamp-3">{r.deskripsi?.A}</div>,
+      style: { minWidth: "200px", fontSize: "1.00 rem", verticalAlign: "top" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.A || "-"}</div>
     },
+    // --- PREDIKAT B ---
     {
-      field: "B",
+      field: "DESKRIPSI_B",
       header: "Predikat B",
-      body: (r) => <div className="line-clamp-3">{r.deskripsi?.B}</div>,
+      style: { minWidth: "200px", fontSize: "1.00 rem", verticalAlign: "top" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.B || "-"}</div>
     },
+    // --- PREDIKAT C ---
     {
-      field: "C",
+      field: "DESKRIPSI_C",
       header: "Predikat C",
-      body: (r) => <div className="line-clamp-3">{r.deskripsi?.C}</div>,
+      style: { minWidth: "200px", fontSize: "1.00 rem", verticalAlign: "top" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.C || "-"}</div>
     },
+    // --- PREDIKAT D ---
     {
-      field: "D",
+      field: "DESKRIPSI_D",
       header: "Predikat D",
-      body: (r) => <div className="line-clamp-3">{r.deskripsi?.D}</div>,
+      style: { minWidth: "200px", fontSize: "1.00 rem", verticalAlign: "top" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.D || "-"}</div>
     },
     {
       header: "Aksi",
-      style: { width: "100px", textAlign: "center" },
       body: (rowData) => (
         <div className="flex gap-2 justify-content-center">
           <Button
             icon="pi pi-pencil"
             size="small"
             severity="warning"
+            tooltip="Edit"
+            tooltipOptions={{ position: "top" }}
             onClick={() => {
               setSelectedPredikat(rowData);
               setDialogVisible(true);
@@ -297,10 +344,13 @@ export default function MasterPredikatPage() {
             icon="pi pi-trash"
             size="small"
             severity="danger"
+            tooltip="Hapus"
+            tooltipOptions={{ position: "top" }}
             onClick={() => handleDelete(rowData)}
           />
         </div>
       ),
+      style: { width: "100px", textAlign: "center", verticalAlign: "top" },
     },
   ];
 
@@ -311,13 +361,15 @@ export default function MasterPredikatPage() {
 
       <h3 className="text-xl font-semibold mb-3">Master Predikat</h3>
 
-      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
-        <div className="flex flex-wrap gap-3">
-          
-          {/* Tingkatan */}
+      {/* --- FILTER & TOOLBAR SECTION --- */}
+      <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
+        
+        {/* Filter Dropdowns */}
+        <div className="flex flex-wrap gap-2 items-end">
           <div className="flex flex-column gap-2">
-            <label className="text-sm font-medium">Tingkatan</label>
+            <label htmlFor="tingkat-filter" className="text-sm font-medium">Tingkatan</label>
             <Dropdown
+              id="tingkat-filter"
               value={tingkatFilter}
               options={tingkatOptions}
               onChange={(e) => {
@@ -325,15 +377,15 @@ export default function MasterPredikatPage() {
                 applyFiltersWithValue(e.value, jurusanFilter, kelasFilter, mapelFilter);
               }}
               placeholder="Pilih Tingkat"
-              className="w-32"
+              className="w-40"
               showClear
             />
           </div>
 
-          {/* Jurusan */}
           <div className="flex flex-column gap-2">
-            <label className="text-sm font-medium">Jurusan</label>
+            <label htmlFor="jurusan-filter" className="text-sm font-medium">Jurusan</label>
             <Dropdown
+              id="jurusan-filter"
               value={jurusanFilter}
               options={jurusanOptions}
               onChange={(e) => {
@@ -341,15 +393,15 @@ export default function MasterPredikatPage() {
                 applyFiltersWithValue(tingkatFilter, e.value, kelasFilter, mapelFilter);
               }}
               placeholder="Pilih Jurusan"
-              className="w-40"
+              className="w-48"
               showClear
             />
           </div>
 
-          {/* Kelas */}
           <div className="flex flex-column gap-2">
-            <label className="text-sm font-medium">Kelas</label>
+            <label htmlFor="kelas-filter" className="text-sm font-medium">Kelas</label>
             <Dropdown
+              id="kelas-filter"
               value={kelasFilter}
               options={kelasOptions}
               onChange={(e) => {
@@ -357,15 +409,15 @@ export default function MasterPredikatPage() {
                 applyFiltersWithValue(tingkatFilter, jurusanFilter, e.value, mapelFilter);
               }}
               placeholder="Pilih Kelas"
-              className="w-32"
+              className="w-40"
               showClear
             />
           </div>
 
-          {/* Mapel */}
           <div className="flex flex-column gap-2">
-            <label className="text-sm font-medium">Mata Pelajaran</label>
+            <label htmlFor="mapel-filter" className="text-sm font-medium">Mata Pelajaran</label>
             <Dropdown
+              id="mapel-filter"
               value={mapelFilter}
               options={mapelOptions}
               onChange={(e) => {
@@ -373,7 +425,7 @@ export default function MasterPredikatPage() {
                 applyFiltersWithValue(tingkatFilter, jurusanFilter, kelasFilter, e.value);
               }}
               placeholder="Pilih Mapel"
-              className="w-48"
+              className="w-52"
               showClear
               filter
             />
@@ -381,21 +433,24 @@ export default function MasterPredikatPage() {
 
           <Button
             icon="pi pi-refresh"
-            className="p-button-secondary mt-4"
+            className="p-button-secondary mt-3"
+            tooltip="Reset Filter"
             onClick={resetFilter}
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end gap-2">
           <Button
             icon="pi pi-print"
-            className="p-button-warning"
+            className="p-button-warning mt-3"
             tooltip="Cetak Laporan"
             onClick={() => setAdjustDialog(true)}
             disabled={predikatList.length === 0 || isLoading}
           />
 
           <HeaderBar
+            title=""
             placeholder="Cari predikat..."
             onSearch={handleSearch}
             onAddClick={() => {
@@ -406,8 +461,14 @@ export default function MasterPredikatPage() {
         </div>
       </div>
 
-      <CustomDataTable data={predikatList} loading={isLoading} columns={predikatColumns} />
+      {/* --- TABLE --- */}
+      <CustomDataTable 
+        data={predikatList} 
+        loading={isLoading} 
+        columns={predikatColumns} 
+      />
 
+      {/* Dialogs */}
       <FormPredikat
         visible={dialogVisible}
         onHide={() => {
@@ -433,12 +494,15 @@ export default function MasterPredikatPage() {
         modal
         maximizable
         style={{ width: "90vw", height: "90vh" }}
-        header={<div className="flex items-center gap-2"><i className="pi pi-file-pdf" /> Preview - {fileName}</div>}
+        header={
+          <div className="flex items-center gap-2">
+            <i className="pi pi-file-pdf text-red-500"></i>
+            <span>Preview - {fileName}</span>
+          </div>
+        }
         contentStyle={{ height: "calc(90vh - 60px)", padding: 0 }}
       >
-        {pdfUrl && (
-          <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />
-        )}
+        {pdfUrl && <PDFViewer pdfUrl={pdfUrl} fileName={fileName} paperSize="A4" />}
       </Dialog>
     </div>
   );
