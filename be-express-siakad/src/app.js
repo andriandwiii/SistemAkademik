@@ -37,6 +37,8 @@ import agamaRoutes from "./routes/agamaRoutes.js";
 import transaksiWakelRoutes from "./routes/transaksiWakelRoutes.js";
 import transaksiKenaikanKelasRoutes from "./routes/transaksiKenaikanKelasRoutes.js";
 import masterKKMRoutes from "./routes/masterKKMRoutes.js";
+import transaksiKkmRoutes from "./routes/transaksiKkmRoutes.js";
+import masterPredikatRoutes from "./routes/masterPredikatRoutes.js"
 
 const app = express();
 
@@ -105,5 +107,8 @@ app.use("/api/agama", agamaRoutes);
 app.use("/api/transaksi-wakel", transaksiWakelRoutes);
 app.use("/api/kenaikan-kelas", transaksiKenaikanKelasRoutes);
 app.use("/api/master-kkm", masterKKMRoutes);
+app.use("/api/transaksi-kkm", transaksiKkmRoutes);
+
+app.use("/api/master-predikat", masterPredikatRoutes);
 
 export default app;
