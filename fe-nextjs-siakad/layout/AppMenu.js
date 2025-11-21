@@ -55,6 +55,7 @@ const AppMenu = () => {
                             { label: "Master Jam Pelajaran", icon: "pi pi-user-plus", to: "/master/jam_pelajaran" },
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
                             { label: "Master KKM", icon: "pi pi-fw pi-file", to: "/master/kkm" },
+                            { label: "Master Predikat", icon: "pi pi-fw pi-file", to: "/master/predikat" },
                             
 
                         ]
