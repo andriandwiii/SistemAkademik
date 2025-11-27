@@ -69,6 +69,7 @@ const AppMenu = () => {
                             { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa" },
                             { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
                             { label: "Transaksi KKM", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-kkm" },
+                            { label: "Transaksi Nilai", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi_nilai" },
                             { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" }
                         ]
                     },
