@@ -41,9 +41,11 @@ export const getEntryNilaiRapor = async ({
   if (!settings) return null; // Jika belum ada setting KKM/Predikat
 
   /* -----------------------------------------------------------
-   * 2. AMBIL SISWA + NILAI (LEFT JOIN)
+   * 2. AMBIL SISWA DARI TRANSAKSI_SISWA_KELAS + NILAI
+   * ✅ DIPERBAIKI: Lebih efisien, sudah ada join ke semua tabel
    * ----------------------------------------------------------- */
-  const students = await db("master_siswa as s")
+  const students = await db("transaksi_siswa_kelas as tsk")
+    .join("master_siswa as s", "tsk.NIS", "s.NIS")
     .leftJoin("transaksi_nilai as tn", function () {
       this.on("s.NIS", "=", "tn.NIS")
         .andOn("tn.KODE_MAPEL", "=", db.raw("?", [KODE_MAPEL]))
@@ -58,15 +60,19 @@ export const getEntryNilaiRapor = async ({
       "tn.NILAI_P",
       "tn.NILAI_K"
     )
+    .where({
+      "tsk.KELAS_ID": KELAS_ID,
+      "tsk.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
     .orderBy("s.NAMA", "asc");
 
   return {
     kkm: settings.KKM || 75,
     deskripsi_template: {
-      A: settings.DESKRIPSI_A,
-      B: settings.DESKRIPSI_B,
-      C: settings.DESKRIPSI_C,
-      D: settings.DESKRIPSI_D
+      A: settings.DESKRIPSI_A || "Sangat Baik",
+      B: settings.DESKRIPSI_B || "Baik",
+      C: settings.DESKRIPSI_C || "Cukup",
+      D: settings.DESKRIPSI_D || "Kurang"
     },
     siswa: students
   };
@@ -116,4 +122,28 @@ export const saveNilaiSiswa = async ({
     NILAI_P,
     NILAI_K
   });
+};
+
+/* ===========================================================
+ * UPDATE NILAI BY ID
+ * ===========================================================
+ */
+export const updateNilaiByIdModel = async (id, payload) => {
+  return db("transaksi_nilai")
+    .where("NIS", id)
+    .update({
+      NILAI_P: payload.nilai_p ?? null,
+      NILAI_K: payload.nilai_k ?? null,
+      updated_at: db.fn.now()
+    });
+};
+
+/* ===========================================================
+ * DELETE NILAI BY ID
+ * ===========================================================
+ */
+export const deleteNilaiByIdModel = async (id) => {
+  return db("transaksi_nilai")
+    .where("NIS", id)
+    .del();
 };

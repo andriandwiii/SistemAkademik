@@ -1,29 +1,38 @@
 import * as NilaiModel from "../models/TransaksiNilaiModel.js";
 
 /* ===========================================================
- * HELPER: HITUNG PREDIKAT (VERSI DIBETULKAN)
- * ABCD NORMAL TANPA OTOMATIS D DI BAWAH KKM
+ * HELPER: HITUNG PREDIKAT BERDASARKAN KKM DINAMIS
  * =========================================================== */
-const hitungPredikat = (nilai) => {
+const hitungPredikat = (nilai, kkm) => {
     if (nilai === null || nilai === undefined || nilai === "") return null;
 
     const val = parseFloat(nilai);
+    const kkmVal = parseFloat(kkm);
 
-    if (val >= 90) return "A";
-    if (val >= 80) return "B";
-    if (val >= 70) return "C";
-    return "D";
+    // Hitung interval berdasarkan KKM
+    const interval = (100 - kkmVal) / 3;
+
+    if (val < kkmVal) return "D";
+    if (val < kkmVal + interval) return "C";
+    if (val < kkmVal + interval * 2) return "B";
+    return "A";
 };
 
 /* ===========================================================
- * HELPER: GENERATE RENTANG ABCD
+ * HELPER: GENERATE RENTANG PREDIKAT DINAMIS
  * =========================================================== */
-const generateIntervalPredikat = () => {
+const generateIntervalPredikat = (kkm) => {
+    const kkmVal = parseFloat(kkm);
+    const interval = (100 - kkmVal) / 3;
+
+    const batasC = Math.round(kkmVal + interval);
+    const batasB = Math.round(kkmVal + interval * 2);
+
     return {
-        A: "90-100",
-        B: "80-89",
-        C: "70-79",
-        D: "0-69"
+        A: `${batasB}-100`,
+        B: `${batasC}-${batasB - 1}`,
+        C: `${kkmVal}-${batasC - 1}`,
+        D: `0-${kkmVal - 1}`
     };
 };
 
@@ -50,17 +59,19 @@ export const getEntryPageData = async (req, res) => {
         if (!rawData) {
             return res.status(404).json({
                 status: "01",
-                message: "Setting KKM & Predikat belum ditemukan."
+                message: "Setting KKM & Predikat belum ditemukan untuk kelas dan mapel ini."
             });
         }
 
         const { kkm, deskripsi_template, siswa } = rawData;
 
-        const intervalPredikat = generateIntervalPredikat();
+        // Generate interval predikat berdasarkan KKM
+        const intervalPredikat = generateIntervalPredikat(kkm);
 
+        // Process setiap siswa
         const processedStudents = siswa.map((s) => {
-            const predikatP = hitungPredikat(s.NILAI_P);
-            const predikatK = hitungPredikat(s.NILAI_K);
+            const predikatP = hitungPredikat(s.NILAI_P, kkm);
+            const predikatK = hitungPredikat(s.NILAI_K, kkm);
 
             return {
                 id: s.NIS,
@@ -68,18 +79,15 @@ export const getEntryPageData = async (req, res) => {
                 nisn: s.NISN,
                 nama: s.NAMA,
 
-                nilai_p: s.NILAI_P,
+                nilai_p: s.NILAI_P ?? null,
                 predikat_p: predikatP || "-",
                 deskripsi_p: predikatP ? deskripsi_template[predikatP] : "-",
 
-                nilai_k: s.NILAI_K,
+                nilai_k: s.NILAI_K ?? null,
                 predikat_k: predikatK || "-",
                 deskripsi_k: predikatK ? deskripsi_template[predikatK] : "-",
 
-                status:
-                    (s.NILAI_P !== null || s.NILAI_K !== null)
-                        ? "saved"
-                        : "editing"
+                status: (s.NILAI_P !== null || s.NILAI_K !== null) ? "saved" : "editing"
             };
         });
 
@@ -121,6 +129,13 @@ export const saveNilai = async (req, res) => {
             });
         }
 
+        if (!kelasId || !mapelId || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter kelasId, mapelId, dan tahunId wajib diisi."
+            });
+        }
+
         let savedCount = 0;
 
         for (const s of students) {
@@ -130,8 +145,8 @@ export const saveNilai = async (req, res) => {
                 KODE_MAPEL: mapelId,
                 TAHUN_AJARAN_ID: tahunId,
                 SEMESTER: "1",
-                NILAI_P: s.nilai_p,
-                NILAI_K: s.nilai_k
+                NILAI_P: s.nilai_p ?? null,
+                NILAI_K: s.nilai_k ?? null
             });
             savedCount++;
         }
