@@ -45,6 +45,7 @@ export default function EntryNilaiPage() {
   const [opsiMapel, setOpsiMapel] = useState([]);
 
   const [loading, setLoading] = useState(false);
+  const [loadingMapel, setLoadingMapel] = useState(false);
 
   // =============================== EDIT FORM ====================================
   const [editDialog, setEditDialog] = useState(false);
@@ -54,12 +55,11 @@ export default function EntryNilaiPage() {
   useEffect(() => {
     const loadMaster = async () => {
       try {
-        const [thn, tkt, jur, trxSiswa, mpl] = await Promise.all([
+        const [thn, tkt, jur, trxSiswa] = await Promise.all([
           axios.get(`${API_URL}/master-tahun-ajaran`),
           axios.get(`${API_URL}/master-tingkatan`),
           axios.get(`${API_URL}/master-jurusan`),
-          axios.get(`${API_URL}/transaksi-siswa`), // ✅ GANTI ke /transaksi-siswa
-          axios.get(`${API_URL}/master-mata-pelajaran`),
+          axios.get(`${API_URL}/transaksi-siswa`),
         ]);
 
         setOpsiTahun(thn.data.data.map((i) => ({
@@ -77,16 +77,7 @@ export default function EntryNilaiPage() {
           value: i.JURUSAN_ID,
         })));
 
-        // ✅ EKSTRAK KELAS UNIK dari transaksi siswa (HANYA untuk tampilan awal)
-        console.log("📊 Data Transaksi Siswa:", trxSiswa.data.data);
-        
-        // Set kosong dulu, nanti akan diload ulang saat tahun dipilih
         setOpsiKelas([]);
-
-        setOpsiMapel(mpl.data.data.map((i) => ({
-          label: i.NAMA_MAPEL,
-          value: i.KODE_MAPEL,
-        })));
       } catch (e) {
         console.error("Error loading master data:", e);
         toast.current?.show({
@@ -109,14 +100,12 @@ export default function EntryNilaiPage() {
       }
 
       try {
-        const res = await axios.get(`${API_URL}/transaksi-siswa`); // ✅ GANTI ke /transaksi-siswa
+        const res = await axios.get(`${API_URL}/transaksi-siswa`);
         
-        // Filter hanya transaksi untuk tahun ajaran yang dipilih
         const trxFiltered = res.data.data.filter(
           trx => trx.tahun_ajaran.TAHUN_AJARAN_ID === filters.TAHUN_AJARAN_ID
         );
         
-        // Ekstrak kelas unik
         const kelasUnique = [];
         const kelasSeen = new Set();
         
@@ -136,7 +125,6 @@ export default function EntryNilaiPage() {
           }
         });
         
-        console.log(`📋 Kelas untuk Tahun ${filters.TAHUN_AJARAN_ID}:`, kelasUnique);
         setOpsiKelas(kelasUnique);
         
       } catch (e) {
@@ -146,13 +134,66 @@ export default function EntryNilaiPage() {
 
     loadKelasByTahun();
   }, [filters.TAHUN_AJARAN_ID]);
-  // ============================================================================
+
+  // ============== LOAD MAPEL DARI JADWAL SAAT KELAS DIPILIH ===================
+  useEffect(() => {
+    const loadMapelByKelas = async () => {
+      if (!filters.KELAS_ID || !filters.TAHUN_AJARAN_ID) {
+        setOpsiMapel([]);
+        return;
+      }
+
+      setLoadingMapel(true);
+      try {
+        const res = await axios.get(`${API_URL}/transaksi-nilai/mapel`, {
+          params: {
+            kelasId: filters.KELAS_ID,
+            tahunId: filters.TAHUN_AJARAN_ID
+          }
+        });
+
+        if (res.data.status === "00") {
+          const mapelOptions = res.data.data.map(m => ({
+            label: m.NAMA_MAPEL,
+            value: m.KODE_MAPEL
+          }));
+          
+          setOpsiMapel(mapelOptions);
+          
+          // Reset pilihan mapel jika yang sebelumnya tidak ada di list baru
+          if (filters.KODE_MAPEL) {
+            const exists = mapelOptions.find(m => m.value === filters.KODE_MAPEL);
+            if (!exists) {
+              setFilters(prev => ({ ...prev, KODE_MAPEL: "" }));
+            }
+          }
+        } else {
+          setOpsiMapel([]);
+          toast.current?.show({
+            severity: "info",
+            summary: "Info",
+            detail: "Belum ada jadwal untuk kelas ini"
+          });
+        }
+      } catch (e) {
+        console.error("Error loading mapel by kelas:", e);
+        setOpsiMapel([]);
+        toast.current?.show({
+          severity: "warn",
+          summary: "Peringatan",
+          detail: "Gagal memuat mata pelajaran"
+        });
+      } finally {
+        setLoadingMapel(false);
+      }
+    };
+
+    loadMapelByKelas();
+  }, [filters.KELAS_ID, filters.TAHUN_AJARAN_ID]);
 
   // ============================ FILTER KELAS DINAMIS ===========================
-  // ✅ Filter berdasarkan tahun ajaran, tingkat, dan jurusan yang dipilih
   const kelasFiltered = opsiKelas
     .filter(k => {
-      // Hanya tampilkan kelas yang sesuai dengan filter aktif
       const tingkatMatch = !filters.TINGKATAN_ID || k.TINGKATAN_ID === filters.TINGKATAN_ID;
       const jurusanMatch = !filters.JURUSAN_ID || k.JURUSAN_ID === filters.JURUSAN_ID;
       
@@ -407,9 +448,10 @@ export default function EntryNilaiPage() {
               onChange={(e) => setFilters({ 
                 ...filters, 
                 TAHUN_AJARAN_ID: e.value,
-                TINGKATAN_ID: "",     // Reset filter lain
+                TINGKATAN_ID: "",
                 JURUSAN_ID: "",
-                KELAS_ID: ""
+                KELAS_ID: "",
+                KODE_MAPEL: ""
               })}
               placeholder="Pilih Tahun"
               className="w-full"
@@ -424,7 +466,8 @@ export default function EntryNilaiPage() {
               onChange={(e) => setFilters({ 
                 ...filters, 
                 TINGKATAN_ID: e.value,
-                KELAS_ID: "" // Reset kelas
+                KELAS_ID: "",
+                KODE_MAPEL: ""
               })}
               placeholder="Pilih Tingkat"
               className="w-full"
@@ -439,7 +482,8 @@ export default function EntryNilaiPage() {
               onChange={(e) => setFilters({ 
                 ...filters, 
                 JURUSAN_ID: e.value,
-                KELAS_ID: "" // Reset kelas
+                KELAS_ID: "",
+                KODE_MAPEL: ""
               })}
               placeholder="Pilih Jurusan"
               className="w-full"
@@ -452,7 +496,11 @@ export default function EntryNilaiPage() {
             <Dropdown
               value={filters.KELAS_ID}
               options={kelasFiltered}
-              onChange={(e) => setFilters({ ...filters, KELAS_ID: e.value })}
+              onChange={(e) => setFilters({ 
+                ...filters, 
+                KELAS_ID: e.value,
+                KODE_MAPEL: "" 
+              })}
               placeholder="Pilih Kelas"
               className="w-full"
               disabled={!filters.TAHUN_AJARAN_ID || kelasFiltered.length === 0}
@@ -464,7 +512,10 @@ export default function EntryNilaiPage() {
           </div>
 
           <div className="col-12 md:col-2">
-            <label className="block font-medium text-sm mb-2">Mata Pelajaran</label>
+            <label className="block font-medium text-sm mb-2">
+              Mata Pelajaran 
+              {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm"></i>}
+            </label>
             <Dropdown
               value={filters.KODE_MAPEL}
               options={opsiMapel}
@@ -472,7 +523,12 @@ export default function EntryNilaiPage() {
               placeholder="Pilih Mapel"
               className="w-full"
               filter
+              disabled={!filters.KELAS_ID || loadingMapel}
+              emptyMessage="Belum ada jadwal untuk kelas ini"
             />
+            {opsiMapel.length === 0 && filters.KELAS_ID && !loadingMapel && (
+              <small className="text-orange-500">Belum ada jadwal mapel</small>
+            )}
           </div>
 
         </div>
@@ -536,13 +592,13 @@ export default function EntryNilaiPage() {
             />
 
             {/* PENGETAHUAN */}
-            <Column header="Nilai P" body={(r) => inputTpl(r, "nilai_p")} style={{ width: "120px" }} />
-            <Column header="Pred" body={(r) => predTpl(r, "nilai_p")} style={{ width: "80px" }} />
+            <Column header="Nilai Pengetahuan" body={(r) => inputTpl(r, "nilai_p")} style={{ width: "120px" }} />
+            <Column header="Predikat" body={(r) => predTpl(r, "nilai_p")} style={{ width: "80px" }} />
             <Column header="Deskripsi" body={(r) => deskTpl(r, "nilai_p")} style={{ minWidth: "200px" }} />
 
             {/* KETERAMPILAN */}
-            <Column header="Nilai K" body={(r) => inputTpl(r, "nilai_k")} style={{ width: "120px" }} />
-            <Column header="Pred" body={(r) => predTpl(r, "nilai_k")} style={{ width: "80px" }} />
+            <Column header="Nilai Keterampilan" body={(r) => inputTpl(r, "nilai_k")} style={{ width: "120px" }} />
+            <Column header="Predikat" body={(r) => predTpl(r, "nilai_k")} style={{ width: "80px" }} />
             <Column header="Deskripsi" body={(r) => deskTpl(r, "nilai_k")} style={{ minWidth: "200px" }} />
 
             {/* ACTION */}

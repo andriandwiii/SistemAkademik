@@ -9,7 +9,6 @@ const hitungPredikat = (nilai, kkm) => {
     const val = parseFloat(nilai);
     const kkmVal = parseFloat(kkm);
 
-    // Hitung interval berdasarkan KKM
     const interval = (100 - kkmVal) / 3;
 
     if (val < kkmVal) return "D";
@@ -34,6 +33,41 @@ const generateIntervalPredikat = (kkm) => {
         C: `${kkmVal}-${batasC - 1}`,
         D: `0-${kkmVal - 1}`
     };
+};
+
+/* ===========================================================
+ * GET MATA PELAJARAN BERDASARKAN KELAS (DARI JADWAL)
+ * =========================================================== */
+export const getMapelByKelas = async (req, res) => {
+    try {
+        const { kelasId, tahunId } = req.query;
+
+        if (!kelasId || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter kelasId dan tahunId wajib diisi."
+            });
+        }
+
+        const mapelList = await NilaiModel.getMapelByKelas({
+            KELAS_ID: kelasId,
+            TAHUN_AJARAN_ID: tahunId
+        });
+
+        return res.status(200).json({
+            status: "00",
+            message: "Daftar mata pelajaran berhasil diambil.",
+            data: mapelList
+        });
+
+    } catch (err) {
+        console.error("❌ Error getMapelByKelas:", err);
+        return res.status(500).json({
+            status: "99",
+            message: "Terjadi kesalahan server.",
+            error: err.message
+        });
+    }
 };
 
 /* ===========================================================
@@ -65,10 +99,8 @@ export const getEntryPageData = async (req, res) => {
 
         const { kkm, deskripsi_template, siswa } = rawData;
 
-        // Generate interval predikat berdasarkan KKM
         const intervalPredikat = generateIntervalPredikat(kkm);
 
-        // Process setiap siswa
         const processedStudents = siswa.map((s) => {
             const predikatP = hitungPredikat(s.NILAI_P, kkm);
             const predikatK = hitungPredikat(s.NILAI_K, kkm);

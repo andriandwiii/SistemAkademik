@@ -1,6 +1,26 @@
 import { db } from "../core/config/knex.js";
 
 /* ===========================================================
+ * GET MATA PELAJARAN DARI JADWAL BERDASARKAN KELAS
+ * =========================================================== */
+export const getMapelByKelas = async ({ KELAS_ID, TAHUN_AJARAN_ID }) => {
+  const mapelList = await db("master_jadwal as j")
+    .join("master_mata_pelajaran as mp", "j.KODE_MAPEL", "mp.KODE_MAPEL")
+    .select(
+      "mp.KODE_MAPEL",
+      "mp.NAMA_MAPEL"
+    )
+    .where({
+      "j.KELAS_ID": KELAS_ID,
+      "j.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
+    .groupBy("mp.KODE_MAPEL", "mp.NAMA_MAPEL")
+    .orderBy("mp.NAMA_MAPEL", "asc");
+
+  return mapelList;
+};
+
+/* ===========================================================
  * GET ENTRY NILAI RAPOR
  * Mengambil:
  * 1. KKM dari transaksi_kkm + master_kkm
@@ -38,11 +58,10 @@ export const getEntryNilaiRapor = async ({
     })
     .first();
 
-  if (!settings) return null; // Jika belum ada setting KKM/Predikat
+  if (!settings) return null;
 
   /* -----------------------------------------------------------
    * 2. AMBIL SISWA DARI TRANSAKSI_SISWA_KELAS + NILAI
-   * ✅ DIPERBAIKI: Lebih efisien, sudah ada join ke semua tabel
    * ----------------------------------------------------------- */
   const students = await db("transaksi_siswa_kelas as tsk")
     .join("master_siswa as s", "tsk.NIS", "s.NIS")
@@ -80,7 +99,6 @@ export const getEntryNilaiRapor = async ({
 
 /* ===========================================================
  * SAVE/UPSERT NILAI SISWA
- * Insert jika baru, update jika sudah ada
  * ===========================================================
  */
 export const saveNilaiSiswa = async ({
