@@ -6,7 +6,7 @@ import axios from "axios";
 import HeaderBar from "@/app/components/headerbar";
 import TabelUjian from "./components/tabelUjian";
 import FormDialogUjian from "./components/formDialogUjian";
-import ToastNotifier from "/app/components/toastNotifier";
+import ToastNotifier from "/app/components/ToastNotifier";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
