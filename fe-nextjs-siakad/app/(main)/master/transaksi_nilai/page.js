@@ -62,17 +62,17 @@ export default function EntryNilaiPage() {
           axios.get(`${API_URL}/transaksi-siswa`),
         ]);
 
-        setOpsiTahun(thn.data.data.map((i) => ({
+        setOpsiTahun((thn.data.data || []).map((i) => ({
           label: i.NAMA_TAHUN_AJARAN,
           value: i.TAHUN_AJARAN_ID,
         })));
 
-        setOpsiTingkat(tkt.data.data.map((i) => ({
+        setOpsiTingkat((tkt.data.data || []).map((i) => ({
           label: i.TINGKATAN,
           value: i.TINGKATAN_ID,
         })));
 
-        setOpsiJurusan(jur.data.data.map((i) => ({
+        setOpsiJurusan((jur.data.data || []).map((i) => ({
           label: i.NAMA_JURUSAN,
           value: i.JURUSAN_ID,
         })));
@@ -102,7 +102,7 @@ export default function EntryNilaiPage() {
       try {
         const res = await axios.get(`${API_URL}/transaksi-siswa`);
         
-        const trxFiltered = res.data.data.filter(
+        const trxFiltered = (res.data.data || []).filter(
           trx => trx.tahun_ajaran.TAHUN_AJARAN_ID === filters.TAHUN_AJARAN_ID
         );
         
@@ -153,8 +153,9 @@ export default function EntryNilaiPage() {
         });
 
         if (res.data.status === "00") {
-          const mapelOptions = res.data.data.map(m => ({
-            label: m.NAMA_MAPEL,
+          // Build options label as "Nama Mapel (KODE)"
+          const mapelOptions = (res.data.data || []).map(m => ({
+            label: `${m.NAMA_MAPEL} (${m.KODE_MAPEL})`,
             value: m.KODE_MAPEL
           }));
           
@@ -252,6 +253,7 @@ export default function EntryNilaiPage() {
 
   useEffect(() => {
     fetchEntryData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.TAHUN_AJARAN_ID, filters.KELAS_ID, filters.KODE_MAPEL]);
 
   // ========================== PREDIKAT DINAMIS ================================
@@ -385,23 +387,15 @@ export default function EntryNilaiPage() {
     />
   );
 
+  // ---------- CHANGED: show predikat as plain text (no colors) ----------
   const predTpl = (row, field) => {
     const p = getPredikat(row[field]);
-    return (
-      <Tag
-        value={p}
-        severity={
-          p === "A" ? "success" :
-          p === "B" ? "info" :
-          p === "C" ? "warning" :
-          p === "D" ? "danger" : null
-        }
-      />
-    );
+    return <span className="font-medium">{p}</span>;
   };
+  // -----------------------------------------------------------------------
 
   const deskTpl = (row, field) => {
-    return <small className="text-sm">{getDeskripsi(row[field])}</small>;
+   return <span className="font-medium">{getDeskripsi(row[field])}</span>;
   };
 
   // ============================== ACTION COLUMN ===============================
@@ -428,6 +422,35 @@ export default function EntryNilaiPage() {
     </div>
   );
 
+  // ----------------------------
+  // Dropdown item/value template for Mapel
+  // ----------------------------
+  const mapelOptionTemplate = (option) => {
+    if (!option) return null;
+    const nama = option.label?.split(" (")[0] ?? option.label;
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{nama}</span>
+        <Tag value={option.value} severity="info" className="text-xs" />
+      </div>
+    );
+  };
+
+  const mapelValueTemplate = (selected) => {
+    if (!selected) return <span className="text-500">Pilih Mapel</span>;
+    const opt = typeof selected === "object" && selected !== null
+      ? selected
+      : opsiMapel.find((o) => o.value === selected);
+    if (!opt) return <span>{selected}</span>;
+    const nama = opt.label?.split(" (")[0] ?? opt.label;
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{nama}</span>
+        <Tag value={opt.value} severity="info" className="text-xs" />
+      </div>
+    );
+  };
+
   // =============================== RENDER ====================================
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
@@ -436,7 +459,6 @@ export default function EntryNilaiPage() {
 
       <h2 className="text-2xl font-bold mb-4">Entry Nilai Siswa</h2>
 
-      {/* ============================ FILTER ============================ */}
       {/* ============================ FILTER ============================ */}
       <div className="card mb-4 p-4 bg-white shadow-sm rounded-lg">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -543,6 +565,8 @@ export default function EntryNilaiPage() {
               disabled={!filters.KELAS_ID || loadingMapel}
               emptyMessage="Belum ada jadwal untuk kelas ini"
               aria-label="Pilih Mata Pelajaran"
+              itemTemplate={mapelOptionTemplate}
+              valueTemplate={mapelValueTemplate}
             />
             {filters.KELAS_ID && !loadingMapel && opsiMapel.length === 0 && (
               <p className="mt-2 text-xs text-orange-600">Belum ada jadwal mata pelajaran untuk kelas ini.</p>
@@ -556,9 +580,10 @@ export default function EntryNilaiPage() {
             <p className="m-0 text-sm">
               <strong>KKM:</strong> {meta.kkm}
               <strong className="ml-4">Interval:</strong>
-              {Object.entries(meta.interval_predikat || {}).map(([key, val]) => (
+              {Object.entries(meta.interval_predikat || {}).map(([key, val], idx) => (
                 <span key={key} className="inline-flex items-center ml-3 text-sm">
-                  <Tag value={key} className="mr-2" /> <span>{val}</span>
+                  <span className="font-semibold mr-1">{key}:</span>
+                  <span>{val}</span>
                 </span>
               ))}
             </p>

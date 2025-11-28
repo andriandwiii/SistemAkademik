@@ -16,12 +16,12 @@ export const getAllPredikat = async (req, res) => {
   }
 };
 
-/** 🔹 Tambah Predikat (SIMPLIFIED - Hanya per Tahun Ajaran atau Tahun + Tingkatan) */
+/** 🔹 Tambah Predikat (Per Mapel + Tahun Ajaran) */
 export const createPredikat = async (req, res) => {
   try {
     const {
-      TAHUN_AJARAN_ID,
-      TINGKATAN_ID, // Nullable - Jika NULL berarti berlaku untuk semua tingkatan
+      KODE_MAPEL,        // ✅ Wajib
+      TAHUN_AJARAN_ID,   // ✅ Wajib
       DESKRIPSI_A, 
       DESKRIPSI_B, 
       DESKRIPSI_C, 
@@ -29,38 +29,30 @@ export const createPredikat = async (req, res) => {
     } = req.body;
 
     // 1. Validasi Input Dasar
-    if (!TAHUN_AJARAN_ID) {
+    if (!KODE_MAPEL || !TAHUN_AJARAN_ID) {
       return res.status(400).json({
         status: "99",
-        message: "Field TAHUN_AJARAN_ID wajib diisi",
+        message: "Field KODE_MAPEL dan TAHUN_AJARAN_ID wajib diisi",
       });
     }
 
-    // 2. ✅ CEK DUPLIKAT: Hanya 1 predikat per (tahun + tingkatan)
+    // 2. ✅ CEK DUPLIKAT: Hanya 1 predikat per (mapel + tahun ajaran)
     const existing = await PredikatModel.checkDuplicate(
-      TAHUN_AJARAN_ID, 
-      TINGKATAN_ID || null
+      KODE_MAPEL,
+      TAHUN_AJARAN_ID
     );
 
     if (existing) {
-      let msg = `Predikat untuk tahun ajaran ${TAHUN_AJARAN_ID}`;
-      if (TINGKATAN_ID) {
-        msg += ` tingkatan ${TINGKATAN_ID}`;
-      } else {
-        msg += ` (global)`;
-      }
-      msg += ` sudah ada`;
-
       return res.status(409).json({
         status: "99",
-        message: msg,
+        message: `Predikat untuk mata pelajaran ${KODE_MAPEL} tahun ajaran ${TAHUN_AJARAN_ID} sudah ada`,
       });
     }
 
     // 3. Simpan Data
     const result = await PredikatModel.createPredikat({
+      KODE_MAPEL,
       TAHUN_AJARAN_ID,
-      TINGKATAN_ID: TINGKATAN_ID || null,
       DESKRIPSI_A, 
       DESKRIPSI_B, 
       DESKRIPSI_C, 
@@ -94,23 +86,21 @@ export const updatePredikat = async (req, res) => {
       });
     }
 
-    // Jika ada perubahan tahun/tingkatan, cek duplikat
-    if (dataUpdate.TAHUN_AJARAN_ID || dataUpdate.TINGKATAN_ID !== undefined) {
-      const tahun = dataUpdate.TAHUN_AJARAN_ID || oldData.tahun_ajaran.TAHUN_AJARAN_ID;
-      const tingkat = (dataUpdate.TINGKATAN_ID !== undefined) 
-        ? dataUpdate.TINGKATAN_ID 
-        : oldData.TINGKATAN_ID;
+    // Jika ada perubahan mapel/tahun, cek duplikat
+    if (dataUpdate.KODE_MAPEL || dataUpdate.TAHUN_AJARAN_ID) {
+      const mapel = dataUpdate.KODE_MAPEL || oldData.KODE_MAPEL;
+      const tahun = dataUpdate.TAHUN_AJARAN_ID || oldData.TAHUN_AJARAN_ID;
 
       const duplicate = await PredikatModel.checkDuplicateExcept(
-        tahun, 
-        tingkat, 
+        mapel,
+        tahun,
         id
       );
 
       if (duplicate) {
         return res.status(409).json({
           status: "99",
-          message: "Predikat untuk tahun ajaran dan tingkatan ini sudah ada",
+          message: "Predikat untuk mata pelajaran dan tahun ajaran ini sudah ada",
         });
       }
     }

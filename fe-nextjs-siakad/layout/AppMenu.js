@@ -68,7 +68,6 @@ const AppMenu = () => {
                             { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/master/informasi_sekolah" },
                             { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa" },
                             { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
-                            { label: "Transaksi KKM", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-kkm" },
                             { label: "Transaksi Nilai", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi_nilai" },
                             { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" }
                         ]
@@ -76,7 +75,7 @@ const AppMenu = () => {
                     {
                         label: "Manajemen Guru",
                         icon: "pi pi-fw pi-users",
-                        items: [
+                        items: [    
                             { label: "Guru", icon: "pi pi-fw pi-users", to: "/master/guru" },
                             { label: "Transaksi Wali Kelas", icon: "pi pi-fw pi-user-edit", to: "/master/transaksi-wakel" }
                         ]

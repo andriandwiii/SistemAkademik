@@ -6,6 +6,7 @@ import { InputText } from "primereact/inputtext";
 import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
+import { Tag } from "primereact/tag"; // ✅ import Tag
 
 const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
   const [kodeKKM, setKodeKKM] = useState("");
@@ -32,10 +33,10 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
 
     const lastKKM = kkmList[0];
     const lastKode = lastKKM?.KODE_KKM || "KKM000";
-    
+
     const numericPartMatch = lastKode.match(/\d+$/);
     const numericPart = numericPartMatch ? parseInt(numericPartMatch[0], 10) : 0;
-    
+
     const nextNumber = numericPart + 1;
     return `KKM${nextNumber.toString().padStart(3, "0")}`;
   };
@@ -43,9 +44,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
   // Hitung otomatis nilai KKM
   const hitungKKM = () => {
     if (kompleksitas && dayaDukung && intake) {
-      return Math.round(
-        (Number(kompleksitas) + Number(dayaDukung) + Number(intake)) / 3
-      );
+      return Math.round((Number(kompleksitas) + Number(dayaDukung) + Number(intake)) / 3);
     }
     return 0;
   };
@@ -116,9 +115,10 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
       const json = await res.json();
       const data = json.data || [];
 
+      // label: "Nama Mapel (KODE)", value: KODE_MAPEL
       setMapelOptions(
         data.map((m) => ({
-          label: `${m.KODE_MAPEL} | ${m.NAMA_MAPEL}`,
+          label: `${m.NAMA_MAPEL} (${m.KODE_MAPEL})`,
           value: m.KODE_MAPEL,
         }))
       );
@@ -127,11 +127,43 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
     }
   };
 
+  // ----------------------------
+  // Custom templates for mapel dropdown
+  // ----------------------------
+  const mapelOptionTemplate = (option) => {
+    if (!option) return null;
+    const nama = option.label?.split(" (")[0] ?? option.label;
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{nama}</span>
+        <Tag value={option.value} severity="info" className="text-xs" />
+      </div>
+    );
+  };
+
+  const mapelValueTemplate = (selected) => {
+    if (!selected) return <span className="text-500">Pilih Mata Pelajaran</span>;
+    const opt =
+      typeof selected === "object" && selected !== null
+        ? selected
+        : mapelOptions.find((o) => o.value === selected);
+    if (!opt) return <span>{selected}</span>;
+    const nama = opt.label?.split(" (")[0] ?? opt.label;
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{nama}</span>
+        <Tag value={opt.value} severity="info" className="text-xs" />
+      </div>
+    );
+  };
+
   // Submit Form
   const handleSubmit = async () => {
     // ✅ VALIDASI TAMBAH TAHUN AJARAN
     if (!mapelId || !tahunAjaranId || kompleksitas === 0 || dayaDukung === 0 || intake === 0) {
-      return alert("Mohon lengkapi semua field formulir! (Mapel, Tahun Ajaran, Kompleksitas, Daya Dukung, Intake)");
+      return alert(
+        "Mohon lengkapi semua field formulir! (Mapel, Tahun Ajaran, Kompleksitas, Daya Dukung, Intake)"
+      );
     }
 
     const data = {
@@ -160,7 +192,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
       <div className="p-fluid">
         {loadingData && (
           <div className="text-center mb-3">
-            <i className="pi pi-spin pi-spinner" style={{ fontSize: '2rem' }}></i>
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: "2rem" }}></i>
             <p>Memuat data...</p>
           </div>
         )}
@@ -168,12 +200,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
         {/* Kode KKM */}
         <div className="field">
           <label htmlFor="kodeKKM">Kode KKM</label>
-          <InputText
-            id="kodeKKM"
-            value={kodeKKM}
-            disabled
-            className="p-disabled"
-          />
+          <InputText id="kodeKKM" value={kodeKKM} disabled className="p-disabled" />
           {!selectedKKM && <small className="text-gray-500">Kode dibuat otomatis</small>}
         </div>
 
@@ -191,6 +218,8 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
             filter
             showClear
             disabled={loadingData}
+            itemTemplate={mapelOptionTemplate} // ✅ tampilkan nama + tag kode
+            valueTemplate={mapelValueTemplate} // ✅ tampilan saat terpilih
           />
         </div>
 
@@ -266,9 +295,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
             disabled
             className="p-disabled"
           />
-          <small className="text-gray-500">
-            Rumus: (Kompleksitas + Daya Dukung + Intake) / 3
-          </small>
+          <small className="text-gray-500">Rumus: (Kompleksitas + Daya Dukung + Intake) / 3</small>
         </div>
 
         {/* Keterangan */}
