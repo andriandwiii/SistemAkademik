@@ -78,7 +78,8 @@ const AppMenu = () => {
                         icon: "pi pi-fw pi-users",
                         items: [
                             { label: "Guru", icon: "pi pi-fw pi-users", to: "/master/guru" },
-                            { label: "Transaksi Wali Kelas", icon: "pi pi-fw pi-user-edit", to: "/master/transaksi-wakel" }
+                            { label: "Transaksi Wali Kelas", icon: "pi pi-fw pi-user-edit", to: "/master/transaksi-wakel" },
+                            { label: "Absensi Guru", icon: "pi pi-fw pi-user-edit", to: "/master/absensi-guru" }
                         ]
                     },
                     {
