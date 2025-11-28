@@ -437,84 +437,101 @@ export default function EntryNilaiPage() {
       <h2 className="text-2xl font-bold mb-4">Entry Nilai Siswa</h2>
 
       {/* ============================ FILTER ============================ */}
-      <div className="card mb-4 p-4 bg-white shadow-sm border-round">
-        <div className="grid gap-3">
-          
-          <div className="col-12 md:col-3">
-            <label className="block font-medium text-sm mb-2">Tahun Ajaran</label>
+      {/* ============================ FILTER ============================ */}
+      <div className="card mb-4 p-4 bg-white shadow-sm rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+          {/* Tahun Ajaran */}
+          <div className="col-span-12 md:col-span-3">
+            <label className="block text-sm font-medium mb-2">Tahun Ajaran</label>
             <Dropdown
               value={filters.TAHUN_AJARAN_ID}
               options={opsiTahun}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                TAHUN_AJARAN_ID: e.value,
-                TINGKATAN_ID: "",
-                JURUSAN_ID: "",
-                KELAS_ID: "",
-                KODE_MAPEL: ""
-              })}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  TAHUN_AJARAN_ID: e.value,
+                  TINGKATAN_ID: "",
+                  JURUSAN_ID: "",
+                  KELAS_ID: "",
+                  KODE_MAPEL: "",
+                })
+              }
               placeholder="Pilih Tahun"
               className="w-full"
+              aria-label="Pilih Tahun Ajaran"
             />
           </div>
 
-          <div className="col-12 md:col-2">
-            <label className="block font-medium text-sm mb-2">Tingkat</label>
+          {/* Tingkat */}
+          <div className="col-span-12 md:col-span-2">
+            <label className="block text-sm font-medium mb-2">Tingkat</label>
             <Dropdown
               value={filters.TINGKATAN_ID}
               options={opsiTingkat}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                TINGKATAN_ID: e.value,
-                KELAS_ID: "",
-                KODE_MAPEL: ""
-              })}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  TINGKATAN_ID: e.value,
+                  KELAS_ID: "",
+                  KODE_MAPEL: "",
+                })
+              }
               placeholder="Pilih Tingkat"
               className="w-full"
+              aria-label="Pilih Tingkat"
             />
           </div>
 
-          <div className="col-12 md:col-3">
-            <label className="block font-medium text-sm mb-2">Jurusan</label>
+          {/* Jurusan */}
+          <div className="col-span-12 md:col-span-3">
+            <label className="block text-sm font-medium mb-2">Jurusan</label>
             <Dropdown
               value={filters.JURUSAN_ID}
               options={opsiJurusan}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                JURUSAN_ID: e.value,
-                KELAS_ID: "",
-                KODE_MAPEL: ""
-              })}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  JURUSAN_ID: e.value,
+                  KELAS_ID: "",
+                  KODE_MAPEL: "",
+                })
+              }
               placeholder="Pilih Jurusan"
               className="w-full"
               showClear
+              aria-label="Pilih Jurusan"
             />
           </div>
 
-          <div className="col-12 md:col-2">
-            <label className="block font-medium text-sm mb-2">Kelas</label>
+          {/* Kelas */}
+          <div className="col-span-12 md:col-span-2">
+            <label className="block text-sm font-medium mb-2">Kelas</label>
             <Dropdown
               value={filters.KELAS_ID}
               options={kelasFiltered}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                KELAS_ID: e.value,
-                KODE_MAPEL: "" 
-              })}
+              onChange={(e) =>
+                setFilters({
+                  ...filters,
+                  KELAS_ID: e.value,
+                  KODE_MAPEL: "",
+                })
+              }
               placeholder="Pilih Kelas"
               className="w-full"
               disabled={!filters.TAHUN_AJARAN_ID || kelasFiltered.length === 0}
-              emptyMessage="Tidak ada kelas untuk tahun ajaran ini"
+              emptyMessage="Tidak ada kelas untuk tahun ini"
+              aria-label="Pilih Kelas"
             />
-            {kelasFiltered.length === 0 && filters.TAHUN_AJARAN_ID && (
-              <small className="text-orange-500">Pilih tahun ajaran terlebih dahulu</small>
+            {filters.TAHUN_AJARAN_ID && kelasFiltered.length === 0 && (
+              <p className="mt-2 text-xs text-orange-600">Kelas untuk tahun ajaran ini belum tersedia.</p>
             )}
           </div>
 
-          <div className="col-12 md:col-2">
-            <label className="block font-medium text-sm mb-2">
-              Mata Pelajaran 
-              {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm"></i>}
+          {/* Mata Pelajaran */}
+          <div className="col-span-12 md:col-span-2">
+            <label className="block text-sm font-medium mb-2">
+              Mata Pelajaran
+              {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm" aria-hidden />}
             </label>
             <Dropdown
               value={filters.KODE_MAPEL}
@@ -525,29 +542,30 @@ export default function EntryNilaiPage() {
               filter
               disabled={!filters.KELAS_ID || loadingMapel}
               emptyMessage="Belum ada jadwal untuk kelas ini"
+              aria-label="Pilih Mata Pelajaran"
             />
-            {opsiMapel.length === 0 && filters.KELAS_ID && !loadingMapel && (
-              <small className="text-orange-500">Belum ada jadwal mapel</small>
+            {filters.KELAS_ID && !loadingMapel && opsiMapel.length === 0 && (
+              <p className="mt-2 text-xs text-orange-600">Belum ada jadwal mata pelajaran untuk kelas ini.</p>
             )}
           </div>
-
         </div>
 
         {/* Info KKM */}
-        {meta.kkm && students.length > 0 && (
-          <div className="mt-3 p-3 bg-blue-50 border-round">
-            <p className="m-0">
-              <strong>KKM:</strong> {meta.kkm} | 
-              <strong className="ml-3">Interval:</strong> 
+        {meta?.kkm && students.length > 0 && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-md">
+            <p className="m-0 text-sm">
+              <strong>KKM:</strong> {meta.kkm}
+              <strong className="ml-4">Interval:</strong>
               {Object.entries(meta.interval_predikat || {}).map(([key, val]) => (
-                <span key={key} className="ml-2">
-                  <Tag value={key} className="mr-1" /> {val}
+                <span key={key} className="inline-flex items-center ml-3 text-sm">
+                  <Tag value={key} className="mr-2" /> <span>{val}</span>
                 </span>
               ))}
             </p>
           </div>
         )}
       </div>
+
 
       {/* =============================== TABLE ================================ */}
       {loading && (

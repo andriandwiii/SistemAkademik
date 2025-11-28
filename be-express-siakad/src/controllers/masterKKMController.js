@@ -21,6 +21,7 @@ export const createKKM = async (req, res) => {
   try {
     const {
       KODE_MAPEL,
+      TAHUN_AJARAN_ID, // ✅ WAJIB ADA
       KOMPLEKSITAS,
       DAYA_DUKUNG,
       INTAKE,
@@ -28,11 +29,11 @@ export const createKKM = async (req, res) => {
       STATUS,
     } = req.body;
 
-    // Validasi field wajib
-    if (!KODE_MAPEL || KOMPLEKSITAS === undefined || DAYA_DUKUNG === undefined || INTAKE === undefined) {
+    // ✅ Validasi field wajib (TAMBAH TAHUN_AJARAN_ID)
+    if (!KODE_MAPEL || !TAHUN_AJARAN_ID || KOMPLEKSITAS === undefined || DAYA_DUKUNG === undefined || INTAKE === undefined) {
       return res.status(400).json({
         status: "99",
-        message: "Semua field wajib diisi (KODE_MAPEL, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
+        message: "Semua field wajib diisi (KODE_MAPEL, TAHUN_AJARAN_ID, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
       });
     }
 
@@ -41,6 +42,15 @@ export const createKKM = async (req, res) => {
       return res.status(400).json({
         status: "99",
         message: "KOMPLEKSITAS, DAYA_DUKUNG, dan INTAKE harus berupa angka",
+      });
+    }
+
+    // ✅ CEK DUPLIKAT: Satu mapel hanya boleh punya 1 KKM per tahun ajaran
+    const existing = await MasterKKMModel.checkDuplicate(KODE_MAPEL, TAHUN_AJARAN_ID);
+    if (existing) {
+      return res.status(409).json({
+        status: "99",
+        message: `KKM untuk mapel ${KODE_MAPEL} tahun ajaran ${TAHUN_AJARAN_ID} sudah ada`,
       });
     }
 
@@ -53,6 +63,7 @@ export const createKKM = async (req, res) => {
     const result = await MasterKKMModel.createKKM({
       KODE_KKM,
       KODE_MAPEL,
+      TAHUN_AJARAN_ID, // ✅ TAMBAHKAN
       KOMPLEKSITAS: Number(KOMPLEKSITAS),
       DAYA_DUKUNG: Number(DAYA_DUKUNG),
       INTAKE: Number(INTAKE),
@@ -72,7 +83,7 @@ export const createKKM = async (req, res) => {
     if (err.code === "ER_DUP_ENTRY") {
       return res.status(400).json({
         status: "99",
-        message: "Kode KKM sudah digunakan",
+        message: "KKM untuk mapel dan tahun ajaran ini sudah ada",
       });
     }
 
@@ -86,6 +97,7 @@ export const updateKKM = async (req, res) => {
     const { id } = req.params;
     const {
       KODE_MAPEL,
+      TAHUN_AJARAN_ID, // ✅ WAJIB ADA
       KOMPLEKSITAS,
       DAYA_DUKUNG,
       INTAKE,
@@ -93,11 +105,11 @@ export const updateKKM = async (req, res) => {
       STATUS,
     } = req.body;
 
-    // Validasi field wajib - KODE_KKM tidak perlu dikirim dari frontend
-    if (!KODE_MAPEL || KOMPLEKSITAS === undefined || DAYA_DUKUNG === undefined || INTAKE === undefined) {
+    // ✅ Validasi field wajib
+    if (!KODE_MAPEL || !TAHUN_AJARAN_ID || KOMPLEKSITAS === undefined || DAYA_DUKUNG === undefined || INTAKE === undefined) {
       return res.status(400).json({
         status: "99",
-        message: "Semua field wajib diisi (KODE_MAPEL, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
+        message: "Semua field wajib diisi (KODE_MAPEL, TAHUN_AJARAN_ID, KOMPLEKSITAS, DAYA_DUKUNG, INTAKE)",
       });
     }
 
@@ -118,12 +130,22 @@ export const updateKKM = async (req, res) => {
       });
     }
 
+    // ✅ CEK DUPLIKAT (kecuali diri sendiri)
+    const duplicate = await MasterKKMModel.checkDuplicateExcept(KODE_MAPEL, TAHUN_AJARAN_ID, id);
+    if (duplicate) {
+      return res.status(409).json({
+        status: "99",
+        message: `KKM untuk mapel ${KODE_MAPEL} tahun ajaran ${TAHUN_AJARAN_ID} sudah ada`,
+      });
+    }
+
     // 🔹 Hitung ulang KKM otomatis
     const KKM = Math.round((Number(KOMPLEKSITAS) + Number(DAYA_DUKUNG) + Number(INTAKE)) / 3);
 
     const updated = await MasterKKMModel.updateKKM(id, {
       KODE_KKM: existing.KODE_KKM, // Gunakan kode KKM yang sudah ada
       KODE_MAPEL,
+      TAHUN_AJARAN_ID, // ✅ TAMBAHKAN
       KOMPLEKSITAS: Number(KOMPLEKSITAS),
       DAYA_DUKUNG: Number(DAYA_DUKUNG),
       INTAKE: Number(INTAKE),
@@ -139,12 +161,6 @@ export const updateKKM = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error updateKKM:", err);
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(400).json({
-        status: "99",
-        message: "Kode KKM sudah digunakan",
-      });
-    }
     res.status(500).json({ status: "99", message: err.message });
   }
 };

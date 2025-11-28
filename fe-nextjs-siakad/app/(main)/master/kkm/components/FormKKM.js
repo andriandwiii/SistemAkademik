@@ -10,6 +10,7 @@ import { Button } from "primereact/button";
 const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
   const [kodeKKM, setKodeKKM] = useState("");
   const [mapelId, setMapelId] = useState(null);
+  const [tahunAjaranId, setTahunAjaranId] = useState(null); // ✅ TAMBAH
   const [kompleksitas, setKompleksitas] = useState(0);
   const [dayaDukung, setDayaDukung] = useState(0);
   const [intake, setIntake] = useState(0);
@@ -17,6 +18,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
   const [status, setStatus] = useState("Aktif");
 
   const [mapelOptions, setMapelOptions] = useState([]);
+  const [tahunOptions, setTahunOptions] = useState([]); // ✅ TAMBAH
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -54,13 +56,14 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
       if (!visible) return;
 
       setLoadingData(true);
-      await fetchMapel();
+      await Promise.all([fetchMapel(), fetchTahunAjaran()]); // ✅ FETCH TAHUN AJARAN
       setLoadingData(false);
 
       if (selectedKKM) {
         // MODE EDIT
         setKodeKKM(selectedKKM.KODE_KKM || "");
         setMapelId(selectedKKM.KODE_MAPEL || null);
+        setTahunAjaranId(selectedKKM.TAHUN_AJARAN_ID || null); // ✅ SET TAHUN AJARAN
         setKompleksitas(selectedKKM.KOMPLEKSITAS || 0);
         setDayaDukung(selectedKKM.DAYA_DUKUNG || 0);
         setIntake(selectedKKM.INTAKE || 0);
@@ -71,6 +74,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
         const newKode = generateKodeKKM();
         setKodeKKM(newKode);
         setMapelId(null);
+        setTahunAjaranId(null); // ✅ RESET TAHUN AJARAN
         setKompleksitas(0);
         setDayaDukung(0);
         setIntake(0);
@@ -82,6 +86,26 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
     initForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, selectedKKM, token]);
+
+  // ✅ FETCH TAHUN AJARAN
+  const fetchTahunAjaran = async () => {
+    try {
+      const res = await fetch(`${API_URL}/master-tahun-ajaran`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      const data = json.data || [];
+
+      setTahunOptions(
+        data.map((t) => ({
+          label: `${t.NAMA_TAHUN_AJARAN} (${t.STATUS})`,
+          value: t.TAHUN_AJARAN_ID,
+        }))
+      );
+    } catch (err) {
+      console.error("Gagal memuat data tahun ajaran:", err);
+    }
+  };
 
   // Fetch Mata Pelajaran
   const fetchMapel = async () => {
@@ -105,13 +129,14 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
 
   // Submit Form
   const handleSubmit = async () => {
-    // Validasi
-    if (!mapelId || kompleksitas === 0 || dayaDukung === 0 || intake === 0) {
-      return alert("Mohon lengkapi semua field formulir!");
+    // ✅ VALIDASI TAMBAH TAHUN AJARAN
+    if (!mapelId || !tahunAjaranId || kompleksitas === 0 || dayaDukung === 0 || intake === 0) {
+      return alert("Mohon lengkapi semua field formulir! (Mapel, Tahun Ajaran, Kompleksitas, Daya Dukung, Intake)");
     }
 
     const data = {
       KODE_MAPEL: mapelId,
+      TAHUN_AJARAN_ID: tahunAjaranId, // ✅ KIRIM TAHUN AJARAN
       KOMPLEKSITAS: kompleksitas,
       DAYA_DUKUNG: dayaDukung,
       INTAKE: intake,
@@ -128,7 +153,7 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
     <Dialog
       header={selectedKKM ? "Edit Data KKM" : "Tambah Data KKM"}
       visible={visible}
-      style={{ width: "30vw" }}
+      style={{ width: "35vw" }}
       modal
       onHide={onHide}
     >
@@ -154,7 +179,9 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
 
         {/* Mata Pelajaran */}
         <div className="field">
-          <label htmlFor="mapel">Mata Pelajaran</label>
+          <label htmlFor="mapel">
+            Mata Pelajaran <span className="text-red-500">*</span>
+          </label>
           <Dropdown
             id="mapel"
             value={mapelId}
@@ -165,6 +192,24 @@ const FormKKM = ({ visible, onHide, onSave, selectedKKM, token, kkmList }) => {
             showClear
             disabled={loadingData}
           />
+        </div>
+
+        {/* ✅ TAHUN AJARAN */}
+        <div className="field">
+          <label htmlFor="tahun">
+            Tahun Ajaran <span className="text-red-500">*</span>
+          </label>
+          <Dropdown
+            id="tahun"
+            value={tahunAjaranId}
+            options={tahunOptions}
+            onChange={(e) => setTahunAjaranId(e.value)}
+            placeholder="Pilih Tahun Ajaran"
+            filter
+            showClear
+            disabled={loadingData}
+          />
+          <small className="text-gray-500">KKM berlaku untuk tahun ajaran tertentu</small>
         </div>
 
         {/* Kompleksitas */}

@@ -6,20 +6,16 @@ const table = "master_predikat";
 const formatRow = (r) => ({
   ID: r.ID,
   KODE_PREDIKAT: r.KODE_PREDIKAT,
-  mapel: {
-    KODE_MAPEL: r.KODE_MAPEL,
-    NAMA_MAPEL: r.NAMA_MAPEL || r.KODE_MAPEL, // Fallback jika nama tidak ketemu
-  },
+  TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID, // ✅ Flat field
   tahun_ajaran: {
     TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID,
     NAMA_TAHUN_AJARAN: r.NAMA_TAHUN_AJARAN,
   },
-  target: {
+  TINGKATAN_ID: r.TINGKATAN_ID, // ✅ Flat field (nullable)
+  tingkatan: r.TINGKATAN_ID ? {
     TINGKATAN_ID: r.TINGKATAN_ID,
-    JURUSAN_ID: r.JURUSAN_ID || null,      // Null jika berlaku umum
-    NAMA_JURUSAN: r.NAMA_JURUSAN || "Semua Jurusan",
-    KELAS_ID: r.KELAS_ID || null,          // Null jika berlaku umum
-  },
+    TINGKATAN: r.TINGKATAN || r.TINGKATAN_ID,
+  } : null,
   deskripsi: {
     A: r.DESKRIPSI_A,
     B: r.DESKRIPSI_B,
@@ -35,35 +31,28 @@ const baseQuery = (trx = db) =>
   trx(`${table} as p`)
     .select(
       "p.*",
-      "mp.NAMA_MAPEL",
       "ta.NAMA_TAHUN_AJARAN",
-      "mj.NAMA_JURUSAN"
-      // Tidak perlu join master_kelas/tingkatan jika hanya butuh ID, 
-      // tapi kalau mau nama kelas bisa ditambah join ke master_kelas
+      "mt.TINGKATAN"
     )
-    .leftJoin("master_mata_pelajaran as mp", "p.KODE_MAPEL", "mp.KODE_MAPEL")
     .leftJoin("master_tahun_ajaran as ta", "p.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID")
-    .leftJoin("master_jurusan as mj", "p.JURUSAN_ID", "mj.JURUSAN_ID");
+    .leftJoin("master_tingkatan as mt", "p.TINGKATAN_ID", "mt.TINGKATAN_ID");
 
 // =================================================================
 // READ DATA
 // =================================================================
 
-// Ambil semua data predikat (Bisa difilter per Tahun Aktif seperti contoh Anda)
+/** 🔹 Ambil semua data predikat (Filter tahun ajaran aktif) */
 export const getAllPredikat = async () => {
-  // 1. Dapatkan SEMUA ID Tahun Ajaran yang 'Aktif'
   const daftarTA = await db("master_tahun_ajaran")
     .where("STATUS", "Aktif")
     .select("TAHUN_AJARAN_ID");
 
   const daftarID_TA = daftarTA.map((ta) => ta.TAHUN_AJARAN_ID);
 
-  // Jika tidak ada tahun aktif, return kosong
   if (!daftarID_TA || daftarID_TA.length === 0) {
     return [];
   }
 
-  // 2. Ambil data predikat berdasarkan Tahun Aktif
   const rows = await baseQuery()
     .whereIn("p.TAHUN_AJARAN_ID", daftarID_TA)
     .orderBy("p.ID", "desc");
@@ -71,14 +60,43 @@ export const getAllPredikat = async () => {
   return rows.map(formatRow);
 };
 
-// Ambil satu data by ID (Untuk Form Edit)
+/** 🔹 Ambil satu data by ID */
 export const getPredikatById = async (id) => {
   const row = await baseQuery().where("p.ID", id).first();
   return row ? formatRow(row) : null;
 };
 
+/** 🔹 Cek duplikat predikat (tahun + tingkatan) */
+export const checkDuplicate = async (TAHUN_AJARAN_ID, TINGKATAN_ID) => {
+  const query = db(table)
+    .where("TAHUN_AJARAN_ID", TAHUN_AJARAN_ID);
+
+  if (TINGKATAN_ID) {
+    query.where("TINGKATAN_ID", TINGKATAN_ID);
+  } else {
+    query.whereNull("TINGKATAN_ID");
+  }
+
+  return query.first();
+};
+
+/** 🔹 Cek duplikat kecuali ID tertentu (untuk update) */
+export const checkDuplicateExcept = async (TAHUN_AJARAN_ID, TINGKATAN_ID, excludeId) => {
+  const query = db(table)
+    .where("TAHUN_AJARAN_ID", TAHUN_AJARAN_ID)
+    .whereNot("ID", excludeId);
+
+  if (TINGKATAN_ID) {
+    query.where("TINGKATAN_ID", TINGKATAN_ID);
+  } else {
+    query.whereNull("TINGKATAN_ID");
+  }
+
+  return query.first();
+};
+
 // =================================================================
-// CREATE DATA (Dengan Custom ID & Cek Duplikat)
+// CREATE DATA
 // =================================================================
 
 export const createPredikat = async (data) => {
@@ -88,45 +106,29 @@ export const createPredikat = async (data) => {
       .select("KODE_PREDIKAT")
       .orderBy("ID", "desc")
       .first()
-      .forUpdate(); // Lock row agar aman saat concurrent request
+      .forUpdate();
 
     let nextNumber = 1;
     if (last && last.KODE_PREDIKAT) {
-      // Hapus prefix "PRED-" dan ambil angkanya
       const numericPart = parseInt(last.KODE_PREDIKAT.replace("PRED-", ""), 10);
       if (!isNaN(numericPart)) nextNumber = numericPart + 1;
     }
-    // PadStart membuat angka 1 menjadi 000001
     const newKode = `PRED-${nextNumber.toString().padStart(6, "0")}`;
 
-    // 2. Cek Duplikat
-    // Tidak boleh ada Predikat untuk Mapel, Tahun, Tingkat, Jurusan, Kelas yang sama persis
-    const existing = await trx(table)
-      .where({
-        KODE_MAPEL: data.KODE_MAPEL,
-        TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID,
-        TINGKATAN_ID: data.TINGKATAN_ID,
-        JURUSAN_ID: data.JURUSAN_ID || null, // Handle null
-        KELAS_ID: data.KELAS_ID || null      // Handle null
-      })
-      .first();
-
-    if (existing) {
-      throw new Error("Data Predikat untuk Mapel & Kelas/Tingkat ini sudah ada.");
-    }
-
-    // 3. Insert Data
+    // 2. Insert Data
     const insertData = {
-      ...data,
       KODE_PREDIKAT: newKode,
-      // Pastikan field null dihandle agar tidak masuk sebagai string "null" atau undefined
-      JURUSAN_ID: data.JURUSAN_ID || null,
-      KELAS_ID: data.KELAS_ID || null,
+      TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID,
+      TINGKATAN_ID: data.TINGKATAN_ID || null,
+      DESKRIPSI_A: data.DESKRIPSI_A,
+      DESKRIPSI_B: data.DESKRIPSI_B,
+      DESKRIPSI_C: data.DESKRIPSI_C,
+      DESKRIPSI_D: data.DESKRIPSI_D,
     };
 
     const [id] = await trx(table).insert(insertData);
 
-    // 4. Return Data Baru
+    // 3. Return Data Baru
     const row = await baseQuery(trx).where("p.ID", id).first();
     return formatRow(row);
   });
@@ -138,16 +140,20 @@ export const createPredikat = async (data) => {
 
 export const updatePredikat = async (id, data) => {
   const existing = await db(table).where({ ID: id }).first();
-  if (!existing) return null; // Atau throw error not found
+  if (!existing) return null;
 
-  // Hapus field yang tidak boleh diedit user (opsional, untuk keamanan)
+  // Hapus field yang tidak boleh diedit
   delete data.ID;
-  delete data.KODE_PREDIKAT; 
+  delete data.KODE_PREDIKAT;
 
   await db(table).where({ ID: id }).update({
-    ...data,
-    JURUSAN_ID: data.JURUSAN_ID || null,
-    KELAS_ID: data.KELAS_ID || null,
+    TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID,
+    TINGKATAN_ID: data.TINGKATAN_ID !== undefined ? data.TINGKATAN_ID : existing.TINGKATAN_ID,
+    DESKRIPSI_A: data.DESKRIPSI_A,
+    DESKRIPSI_B: data.DESKRIPSI_B,
+    DESKRIPSI_C: data.DESKRIPSI_C,
+    DESKRIPSI_D: data.DESKRIPSI_D,
+    updated_at: db.fn.now(),
   });
 
   const row = await baseQuery().where("p.ID", id).first();
@@ -159,5 +165,5 @@ export const deletePredikat = async (id) => {
   if (!existing) return null;
 
   await db(table).where({ ID: id }).del();
-  return existing; // Mengembalikan data yang dihapus (biasanya untuk notifikasi frontend)
+  return existing;
 };

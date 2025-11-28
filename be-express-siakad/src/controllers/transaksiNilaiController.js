@@ -1,4 +1,4 @@
-import * as NilaiModel from "../models/TransaksiNilaiModel.js";
+import * as NilaiModel from "../models/transaksiNilaiModel.js";
 
 /* ===========================================================
  * HELPER: HITUNG PREDIKAT BERDASARKAN KKM DINAMIS
