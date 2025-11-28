@@ -1,6 +1,6 @@
 /**
- * Migration: Create Master Predikat
- * Predikat dapat berlaku per tahun ajaran, atau per tahun + tingkatan
+ * Predikat per mata pelajaran per tahun ajaran
+ * Setiap mapel punya template deskripsi berbeda
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
@@ -12,6 +12,16 @@ export async function up(knex) {
     // Kode predikat
     table.string("KODE_PREDIKAT", 50).notNullable().unique();
 
+    // ✅ Relasi ke mata pelajaran (WAJIB)
+    table
+      .string("KODE_MAPEL", 8)
+      .notNullable()
+      .references("KODE_MAPEL")
+      .inTable("master_mata_pelajaran")
+      .onUpdate("CASCADE")
+      .onDelete("RESTRICT")
+      .comment("Predikat terikat ke mapel");
+
     // Relasi ke tahun ajaran
     table
       .string("TAHUN_AJARAN_ID", 10)
@@ -21,15 +31,8 @@ export async function up(knex) {
       .onUpdate("CASCADE")
       .onDelete("RESTRICT");
 
-    // Predikat opsional per tingkatan
-    table
-      .string("TINGKATAN_ID", 6)
-      .nullable()
-      .references("TINGKATAN_ID")
-      .inTable("master_tingkatan")
-      .onUpdate("CASCADE")
-      .onDelete("RESTRICT")
-      .comment("Kosongkan jika berlaku untuk semua tingkat");
+    // ❌ HAPUS TINGKATAN_ID (tidak diperlukan lagi)
+    // Predikat sudah spesifik per mapel, tidak perlu per tingkatan
 
     // Template deskripsi A–D
     table
@@ -58,8 +61,8 @@ export async function up(knex) {
       knex.raw("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
     );
 
-    // Unique constraint: 1 predikat per tahun / (tahun + tingkatan)
-    table.unique(["TAHUN_AJARAN_ID", "TINGKATAN_ID"], "uniq_tahun_tingkat");
+    // ✅ Unique constraint: 1 predikat per mapel per tahun ajaran
+    table.unique(["KODE_MAPEL", "TAHUN_AJARAN_ID"], "uniq_mapel_tahun");
   });
 }
 

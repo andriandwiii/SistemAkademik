@@ -7,26 +7,25 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
-import { Tag } from "primereact/tag"; // ✅ import Tag
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
-  // ✅ STATE - MAPEL + TAHUN AJARAN
+  // STATE - MAPEL + TAHUN AJARAN
   const [formData, setFormData] = useState({
-    KODE_MAPEL: "",        // ✅ WAJIB
-    TAHUN_AJARAN_ID: "",   // ✅ WAJIB
+    KODE_MAPEL: "",
+    TAHUN_AJARAN_ID: "",
     DESKRIPSI_A: "",
     DESKRIPSI_B: "",
     DESKRIPSI_C: "",
     DESKRIPSI_D: "",
   });
 
-  // ✅ OPSI DROPDOWN
+  // OPSI DROPDOWN
   const [opsiTahun, setOpsiTahun] = useState([]);
   const [opsiMapel, setOpsiMapel] = useState([]);
 
-  // ✅ FETCH MASTER DATA
+  // FETCH MASTER DATA
   useEffect(() => {
     const fetchMasterData = async () => {
       if (!visible) return;
@@ -34,19 +33,20 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
       try {
         // Fetch Master Tahun Ajaran
         const resTahun = await axios.get(`${API_URL}/master-tahun-ajaran`);
-        const dataTahun = (resTahun.data.data || []).map((item) => ({
+        const dataTahun = resTahun.data.data.map((item) => ({
           label: `${item.NAMA_TAHUN_AJARAN} (${item.STATUS})`,
           value: item.TAHUN_AJARAN_ID,
         }));
         setOpsiTahun(dataTahun);
 
-        // ✅ Fetch Master Mata Pelajaran
+        // ✅ Fetch Master Mata Pelajaran - TAMPILKAN KODE MAPEL
         const resMapel = await axios.get(`${API_URL}/master-mata-pelajaran`);
-        const dataMapel = (resMapel.data.data || []).map((item) => ({
-          label: item.NAMA_MAPEL,
+        const dataMapel = resMapel.data.data.map((item) => ({
+          label: `${item.NAMA_MAPEL} (${item.KODE_MAPEL})`, // ✅ TAMBAH KODE
           value: item.KODE_MAPEL,
         }));
         setOpsiMapel(dataMapel);
+
       } catch (error) {
         console.error("Gagal mengambil data master:", error);
       }
@@ -55,7 +55,7 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
     fetchMasterData();
   }, [visible]);
 
-  // ✅ MAPPING DATA EDIT
+  // MAPPING DATA EDIT
   useEffect(() => {
     if (selectedItem) {
       setFormData({
@@ -86,19 +86,14 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
 
   // Handle Submit
   const handleSubmit = () => {
-    // ✅ VALIDASI - MAPEL + TAHUN WAJIB
+    // VALIDASI - MAPEL + TAHUN WAJIB
     if (!formData.KODE_MAPEL || !formData.TAHUN_AJARAN_ID) {
       alert("Harap pilih Mata Pelajaran dan Tahun Ajaran!");
       return;
     }
 
     // Validasi Isi Deskripsi (Minimal satu terisi)
-    if (
-      !formData.DESKRIPSI_A &&
-      !formData.DESKRIPSI_B &&
-      !formData.DESKRIPSI_C &&
-      !formData.DESKRIPSI_D
-    ) {
+    if (!formData.DESKRIPSI_A && !formData.DESKRIPSI_B && !formData.DESKRIPSI_C && !formData.DESKRIPSI_D) {
       alert("Harap isi minimal satu deskripsi predikat (A/B/C/D).");
       return;
     }
@@ -106,42 +101,6 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
     // Kirim ke Parent Component
     onSave(formData);
   };
-
-  // ----------------------------
-  // ✅ CUSTOM TEMPLATES DROPDOWN
-  // ----------------------------
-  // Template untuk list item (option)
-  const mapelOptionTemplate = (option) => {
-    if (!option) return null;
-    // Jika label punya tambahan seperti "Nama Mapel (INFO)" kita tampilkan bagian sebelum " ("
-    const nama = option.label?.split(" (")[0] ?? option.label;
-    return (
-      <div className="flex align-items-center gap-2">
-        <span>{nama}</span>
-        <Tag value={option.value} severity="info" className="text-xs" />
-      </div>
-    );
-  };
-
-  // Template untuk tampilan value terpilih
-  const mapelValueTemplate = (selected) => {
-    if (!selected) return <span className="text-500">Pilih Mata Pelajaran</span>;
-    // selected bisa berupa object option atau string, handle keduanya
-    const opt =
-      typeof selected === "object" && selected !== null
-        ? selected
-        : opsiMapel.find((o) => o.value === selected);
-    if (!opt) return <span>{selected}</span>;
-    const nama = opt.label?.split(" (")[0] ?? opt.label;
-    return (
-      <div className="flex align-items-center gap-2">
-        <span>{nama}</span>
-        <Tag value={opt.value} severity="info" className="text-xs" />
-      </div>
-    );
-  };
-
-  // ----------------------------
 
   return (
     <Dialog
@@ -153,11 +112,12 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
       onHide={onHide}
       className="p-fluid"
     >
-      {/* ✅ BAGIAN 1: TARGET PREDIKAT - PER MAPEL */}
+      {/* BAGIAN 1: TARGET PREDIKAT - PER MAPEL */}
       <div className="card mb-3 p-3 border-1 surface-border border-round-md surface-ground">
         <h5 className="mb-3 text-color-secondary">Target Sasaran</h5>
         <div className="formgrid grid">
-          {/* ✅ Mata Pelajaran (WAJIB) */}
+          
+          {/* ✅ Mata Pelajaran (WAJIB) - DENGAN KODE */}
           <div className="field col-12 md:col-6">
             <label htmlFor="mapel">
               Mata Pelajaran <span className="text-red-500">*</span>
@@ -169,10 +129,13 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
               onChange={(e) => handleChange("KODE_MAPEL", e.value)}
               placeholder="Pilih Mata Pelajaran"
               filter
-              itemTemplate={mapelOptionTemplate} // ✅ Tambahan
-              valueTemplate={mapelValueTemplate} // ✅ Tambahan - tampilan nilai terpilih
+              filterPlaceholder="Cari mata pelajaran..."
               emptyMessage="Tidak ada data mata pelajaran"
+              emptyFilterMessage="Tidak ditemukan"
             />
+            <small className="text-gray-500">
+              Format: Nama Mapel (Kode)
+            </small>
           </div>
 
           {/* Tahun Ajaran (WAJIB) */}
@@ -190,23 +153,26 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
               emptyMessage="Tidak ada data tahun ajaran"
             />
           </div>
-
+          
           <div className="col-12">
-            <Message
-              severity="info"
-              text="Setiap mata pelajaran memiliki template deskripsi predikat yang berbeda-beda per tahun ajaran."
+            <Message 
+              severity="info" 
+              text="Setiap mata pelajaran memiliki template deskripsi predikat yang berbeda-beda per tahun ajaran." 
               className="w-full"
             />
           </div>
         </div>
       </div>
 
-      {/* ✅ BAGIAN 2: ISI DESKRIPSI */}
+      {/* BAGIAN 2: ISI DESKRIPSI */}
       <div className="card p-3 border-1 surface-border border-round-md">
         <h5 className="mb-3 text-color-secondary">Template Deskripsi Rapor</h5>
-
+        
         <div className="field col-12">
-          <label htmlFor="deskA">Predikat A (Sangat Baik)</label>
+          <label htmlFor="deskA">
+            Predikat A (Sangat Baik)
+            <span className="text-gray-500 ml-2 text-xs">Nilai: {">="} Batas B</span>
+          </label>
           <InputTextarea
             id="deskA"
             value={formData.DESKRIPSI_A}
@@ -218,7 +184,10 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
         </div>
 
         <div className="field col-12">
-          <label htmlFor="deskB">Predikat B (Baik)</label>
+          <label htmlFor="deskB">
+            Predikat B (Baik)
+            <span className="text-gray-500 ml-2 text-xs">Nilai: Batas C - Batas B</span>
+          </label>
           <InputTextarea
             id="deskB"
             value={formData.DESKRIPSI_B}
@@ -230,7 +199,10 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
         </div>
 
         <div className="field col-12">
-          <label htmlFor="deskC">Predikat C (Cukup)</label>
+          <label htmlFor="deskC">
+            Predikat C (Cukup)
+            <span className="text-gray-500 ml-2 text-xs">Nilai: KKM - Batas C</span>
+          </label>
           <InputTextarea
             id="deskC"
             value={formData.DESKRIPSI_C}
@@ -242,7 +214,10 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
         </div>
 
         <div className="field col-12">
-          <label htmlFor="deskD">Predikat D (Kurang)</label>
+          <label htmlFor="deskD">
+            Predikat D (Kurang)
+            <span className="text-gray-500 ml-2 text-xs">Nilai: {"<"} KKM</span>
+          </label>
           <InputTextarea
             id="deskD"
             value={formData.DESKRIPSI_D}
@@ -256,8 +231,18 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
 
       {/* Footer Buttons */}
       <div className="flex justify-content-end gap-2 mt-4">
-        <Button label="Batal" icon="pi pi-times" className="p-button-text" onClick={onHide} />
-        <Button label="Simpan Data" icon="pi pi-check" onClick={handleSubmit} autoFocus />
+        <Button 
+          label="Batal" 
+          icon="pi pi-times" 
+          className="p-button-text" 
+          onClick={onHide} 
+        />
+        <Button 
+          label="Simpan Data" 
+          icon="pi pi-check" 
+          onClick={handleSubmit} 
+          autoFocus 
+        />
       </div>
     </Dialog>
   );
