@@ -21,10 +21,10 @@ export const getMapelByKelas = async ({ KELAS_ID, TAHUN_AJARAN_ID }) => {
 };
 
 /* ===========================================================
- * GET ENTRY NILAI RAPOR (UPDATED - Predikat per Mapel)
+ * GET ENTRY NILAI RAPOR (NORMALIZED - NO transaksi_kkm)
  * Mengambil:
  * 1. KKM langsung dari master_kkm via jadwal
- * 2. Deskripsi predikat dari master_predikat (per mapel + tahun)
+ * 2. Deskripsi predikat dari master_predikat (global per tahun)
  * 3. Daftar siswa + nilai
  * ===========================================================
  */
@@ -61,7 +61,18 @@ export const getEntryNilaiRapor = async ({
   }
 
   /* -----------------------------------------------------------
-   * 2. ✅ AMBIL PREDIKAT TEMPLATE (PER MAPEL + TAHUN AJARAN)
+   * 2. AMBIL TINGKATAN DARI JADWAL (BUKAN DARI MASTER_KELAS)
+   * ----------------------------------------------------------- */
+  const kelasInfo = await db("master_jadwal as mj")
+    .select("mj.TINGKATAN_ID")
+    .where({
+      "mj.KELAS_ID": KELAS_ID,
+      "mj.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
+    .first();
+
+  /* -----------------------------------------------------------
+   * 3. AMBIL PREDIKAT TEMPLATE (global per tahun ajaran)
    * ----------------------------------------------------------- */
   const predikatData = await db("master_predikat as mp")
     .select(
@@ -70,18 +81,29 @@ export const getEntryNilaiRapor = async ({
       "mp.DESKRIPSI_C",
       "mp.DESKRIPSI_D"
     )
-    .where({
-      "mp.KODE_MAPEL": KODE_MAPEL,           // ✅ Filter by mapel
-      "mp.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID  // ✅ Filter by tahun
-    })
+    .where("mp.TAHUN_AJARAN_ID", TAHUN_AJARAN_ID)
+    .whereNull("mp.TINGKATAN_ID") // Ambil yang global dulu
     .first();
 
-  if (!predikatData) {
-    return null; // Predikat belum di-set untuk mapel ini
+  // Fallback: Jika tidak ada global, cari yang spesifik tingkatan
+  let finalPredikat = predikatData;
+  
+  if (!finalPredikat && kelasInfo && kelasInfo.TINGKATAN_ID) {
+    finalPredikat = await db("master_predikat")
+      .select("DESKRIPSI_A", "DESKRIPSI_B", "DESKRIPSI_C", "DESKRIPSI_D")
+      .where({
+        "TAHUN_AJARAN_ID": TAHUN_AJARAN_ID,
+        "TINGKATAN_ID": kelasInfo.TINGKATAN_ID
+      })
+      .first();
+  }
+
+  if (!finalPredikat) {
+    return null; // Predikat belum di-set
   }
 
   /* -----------------------------------------------------------
-   * 3. AMBIL SISWA + NILAI
+   * 4. AMBIL SISWA + NILAI
    * ----------------------------------------------------------- */
   const students = await db("transaksi_siswa_kelas as tsk")
     .join("master_siswa as s", "tsk.NIS", "s.NIS")
@@ -111,10 +133,10 @@ export const getEntryNilaiRapor = async ({
     daya_dukung: kkmData.DAYA_DUKUNG,
     intake: kkmData.INTAKE,
     deskripsi_template: {
-      A: predikatData.DESKRIPSI_A || "Sangat Baik",
-      B: predikatData.DESKRIPSI_B || "Baik",
-      C: predikatData.DESKRIPSI_C || "Cukup",
-      D: predikatData.DESKRIPSI_D || "Kurang"
+      A: finalPredikat.DESKRIPSI_A || "Sangat Baik",
+      B: finalPredikat.DESKRIPSI_B || "Baik",
+      C: finalPredikat.DESKRIPSI_C || "Cukup",
+      D: finalPredikat.DESKRIPSI_D || "Kurang"
     },
     siswa: students
   };

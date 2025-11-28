@@ -7,26 +7,25 @@ import { InputTextarea } from "primereact/inputtextarea";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
-import { Tag } from "primereact/tag"; // ✅ import Tag
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
-  // ✅ STATE - MAPEL + TAHUN AJARAN
+  // ✅ STATE SIMPLIFIED - HANYA TAHUN + TINGKATAN
   const [formData, setFormData] = useState({
-    KODE_MAPEL: "",        // ✅ WAJIB
-    TAHUN_AJARAN_ID: "",   // ✅ WAJIB
+    TAHUN_AJARAN_ID: "",
+    TINGKATAN_ID: null, // Nullable - kosong = berlaku untuk semua tingkatan
     DESKRIPSI_A: "",
     DESKRIPSI_B: "",
     DESKRIPSI_C: "",
     DESKRIPSI_D: "",
   });
 
-  // ✅ OPSI DROPDOWN
+  // ✅ OPSI DROPDOWN - HAPUS MAPEL, JURUSAN, KELAS
   const [opsiTahun, setOpsiTahun] = useState([]);
-  const [opsiMapel, setOpsiMapel] = useState([]);
+  const [opsiTingkat, setOpsiTingkat] = useState([]);
 
-  // ✅ FETCH MASTER DATA
+  // ✅ FETCH MASTER DATA - HANYA TAHUN + TINGKATAN
   useEffect(() => {
     const fetchMasterData = async () => {
       if (!visible) return;
@@ -34,19 +33,20 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
       try {
         // Fetch Master Tahun Ajaran
         const resTahun = await axios.get(`${API_URL}/master-tahun-ajaran`);
-        const dataTahun = (resTahun.data.data || []).map((item) => ({
+        const dataTahun = resTahun.data.data.map((item) => ({
           label: `${item.NAMA_TAHUN_AJARAN} (${item.STATUS})`,
           value: item.TAHUN_AJARAN_ID,
         }));
         setOpsiTahun(dataTahun);
 
-        // ✅ Fetch Master Mata Pelajaran
-        const resMapel = await axios.get(`${API_URL}/master-mata-pelajaran`);
-        const dataMapel = (resMapel.data.data || []).map((item) => ({
-          label: item.NAMA_MAPEL,
-          value: item.KODE_MAPEL,
+        // Fetch Master Tingkatan
+        const resTingkat = await axios.get(`${API_URL}/master-tingkatan`);
+        const dataTingkat = resTingkat.data.data.map((item) => ({
+          label: item.TINGKATAN, 
+          value: item.TINGKATAN_ID,
         }));
-        setOpsiMapel(dataMapel);
+        setOpsiTingkat(dataTingkat);
+
       } catch (error) {
         console.error("Gagal mengambil data master:", error);
       }
@@ -55,12 +55,12 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
     fetchMasterData();
   }, [visible]);
 
-  // ✅ MAPPING DATA EDIT
+  // ✅ MAPPING DATA EDIT - SIMPLIFIED
   useEffect(() => {
     if (selectedItem) {
       setFormData({
-        KODE_MAPEL: selectedItem.KODE_MAPEL || "",
         TAHUN_AJARAN_ID: selectedItem.TAHUN_AJARAN_ID || "",
+        TINGKATAN_ID: selectedItem.TINGKATAN_ID || null,
         DESKRIPSI_A: selectedItem.deskripsi?.A || "",
         DESKRIPSI_B: selectedItem.deskripsi?.B || "",
         DESKRIPSI_C: selectedItem.deskripsi?.C || "",
@@ -69,8 +69,8 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
     } else {
       // Reset form mode Tambah Baru
       setFormData({
-        KODE_MAPEL: "",
         TAHUN_AJARAN_ID: "",
+        TINGKATAN_ID: null,
         DESKRIPSI_A: "",
         DESKRIPSI_B: "",
         DESKRIPSI_C: "",
@@ -86,19 +86,14 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
 
   // Handle Submit
   const handleSubmit = () => {
-    // ✅ VALIDASI - MAPEL + TAHUN WAJIB
-    if (!formData.KODE_MAPEL || !formData.TAHUN_AJARAN_ID) {
-      alert("Harap pilih Mata Pelajaran dan Tahun Ajaran!");
+    // ✅ VALIDASI SIMPLIFIED - HANYA TAHUN AJARAN WAJIB
+    if (!formData.TAHUN_AJARAN_ID) {
+      alert("Harap pilih Tahun Ajaran!");
       return;
     }
 
     // Validasi Isi Deskripsi (Minimal satu terisi)
-    if (
-      !formData.DESKRIPSI_A &&
-      !formData.DESKRIPSI_B &&
-      !formData.DESKRIPSI_C &&
-      !formData.DESKRIPSI_D
-    ) {
+    if (!formData.DESKRIPSI_A && !formData.DESKRIPSI_B && !formData.DESKRIPSI_C && !formData.DESKRIPSI_D) {
       alert("Harap isi minimal satu deskripsi predikat (A/B/C/D).");
       return;
     }
@@ -107,74 +102,21 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
     onSave(formData);
   };
 
-  // ----------------------------
-  // ✅ CUSTOM TEMPLATES DROPDOWN
-  // ----------------------------
-  // Template untuk list item (option)
-  const mapelOptionTemplate = (option) => {
-    if (!option) return null;
-    // Jika label punya tambahan seperti "Nama Mapel (INFO)" kita tampilkan bagian sebelum " ("
-    const nama = option.label?.split(" (")[0] ?? option.label;
-    return (
-      <div className="flex align-items-center gap-2">
-        <span>{nama}</span>
-        <Tag value={option.value} severity="info" className="text-xs" />
-      </div>
-    );
-  };
-
-  // Template untuk tampilan value terpilih
-  const mapelValueTemplate = (selected) => {
-    if (!selected) return <span className="text-500">Pilih Mata Pelajaran</span>;
-    // selected bisa berupa object option atau string, handle keduanya
-    const opt =
-      typeof selected === "object" && selected !== null
-        ? selected
-        : opsiMapel.find((o) => o.value === selected);
-    if (!opt) return <span>{selected}</span>;
-    const nama = opt.label?.split(" (")[0] ?? opt.label;
-    return (
-      <div className="flex align-items-center gap-2">
-        <span>{nama}</span>
-        <Tag value={opt.value} severity="info" className="text-xs" />
-      </div>
-    );
-  };
-
-  // ----------------------------
-
   return (
     <Dialog
       header={selectedItem ? "Edit Deskripsi Predikat" : "Tambah Deskripsi Predikat"}
       visible={visible}
-      style={{ width: "50vw" }}
+      style={{ width: "45vw" }}
       breakpoints={{ "960px": "70vw", "641px": "95vw" }}
       modal
       onHide={onHide}
       className="p-fluid"
     >
-      {/* ✅ BAGIAN 1: TARGET PREDIKAT - PER MAPEL */}
+      {/* ✅ BAGIAN 1: TARGET PREDIKAT - SIMPLIFIED */}
       <div className="card mb-3 p-3 border-1 surface-border border-round-md surface-ground">
-        <h5 className="mb-3 text-color-secondary">Target Sasaran</h5>
+        <h5 className="mb-3 text-color-secondary">🎯 Target Sasaran</h5>
         <div className="formgrid grid">
-          {/* ✅ Mata Pelajaran (WAJIB) */}
-          <div className="field col-12 md:col-6">
-            <label htmlFor="mapel">
-              Mata Pelajaran <span className="text-red-500">*</span>
-            </label>
-            <Dropdown
-              id="mapel"
-              value={formData.KODE_MAPEL}
-              options={opsiMapel}
-              onChange={(e) => handleChange("KODE_MAPEL", e.value)}
-              placeholder="Pilih Mata Pelajaran"
-              filter
-              itemTemplate={mapelOptionTemplate} // ✅ Tambahan
-              valueTemplate={mapelValueTemplate} // ✅ Tambahan - tampilan nilai terpilih
-              emptyMessage="Tidak ada data mata pelajaran"
-            />
-          </div>
-
+          
           {/* Tahun Ajaran (WAJIB) */}
           <div className="field col-12 md:col-6">
             <label htmlFor="tahun">
@@ -191,10 +133,27 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
             />
           </div>
 
+          {/* Tingkatan (OPSIONAL) */}
+          <div className="field col-12 md:col-6">
+            <label htmlFor="tingkat">Tingkatan (Opsional)</label>
+            <Dropdown
+              id="tingkat"
+              value={formData.TINGKATAN_ID}
+              options={opsiTingkat}
+              onChange={(e) => handleChange("TINGKATAN_ID", e.value)}
+              placeholder="Semua Tingkatan"
+              showClear
+              emptyMessage="Tidak ada data tingkatan"
+            />
+            <small className="text-gray-500">
+              Kosongkan jika berlaku untuk semua tingkatan (10, 11, 12)
+            </small>
+          </div>
+          
           <div className="col-12">
-            <Message
-              severity="info"
-              text="Setiap mata pelajaran memiliki template deskripsi predikat yang berbeda-beda per tahun ajaran."
+            <Message 
+              severity="info" 
+              text="🔔 Predikat bersifat GLOBAL per tahun ajaran. Jika tingkatan dikosongkan, predikat akan berlaku untuk semua kelas." 
               className="w-full"
             />
           </div>
@@ -203,61 +162,82 @@ const FormPredikat = ({ visible, onHide, onSave, selectedItem }) => {
 
       {/* ✅ BAGIAN 2: ISI DESKRIPSI */}
       <div className="card p-3 border-1 surface-border border-round-md">
-        <h5 className="mb-3 text-color-secondary">Template Deskripsi Rapor</h5>
-
-        <div className="field col-12">
-          <label htmlFor="deskA">Predikat A (Sangat Baik)</label>
+        <h5 className="mb-3 text-color-secondary">📝 Isi Deskripsi Rapor</h5>
+        
+        <div className="field">
+          <label htmlFor="deskA" className="font-bold text-green-600">
+            Predikat A (Sangat Baik)
+          </label>
           <InputTextarea
             id="deskA"
             value={formData.DESKRIPSI_A}
             onChange={(e) => handleChange("DESKRIPSI_A", e.target.value)}
             rows={2}
+            placeholder="Contoh: Siswa menguasai {materi} dengan sangat baik dan mampu mengaplikasikan..."
             autoResize
-            placeholder="Contoh: Siswa sangat menguasai konsep {materi} dengan baik"
           />
+          <small className="text-gray-500">
+            Tip: Gunakan placeholder seperti {"{materi}"} atau {"{nama}"} untuk template dinamis
+          </small>
         </div>
 
-        <div className="field col-12">
-          <label htmlFor="deskB">Predikat B (Baik)</label>
+        <div className="field">
+          <label htmlFor="deskB" className="font-bold text-blue-600">
+            Predikat B (Baik)
+          </label>
           <InputTextarea
             id="deskB"
             value={formData.DESKRIPSI_B}
             onChange={(e) => handleChange("DESKRIPSI_B", e.target.value)}
             rows={2}
+            placeholder="Contoh: Siswa menguasai {materi} dengan baik..."
             autoResize
-            placeholder="Contoh: Siswa menguasai konsep {materi}"
           />
         </div>
 
-        <div className="field col-12">
-          <label htmlFor="deskC">Predikat C (Cukup)</label>
+        <div className="field">
+          <label htmlFor="deskC" className="font-bold text-orange-600">
+            Predikat C (Cukup)
+          </label>
           <InputTextarea
             id="deskC"
             value={formData.DESKRIPSI_C}
             onChange={(e) => handleChange("DESKRIPSI_C", e.target.value)}
             rows={2}
+            placeholder="Contoh: Siswa cukup memahami {materi}..."
             autoResize
-            placeholder="Contoh: Siswa cukup menguasai konsep {materi}"
           />
         </div>
 
-        <div className="field col-12">
-          <label htmlFor="deskD">Predikat D (Kurang)</label>
+        <div className="field">
+          <label htmlFor="deskD" className="font-bold text-red-600">
+            Predikat D (Kurang)
+          </label>
           <InputTextarea
             id="deskD"
             value={formData.DESKRIPSI_D}
             onChange={(e) => handleChange("DESKRIPSI_D", e.target.value)}
             rows={2}
+            placeholder="Contoh: Siswa perlu bimbingan khusus dalam memahami {materi}..."
             autoResize
-            placeholder="Contoh: Siswa perlu bimbingan dalam {materi}"
           />
         </div>
       </div>
 
       {/* Footer Buttons */}
       <div className="flex justify-content-end gap-2 mt-4">
-        <Button label="Batal" icon="pi pi-times" className="p-button-text" onClick={onHide} />
-        <Button label="Simpan Data" icon="pi pi-check" onClick={handleSubmit} autoFocus />
+        <Button 
+          label="Batal" 
+          icon="pi pi-times" 
+          className="p-button-text" 
+          onClick={onHide} 
+        />
+        <Button 
+          label="Simpan Data" 
+          icon="pi pi-check" 
+          onClick={handleSubmit} 
+          autoFocus 
+        />
       </div>
     </Dialog>
   );
