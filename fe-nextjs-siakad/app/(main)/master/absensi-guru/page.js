@@ -15,21 +15,20 @@ import CustomDataTable from "../../../components/DataTable";
 import FilterTanggal from "../../../components/FilterTanggal";
 
 // Forms & Prints
-import FormAbsensiGuru from "./components/FormAbsensiGuru"; 
-import FormAbsensiGuruPulang from "./components/FormAbsensiGuruPulang"; 
+import FormAbsensiGuru from "./components/FormAbsensiGuru";
+import FormAbsensiGuruPulang from "./components/FormAbsensiGuruPulang";
 import AdjustPrintAbsensiGuru from "./print/AdjustPrintAbsensiGuru";
 
-// ✅ DETAIL DIALOG
+// Detail dialog
 import AbsensiDetailDialog from "./components/AbsensiDetailDialog";
 
-// --- KONFIGURASI API ---
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100";
 
 export default function AbsensiGuruPage() {
   const toastRef = useRef(null);
   const isMounted = useRef(true);
 
-  // --- STATE ---
+  // state
   const [token, setToken] = useState("");
   const [absensi, setAbsensi] = useState([]);
   const [originalData, setOriginalData] = useState([]);
@@ -38,27 +37,26 @@ export default function AbsensiGuruPage() {
   // Master Data
   const [guruOptions, setGuruOptions] = useState([]);
 
-  // Filter Tanggal
+  // Filter tanggal
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
 
-  // Dialog States
+  // Dialog states
   const [formMasukVisible, setFormMasukVisible] = useState(false);
   const [formPulangVisible, setFormPulangVisible] = useState(false);
   const [selectedNipPulang, setSelectedNipPulang] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // ✅ DETAIL STATE
+  // detail
   const [detailDialogVisible, setDetailDialogVisible] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
-  // Print PDF States
+  // print states
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  // --- 1. INITIALIZATION ---
   useEffect(() => {
     isMounted.current = true;
     const t = localStorage.getItem("token");
@@ -77,10 +75,12 @@ export default function AbsensiGuruPage() {
       fetchAbsensi(t, firstDay, lastDay);
     }
 
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
-  // --- FETCH GURU ---
+  // fetch guru list
   const fetchGuruList = async (t) => {
     try {
       const res = await axios.get(`${API_URL}/absensi-guru/list-guru`, {
@@ -98,7 +98,7 @@ export default function AbsensiGuruPage() {
     }
   };
 
-  // --- FETCH ABSENSI ---
+  // fetch absensi
   const fetchAbsensi = async (t, start, end) => {
     if (!start || !end) return;
     setIsLoading(true);
@@ -123,7 +123,7 @@ export default function AbsensiGuruPage() {
         toastRef.current?.showToast("01", res.data.message);
         setAbsensi([]);
       }
-    } catch {
+    } catch (err) {
       toastRef.current?.showToast("01", "Gagal koneksi");
       setAbsensi([]);
     } finally {
@@ -131,7 +131,7 @@ export default function AbsensiGuruPage() {
     }
   };
 
-  // --- FILTER ---
+  // filter handlers
   const handleFilterDate = () => fetchAbsensi(token, startDate, endDate);
   const resetFilter = () => {
     const now = new Date();
@@ -156,7 +156,7 @@ export default function AbsensiGuruPage() {
     }
   };
 
-  // --- CRUD ---
+  // CRUD
   const handleSaveMasuk = async (formData) => {
     setSaving(true);
     try {
@@ -201,55 +201,79 @@ export default function AbsensiGuruPage() {
       icon: "pi pi-trash",
       acceptClassName: "p-button-danger",
       accept: async () => {
-        await axios.delete(`${API_URL}/absensi-guru/${row.ID}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        toastRef.current?.showToast("00", "Terhapus");
-        handleFilterDate();
+        try {
+          await axios.delete(`${API_URL}/absensi-guru/${row.ID}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          toastRef.current?.showToast("00", "Terhapus");
+          handleFilterDate();
+        } catch (err) {
+          console.error("Gagal hapus:", err);
+          toastRef.current?.showToast("01", "Gagal hapus data");
+        }
       },
     });
   };
 
-  // ✅ DETAIL
+  // detail
   const handleDetail = (row) => {
     setSelectedDetail(row);
     setDetailDialogVisible(true);
   };
 
-  // --- COLUMNS ---
+  // columns definition (aksi: tombol diperbarui agar konsisten)
   const columns = [
     {
-      field: "NAMA_GURU", header: "Guru",
+      field: "NAMA_GURU",
+      header: "Guru",
       body: (row) => (
         <div>
-          <b>{row.NAMA_GURU}</b><br />
+          <b>{row.NAMA_GURU}</b>
+          <br />
           <small>{row.NIP}</small>
         </div>
       ),
     },
     { field: "KODE", header: "Kode", body: (r) => <Tag value={r.KODE} /> },
-    { field: "TANGGAL", header: "Tanggal", body: (r) => new Date(r.TANGGAL).toLocaleDateString("id-ID") },
-    { header: "Masuk", body: (r) => r.JAM_MASUK?.slice(0,5) || "-" },
-    { header: "Pulang", body: (r) => r.JAM_KELUAR?.slice(0,5) || "Belum" },
+    {
+      field: "TANGGAL",
+      header: "Tanggal",
+      body: (r) => new Date(r.TANGGAL).toLocaleDateString("id-ID"),
+    },
+    { header: "Masuk", body: (r) => r.JAM_MASUK?.slice(0, 5) || "-" },
+    { header: "Pulang", body: (r) => r.JAM_KELUAR?.slice(0, 5) || "Belum" },
     {
       header: "Aksi",
       body: (row) => (
         <div className="flex gap-2">
+          {/* Lihat detail — tampil konsisten */}
+          <Button
+            icon="pi pi-eye"
+            className="p-button-sm p-button-info"
+            tooltip="Lihat Detail"
+            onClick={() => handleDetail(row)}
+          />
 
-          {/* ✅ DETAIL */}
-          <Button icon="pi pi-eye" severity="info" rounded text
-            onClick={() => handleDetail(row)} />
-
+          {/* Jika sudah hadir dan belum pulang → tombol pulang */}
           {row.STATUS === "Hadir" && !row.JAM_KELUAR && (
-            <Button icon="pi pi-sign-out" severity="warning" rounded text
-              onClick={() => handleOpenPulang(row)} />
+            <Button
+              icon="pi pi-sign-out"
+              className="p-button-sm p-button-warning"
+              tooltip="Absen Pulang"
+              onClick={() => handleOpenPulang(row)}
+            />
           )}
 
-          <Button icon="pi pi-trash" severity="danger" rounded text
-            onClick={() => handleDelete(row)} />
+          {/* Hapus */}
+          <Button
+            icon="pi pi-trash"
+            className="p-button-sm p-button-danger"
+            tooltip="Hapus"
+            onClick={() => handleDelete(row)}
+          />
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -300,14 +324,12 @@ export default function AbsensiGuruPage() {
         guruOptions={guruOptions}
       />
 
-      {/* ✅ DETAIL DIALOG */}
       <AbsensiDetailDialog
         visible={detailDialogVisible}
         onHide={() => setDetailDialogVisible(false)}
         data={selectedDetail}
       />
 
-      {/* PRINT */}
       <AdjustPrintAbsensiGuru
         visible={adjustDialog}
         onHide={() => setAdjustDialog(false)}
@@ -317,7 +339,7 @@ export default function AbsensiGuruPage() {
         setJsPdfPreviewOpen={setJsPdfPreviewOpen}
       />
 
-      <Dialog visible={jsPdfPreviewOpen} onHide={() => setJsPdfPreviewOpen(false)} style={{width:"90vw"}}>
+      <Dialog visible={jsPdfPreviewOpen} onHide={() => setJsPdfPreviewOpen(false)} style={{ width: "90vw" }}>
         {pdfUrl && <iframe src={pdfUrl} width="100%" height="100%" />}
       </Dialog>
     </div>

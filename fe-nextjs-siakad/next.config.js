@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: false, // ✅ Tambahkan ini untuk disable strict mode
+  
   webpack: (config, { isServer }) => {
     // Konfigurasi untuk handle PDF libraries
     if (!isServer) {
