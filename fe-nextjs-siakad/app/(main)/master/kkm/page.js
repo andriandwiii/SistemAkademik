@@ -8,7 +8,6 @@ import { Dropdown } from "primereact/dropdown";
 import { Dialog } from "primereact/dialog";
 import { ProgressSpinner } from "primereact/progressspinner";
 import dynamic from "next/dynamic";
-import { Tag } from "primereact/tag"; // ✅ import Tag
 
 import ToastNotifier from "../../../components/ToastNotifier";
 import HeaderBar from "../../../components/headerbar";
@@ -47,41 +46,11 @@ export default function MasterKKMPage() {
   // Filter
   const [statusFilter, setStatusFilter] = useState(null);
   const [mapelFilter, setMapelFilter] = useState(null);
-  const [tahunFilter, setTahunFilter] = useState(null);
+  const [tahunFilter, setTahunFilter] = useState(null); // <-- added
 
   const [statusOptions, setStatusOptions] = useState([]);
-  const [mapelOptions, setMapelOptions] = useState([]); // { label: "Nama (KODE)", value: "KODE" }
-  const [tahunOptions, setTahunOptions] = useState([]);
-
-  // -----------------------
-  // Templates for mapel dropdown
-  // -----------------------
-  const mapelOptionTemplate = (option) => {
-    if (!option) return null;
-    const nama = option.label?.split(" (")[0] ?? option.label;
-    return (
-      <div className="flex align-items-center gap-2">
-        <span>{nama}</span>
-        <Tag value={option.value} severity="info" className="text-xs" />
-      </div>
-    );
-  };
-
-  const mapelValueTemplate = (selected) => {
-    if (!selected) return <span className="text-500">Pilih Mata Pelajaran</span>;
-    const opt =
-      typeof selected === "object" && selected !== null
-        ? selected
-        : mapelOptions.find((o) => o.value === selected);
-    if (!opt) return <span>{selected}</span>;
-    const nama = opt.label?.split(" (")[0] ?? opt.label;
-    return (
-      <div className="flex align-items-center gap-2">
-        <span>{nama}</span>
-        <Tag value={opt.value} severity="info" className="text-xs" />
-      </div>
-    );
-  };
+  const [mapelOptions, setMapelOptions] = useState([]);
+  const [tahunOptions, setTahunOptions] = useState([]); // <-- added
 
   useEffect(() => {
     const t = localStorage.getItem("token");
@@ -114,44 +83,20 @@ export default function MasterKKMPage() {
 
         // Build filter options
         const statusSet = new Set();
-        // collect mapel by kode to ensure unique and keep kode
-        const mapelMap = {};
-        const tahunSet = new Set();
+        const mapelSet = new Set();
+        const tahunSet = new Set(); // <-- added
 
         data.forEach((k) => {
           if (k.STATUS) statusSet.add(k.STATUS);
-
-          // attempt to read kode & nama from fields present in response
-          const kode =
-            (k.mata_pelajaran && k.mata_pelajaran.KODE_MAPEL) ||
-            k.KODE_MAPEL ||
-            (k.KODE_MAPEL ? k.KODE_MAPEL : null);
-          const nama =
-            (k.mata_pelajaran && k.mata_pelajaran.NAMA_MAPEL) ||
-            k.NAMA_MAPEL ||
-            (k.NAMA_MAPEL ? k.NAMA_MAPEL : null);
-
-          if (kode) {
-            mapelMap[kode] = nama || kode;
-          } else if (nama) {
-            // fallback: use nama as both label and value (rare)
-            mapelMap[nama] = nama;
-          }
-
-          if (k.NAMA_TAHUN_AJARAN) tahunSet.add(k.NAMA_TAHUN_AJARAN);
-          if (k.TAHUN_AJARAN_ID && !k.NAMA_TAHUN_AJARAN) tahunSet.add(k.TAHUN_AJARAN_ID);
+          if (k.NAMA_MAPEL) mapelSet.add(k.NAMA_MAPEL);
+          if (k.NAMA_TAHUN_AJARAN) tahunSet.add(k.NAMA_TAHUN_AJARAN); // <-- added
         });
 
         setKkmList(data);
         setOriginalData(data);
         setStatusOptions(Array.from(statusSet).map((s) => ({ label: s, value: s })));
-        // build mapelOptions as { label: "Nama Mapel (KODE)", value: "KODE" }
-        const mapelOpts = Object.keys(mapelMap).map((kode) => ({
-          label: `${mapelMap[kode]} (${kode})`,
-          value: kode,
-        }));
-        setMapelOptions(mapelOpts);
-        setTahunOptions(Array.from(tahunSet).map((t) => ({ label: t, value: t })));
+        setMapelOptions(Array.from(mapelSet).map((m) => ({ label: m, value: m })));
+        setTahunOptions(Array.from(tahunSet).map((t) => ({ label: t, value: t }))); // <-- added
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal memuat data KKM");
       }
@@ -166,60 +111,47 @@ export default function MasterKKMPage() {
   // Search handler
   const handleSearch = (keyword) => {
     if (!keyword) {
-      applyFiltersWithValue(statusFilter, mapelFilter, tahunFilter);
-      return;
-    }
+      applyFiltersWithValue(statusFilter, mapelFilter, tahunFilter); // <-- include tahunFilter
+    } else {
+      let filtered = [...originalData];
 
-    let filtered = [...originalData];
+      // Apply dropdown filters first
+      if (statusFilter) {
+        filtered = filtered.filter((k) => k.STATUS === statusFilter);
+      }
+      if (mapelFilter) {
+        filtered = filtered.filter((k) => k.NAMA_MAPEL === mapelFilter);
+      }
+      if (tahunFilter) {
+        filtered = filtered.filter((k) => k.NAMA_TAHUN_AJARAN === tahunFilter);
+      }
 
-    // Apply dropdown filters first
-    if (statusFilter) {
-      filtered = filtered.filter((k) => k.STATUS === statusFilter);
-    }
-    if (mapelFilter) {
-      filtered = filtered.filter((k) => {
-        const kode = (k.mata_pelajaran?.KODE_MAPEL || k.KODE_MAPEL || "").toString();
-        return kode === mapelFilter;
-      });
-    }
-    if (tahunFilter) {
-      filtered = filtered.filter((k) => k.NAMA_TAHUN_AJARAN === tahunFilter || k.TAHUN_AJARAN_ID === tahunFilter);
-    }
-
-    // Then apply search keyword
-    const lowerKeyword = keyword.toLowerCase();
-    filtered = filtered.filter((item) => {
-      const kodeKkm = (item.KODE_KKM || "").toString().toLowerCase();
-      const kodeMapel = (item.mata_pelajaran?.KODE_MAPEL || item.KODE_MAPEL || "").toString().toLowerCase();
-      const namaMapel = (item.mata_pelajaran?.NAMA_MAPEL || item.NAMA_MAPEL || "").toString().toLowerCase();
-      const keterangan = (item.KETERANGAN || "").toString().toLowerCase();
-
-      return (
-        kodeKkm.includes(lowerKeyword) ||
-        kodeMapel.includes(lowerKeyword) ||
-        namaMapel.includes(lowerKeyword) ||
-        keterangan.includes(lowerKeyword)
+      // Then apply search keyword
+      const lowerKeyword = keyword.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.KODE_KKM?.toLowerCase().includes(lowerKeyword) ||
+          item.KODE_MAPEL?.toLowerCase().includes(lowerKeyword) ||
+          item.NAMA_MAPEL?.toLowerCase().includes(lowerKeyword) ||
+          item.KETERANGAN?.toLowerCase().includes(lowerKeyword)
       );
-    });
 
-    setKkmList(filtered);
+      setKkmList(filtered);
+    }
   };
 
-  // Apply all filters with values
-  const applyFiltersWithValue = (status, mapelKode, tahun) => {
+  // Apply all filters with values (updated to accept tahun)
+  const applyFiltersWithValue = (status, mapel, tahun) => {
     let filtered = [...originalData];
 
     if (status) {
       filtered = filtered.filter((k) => k.STATUS === status);
     }
-    if (mapelKode) {
-      filtered = filtered.filter((k) => {
-        const kode = (k.mata_pelajaran?.KODE_MAPEL || k.KODE_MAPEL || "").toString();
-        return kode === mapelKode;
-      });
+    if (mapel) {
+      filtered = filtered.filter((k) => k.NAMA_MAPEL === mapel);
     }
     if (tahun) {
-      filtered = filtered.filter((k) => k.NAMA_TAHUN_AJARAN === tahun || k.TAHUN_AJARAN_ID === tahun);
+      filtered = filtered.filter((k) => k.NAMA_TAHUN_AJARAN === tahun);
     }
 
     setKkmList(filtered);
@@ -229,7 +161,7 @@ export default function MasterKKMPage() {
   const resetFilter = () => {
     setStatusFilter(null);
     setMapelFilter(null);
-    setTahunFilter(null);
+    setTahunFilter(null); // <-- added
     setKkmList(originalData);
   };
 
@@ -310,19 +242,10 @@ export default function MasterKKMPage() {
     {
       field: "NAMA_MAPEL",
       header: "Mata Pelajaran",
-      style: { minWidth: "220px" },
-      body: (row) => {
-        const nama = row.mata_pelajaran?.NAMA_MAPEL || row.NAMA_MAPEL || "-";
-        const kode = row.mata_pelajaran?.KODE_MAPEL || row.KODE_MAPEL || null;
-        return (
-          <div className="flex align-items-center gap-2">
-            <span>{nama}</span>
-            {kode && <Tag value={kode} severity="info" className="text-xs" />}
-          </div>
-        );
-      },
+      style: { minWidth: "200px" },
+      body: (row) => row.NAMA_MAPEL || row.KODE_MAPEL || "-",
     },
-    // Tahun Ajaran
+    // ✅ TAMBAH KOLOM TAHUN AJARAN
     {
       field: "NAMA_TAHUN_AJARAN",
       header: "Tahun Ajaran",
@@ -360,7 +283,9 @@ export default function MasterKKMPage() {
       body: (row) => (
         <span
           className={`px-2 py-1 rounded text-xs font-medium ${
-            row.STATUS === "Aktif" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            row.STATUS === "Aktif"
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
           }`}
         >
           {row.STATUS}
@@ -417,7 +342,7 @@ export default function MasterKKMPage() {
               options={statusOptions}
               onChange={(e) => {
                 setStatusFilter(e.value);
-                applyFiltersWithValue(e.value, mapelFilter, tahunFilter);
+                applyFiltersWithValue(e.value, mapelFilter, tahunFilter); // <-- include tahunFilter
               }}
               placeholder="Pilih status"
               className="w-48"
@@ -435,18 +360,15 @@ export default function MasterKKMPage() {
               options={mapelOptions}
               onChange={(e) => {
                 setMapelFilter(e.value);
-                applyFiltersWithValue(statusFilter, e.value, tahunFilter);
+                applyFiltersWithValue(statusFilter, e.value, tahunFilter); // <-- include tahunFilter
               }}
               placeholder="Pilih mata pelajaran"
               className="w-52"
               showClear
-              filter
-              itemTemplate={mapelOptionTemplate}
-              valueTemplate={mapelValueTemplate}
             />
           </div>
 
-          {/* Tahun Ajaran filter */}
+          {/* ✅ TAMBAH DROPDOWN FILTER TAHUN AJARAN (setelah filter status/mapel) */}
           <div className="flex flex-column gap-2">
             <label htmlFor="tahun-filter" className="text-sm font-medium">
               Tahun Ajaran

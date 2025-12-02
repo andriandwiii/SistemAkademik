@@ -6,41 +6,36 @@ const table = "master_predikat";
 const formatRow = (r) => ({
   ID: r.ID,
   KODE_PREDIKAT: r.KODE_PREDIKAT,
-  
-  // ✅ Tambah relasi mata pelajaran
-  KODE_MAPEL: r.KODE_MAPEL,
-  mata_pelajaran: {
-    KODE_MAPEL: r.KODE_MAPEL,
-    NAMA_MAPEL: r.NAMA_MAPEL,
-  },
-  
-  TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID,
+  TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID, // ✅ Flat field
   tahun_ajaran: {
     TAHUN_AJARAN_ID: r.TAHUN_AJARAN_ID,
     NAMA_TAHUN_AJARAN: r.NAMA_TAHUN_AJARAN,
   },
-  
+  TINGKATAN_ID: r.TINGKATAN_ID, // ✅ Flat field (nullable)
+  tingkatan: r.TINGKATAN_ID ? {
+    TINGKATAN_ID: r.TINGKATAN_ID,
+    TINGKATAN: r.TINGKATAN || r.TINGKATAN_ID,
+  } : null,
   deskripsi: {
     A: r.DESKRIPSI_A,
     B: r.DESKRIPSI_B,
     C: r.DESKRIPSI_C,
     D: r.DESKRIPSI_D,
   },
-  
   created_at: r.created_at,
   updated_at: r.updated_at,
 });
 
-// ✅ Query join (tambah join ke master_mata_pelajaran)
+// Query join (Digunakan ulang di get, create, update)
 const baseQuery = (trx = db) =>
   trx(`${table} as p`)
     .select(
       "p.*",
-      "mp.NAMA_MAPEL",
-      "ta.NAMA_TAHUN_AJARAN"
+      "ta.NAMA_TAHUN_AJARAN",
+      "mt.TINGKATAN"
     )
-    .leftJoin("master_mata_pelajaran as mp", "p.KODE_MAPEL", "mp.KODE_MAPEL")
-    .leftJoin("master_tahun_ajaran as ta", "p.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID");
+    .leftJoin("master_tahun_ajaran as ta", "p.TAHUN_AJARAN_ID", "ta.TAHUN_AJARAN_ID")
+    .leftJoin("master_tingkatan as mt", "p.TINGKATAN_ID", "mt.TINGKATAN_ID");
 
 // =================================================================
 // READ DATA
@@ -60,7 +55,6 @@ export const getAllPredikat = async () => {
 
   const rows = await baseQuery()
     .whereIn("p.TAHUN_AJARAN_ID", daftarID_TA)
-    .orderBy("mp.NAMA_MAPEL", "asc") // ✅ Sort by nama mapel
     .orderBy("p.ID", "desc");
 
   return rows.map(formatRow);
@@ -72,25 +66,33 @@ export const getPredikatById = async (id) => {
   return row ? formatRow(row) : null;
 };
 
-/** 🔹 Cek duplikat predikat (mapel + tahun ajaran) */
-export const checkDuplicate = async (KODE_MAPEL, TAHUN_AJARAN_ID) => {
-  return db(table)
-    .where({
-      KODE_MAPEL,
-      TAHUN_AJARAN_ID
-    })
-    .first();
+/** 🔹 Cek duplikat predikat (tahun + tingkatan) */
+export const checkDuplicate = async (TAHUN_AJARAN_ID, TINGKATAN_ID) => {
+  const query = db(table)
+    .where("TAHUN_AJARAN_ID", TAHUN_AJARAN_ID);
+
+  if (TINGKATAN_ID) {
+    query.where("TINGKATAN_ID", TINGKATAN_ID);
+  } else {
+    query.whereNull("TINGKATAN_ID");
+  }
+
+  return query.first();
 };
 
 /** 🔹 Cek duplikat kecuali ID tertentu (untuk update) */
-export const checkDuplicateExcept = async (KODE_MAPEL, TAHUN_AJARAN_ID, excludeId) => {
-  return db(table)
-    .where({
-      KODE_MAPEL,
-      TAHUN_AJARAN_ID
-    })
-    .whereNot("ID", excludeId)
-    .first();
+export const checkDuplicateExcept = async (TAHUN_AJARAN_ID, TINGKATAN_ID, excludeId) => {
+  const query = db(table)
+    .where("TAHUN_AJARAN_ID", TAHUN_AJARAN_ID)
+    .whereNot("ID", excludeId);
+
+  if (TINGKATAN_ID) {
+    query.where("TINGKATAN_ID", TINGKATAN_ID);
+  } else {
+    query.whereNull("TINGKATAN_ID");
+  }
+
+  return query.first();
 };
 
 // =================================================================
@@ -116,8 +118,8 @@ export const createPredikat = async (data) => {
     // 2. Insert Data
     const insertData = {
       KODE_PREDIKAT: newKode,
-      KODE_MAPEL: data.KODE_MAPEL, // ✅ Tambah mapel
       TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID,
+      TINGKATAN_ID: data.TINGKATAN_ID || null,
       DESKRIPSI_A: data.DESKRIPSI_A,
       DESKRIPSI_B: data.DESKRIPSI_B,
       DESKRIPSI_C: data.DESKRIPSI_C,
@@ -145,8 +147,8 @@ export const updatePredikat = async (id, data) => {
   delete data.KODE_PREDIKAT;
 
   await db(table).where({ ID: id }).update({
-    KODE_MAPEL: data.KODE_MAPEL || existing.KODE_MAPEL, // ✅ Update mapel
-    TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID || existing.TAHUN_AJARAN_ID,
+    TAHUN_AJARAN_ID: data.TAHUN_AJARAN_ID,
+    TINGKATAN_ID: data.TINGKATAN_ID !== undefined ? data.TINGKATAN_ID : existing.TINGKATAN_ID,
     DESKRIPSI_A: data.DESKRIPSI_A,
     DESKRIPSI_B: data.DESKRIPSI_B,
     DESKRIPSI_C: data.DESKRIPSI_C,
