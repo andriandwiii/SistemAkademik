@@ -3,51 +3,22 @@ import React, { useContext, useState, useEffect } from "react";
 import AppMenuitem from "./AppMenuitem";
 import { LayoutContext } from "./context/layoutcontext";
 import { MenuProvider } from "./context/menucontext";
-import { ProgressSpinner } from "primereact/progressspinner"; // ✅ Import
 
 const AppMenu = () => {
     const { layoutConfig } = useContext(LayoutContext);
     const [userRole, setUserRole] = useState(null);
-    const [isLoading, setIsLoading] = useState(true); // ✅ Tambah loading state
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const roleFromLocalStorage = localStorage.getItem("ROLE");
+            const roleFromLocalStorage = localStorage.getItem("ROLE"); // <- pakai "ROLE"
             console.log("ROLE DI LOCALSTORAGE:", roleFromLocalStorage);
             setUserRole(roleFromLocalStorage);
-            setIsLoading(false); // ✅ Set loading false setelah dapat role
         }
     }, []);
 
-    // ✅ GANTI ini:
-    // if (!userRole) return null;
-    
-    // ✅ DENGAN ini:
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center p-4">
-                <ProgressSpinner style={{ width: "30px", height: "30px" }} strokeWidth="4" />
-            </div>
-        );
-    }
-
-    // ✅ Jika tidak ada role, return empty menu (jangan null!)
-    if (!userRole) {
-        return (
-            <MenuProvider>
-                <ul className="layout-menu">
-                    <li className="p-3 text-center text-gray-500">
-                        <i className="pi pi-exclamation-triangle mr-2"></i>
-                        Role tidak ditemukan
-                    </li>
-                </ul>
-            </MenuProvider>
-        );
-    }
+    if (!userRole) return null;
 
     let model = []; 
-
-    // ... sisa kode sama seperti sebelumnya ...
 
     // =========================
     // 1. SUPER ADMIN SEKOLAH
@@ -85,6 +56,8 @@ const AppMenu = () => {
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
                             { label: "Master KKM", icon: "pi pi-fw pi-file", to: "/master/kkm" },
                             { label: "Master Predikat", icon: "pi pi-fw pi-file", to: "/master/predikat" },
+                            
+
                         ]
                     },
                     {
@@ -95,7 +68,6 @@ const AppMenu = () => {
                             { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/master/informasi_sekolah" },
                             { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa" },
                             { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
-                            { label: "Transaksi KKM", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-kkm" },
                             { label: "Transaksi Nilai", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi_nilai" },
                             { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" }
                         ]
@@ -103,7 +75,7 @@ const AppMenu = () => {
                     {
                         label: "Manajemen Guru",
                         icon: "pi pi-fw pi-users",
-                        items: [
+                        items: [    
                             { label: "Guru", icon: "pi pi-fw pi-users", to: "/master/guru" },
                             { label: "Transaksi Wali Kelas", icon: "pi pi-fw pi-user-edit", to: "/master/transaksi-wakel" },
                             { label: "Absensi Guru", icon: "pi pi-fw pi-user-edit", to: "/master/absensi-guru" }
@@ -121,6 +93,10 @@ const AppMenu = () => {
             }
         ];
     }
+
+    // =========================
+    // 2. KURIKULUM
+    // =========================
     else if (userRole === "KURIKULUM") {
         model = [
             {
@@ -130,14 +106,18 @@ const AppMenu = () => {
             {
                 label: "Akademik",
                 items: [
-                    { label: "Pengaturan Jadwal Pelajaran", icon: "pi pi-fw pi-calendar", to: "/kurikulum/menu/jadwal" },
-                    { label: "Ujian", icon: "pi pi-fw pi-pencil", to: "/kurikulum/menu/ujian" },
-                    { label: "Cetak Rapor", icon: "pi pi-fw pi-file", to: "/kurikulum/menu/rapor" },
-                    { label: "Perencanaan Kegiatan Belajar", icon: "pi pi-fw pi-book", to: "/kurikulum/menu/rencana" },
+                        { label: "Pengaturan Jadwal Pelajaran", icon: "pi pi-fw pi-calendar", to: "/kurikulum/menu/jadwal" },
+                        { label: "Ujian", icon: "pi pi-fw pi-pencil", to: "/kurikulum/menu/ujian" },
+                        { label: "Cetak Rapor", icon: "pi pi-fw pi-file", to: "/kurikulum/menu/rapor" },
+                        { label: "Perencanaan Kegiatan Belajar", icon: "pi pi-fw pi-book", to: "/kurikulum/menu/rencana" },
                 ],
             },
         ];
     }
+
+    // =========================
+    // 3. KESISWAAN
+    // =========================
     else if (userRole === "KESISWAAN") {
         model = [
             {
@@ -147,13 +127,17 @@ const AppMenu = () => {
             {
                 label: "Data Siswa",
                 items: [
-                    { label: "Manajemen Data Siswa", icon: "pi pi-fw pi-users", to: "/kesiswaan/menu/data-siswa" },
-                    { label: "Kenaikan Kelas", icon: "pi pi-fw pi-arrow-up", to: "/kesiswaan/menu/kenaikan-kelas" },
-                    { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/kesiswaan/menu/transaksi-siswa" },
+                        { label: "Manajemen Data Siswa", icon: "pi pi-fw pi-users", to: "/kesiswaan/menu/data-siswa" },
+                        { label: "Kenaikan Kelas", icon: "pi pi-fw pi-arrow-up", to: "/kesiswaan/menu/kenaikan-kelas" },
+                        { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/kesiswaan/menu/transaksi-siswa" },
                 ],
             },
         ];
     }
+
+    // =========================
+    // 4. KEUANGAN
+    // =========================
     else if (userRole === "KEUANGAN") {
         model = [
             {
@@ -163,12 +147,16 @@ const AppMenu = () => {
             {
                 label: "Keuangan",
                 items: [
-                    { label: "Manajemen Keuangan", icon: "pi pi-fw pi-wallet", to: "/keuangan/menu/manajemen" },
-                    { label: "Laporan Keuangan", icon: "pi pi-fw pi-file", to: "/keuangan/menu/laporan" },
+                        { label: "Manajemen Keuangan", icon: "pi pi-fw pi-wallet", to: "/keuangan/menu/manajemen" },
+                        { label: "Laporan Keuangan", icon: "pi pi-fw pi-file", to: "/keuangan/menu/laporan" },
                 ],
             },
         ];
     }
+
+    // =========================
+    // 5. TU/TAS
+    // =========================
     else if (userRole === "TU" || userRole === "TU_TASM") {
         model = [
             {
@@ -178,13 +166,17 @@ const AppMenu = () => {
             {
                 label: "Kehadiran",
                 items: [
-                    { label: "Absensi Siswa", icon: "pi pi-fw pi-user-check", to: "/tu/absensi-siswa" },
-                    { label: "Absensi Kelas", icon: "pi pi-fw pi-users", to: "/tu/absensi-kelas" },
-                    { label: "Agenda Guru", icon: "pi pi-fw pi-calendar", to: "/tu/agenda-guru" },
+                        { label: "Absensi Siswa", icon: "pi pi-fw pi-user-check", to: "/tu/absensi-siswa" },
+                        { label: "Absensi Kelas", icon: "pi pi-fw pi-users", to: "/tu/absensi-kelas" },
+                        { label: "Agenda Guru", icon: "pi pi-fw pi-calendar", to: "/tu/agenda-guru" },
                 ],
             },
         ];
     }
+
+    // =========================
+    // 6. BP/BK
+    // =========================
     else if (userRole === "BP" || userRole === "BP_BKM") {
         model = [
             {
@@ -194,12 +186,16 @@ const AppMenu = () => {
             {
                 label: "Bimbingan Konseling",
                 items: [
-                    { label: "Absensi Siswa", icon: "pi pi-fw pi-user-check", to: "/bpbkm/absensi" },
-                    { label: "Catatan BK", icon: "pi pi-fw pi-file-edit", to: "/bpbkm/menu/catatan" },
+                        { label: "Absensi Siswa", icon: "pi pi-fw pi-user-check", to: "/bpbkm/absensi" },
+                        { label: "Catatan BK", icon: "pi pi-fw pi-file-edit", to: "/bpbkm/menu/catatan" },
                 ],
             },
         ];
     }
+
+    // =========================
+    // 7. ADMIN WEB SEKOLAH
+    // =========================
     else if (userRole === "ADMIN_WEB") {
         model = [
             {
@@ -209,12 +205,16 @@ const AppMenu = () => {
             {
                 label: "Pengelolaan Website",
                 items: [
-                    { label: "Website Sekolah", icon: "pi pi-fw pi-globe", to: "/adminweb/website" },
-                    { label: "Media Sosial", icon: "pi pi-fw pi-share-alt", to: "/adminweb/sosial" },
+                        { label: "Website Sekolah", icon: "pi pi-fw pi-globe", to: "/adminweb/website" },
+                        { label: "Media Sosial", icon: "pi pi-fw pi-share-alt", to: "/adminweb/sosial" },
                 ],
             },
         ];
     }
+
+    // =========================
+    // 8. GURU
+    // =========================
     else if (userRole === "GURU") {
         model = [
             {
@@ -224,9 +224,9 @@ const AppMenu = () => {
             {
                 label: "Kehadiran & Mengajar",
                 items: [
-                    { label: "Absensi Guru", icon: "pi pi-fw pi-user", to: "/guru/menu/absensi" },
-                    { label: "Absensi Kelas", icon: "pi pi-fw pi-box", to: "/guru/menu/absen-kelas" },
-                    { label: "Agenda Mengajar", icon: "pi pi-fw pi-calendar", to: "/guru/menu/agenda" },
+                        { label: "Absensi Guru", icon: "pi pi-fw pi-user", to: "/guru/menu/absensi" },
+                        { label: "Absensi Kelas", icon: "pi pi-fw pi-box", to: "/guru/menu/absen-kelas" },
+                        { label: "Agenda Mengajar", icon: "pi pi-fw pi-calendar", to: "/guru/menu/agenda" },
                 ],
             },
             {
@@ -235,6 +235,10 @@ const AppMenu = () => {
             },
         ];
     }
+
+    // =========================
+    // 9. SISWA
+    // =========================
     else if (userRole === "SISWA") {
         model = [
             {
@@ -244,16 +248,16 @@ const AppMenu = () => {
             {
                 label: "Akademik",
                 items: [
-                    { label: "Absensi Siswa", icon: "pi pi-fw pi-user-edit", to: "/siswa/menu/absensi" },
-                    { label: "Nilai & Rapor", icon: "pi pi-fw pi-book", to: "/siswa/menu/nilai" },
-                    { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/siswa/menu/informasi" },
+                        { label: "Absensi Siswa", icon: "pi pi-fw pi-user-edit", to: "/siswa/menu/absensi" },
+                        { label: "Nilai & Rapor", icon: "pi pi-fw pi-book", to: "/siswa/menu/nilai" },
+                        { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/siswa/menu/informasi" },
                 ],
             },
             {
                 label: "Komunikasi",
                 items: [
-                    { label: "Rumah - Sekolah", icon: "pi pi-fw pi-comments", to: "/siswa/komunikasi/rumah-sekolah" },
-                    { label: "Guru/Karyawan", icon: "pi pi-fw pi-users", to: "/siswa/komunikasi/guru" },
+                        { label: "Rumah - Sekolah", icon: "pi pi-fw pi-comments", to: "/siswa/komunikasi/rumah-sekolah" },
+                        { label: "Guru/Karyawan", icon: "pi pi-fw pi-users", to: "/siswa/komunikasi/guru" },
                 ],
             },
         ];
