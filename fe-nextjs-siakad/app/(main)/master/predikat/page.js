@@ -8,6 +8,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Dialog } from "primereact/dialog";
 import { ProgressSpinner } from "primereact/progressspinner";
 import dynamic from "next/dynamic";
+import { Tag } from "primereact/tag"; // ✅ import Tag
 
 // --- COMPONENTS ---
 import ToastNotifier from "../../../components/ToastNotifier";
@@ -46,12 +47,44 @@ export default function MasterPredikatPage() {
   const [fileName, setFileName] = useState("");
   const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
 
-  // --- STATE FILTER (updated: only tahun + tingkat) ---
+  // --- STATE FILTER ---
+  // mapelFilter stores KODE_MAPEL (string)
   const [tahunFilter, setTahunFilter] = useState(null);
-  const [tingkatFilter, setTingkatFilter] = useState(null);
+  const [mapelFilter, setMapelFilter] = useState(null);
 
   const [tahunOptions, setTahunOptions] = useState([]);
-  const [tingkatOptions, setTingkatOptions] = useState([]);
+  const [mapelOptions, setMapelOptions] = useState([]); // { label: "Nama (KODE)", value: "KODE" }
+
+  // -----------------------
+  // Templates for Dropdown
+  // -----------------------
+  const mapelOptionTemplate = (option) => {
+    if (!option) return null;
+    // label expected like "Nama Mapel (KODE)"
+    const nama = option.label?.split(" (")[0] ?? option.label;
+    // value is kode
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{nama}</span>
+        <Tag value={option.value} severity="info" className="text-xs" />
+      </div>
+    );
+  };
+
+  const mapelValueTemplate = (selected) => {
+    if (!selected) return <span className="text-500">Pilih Mata Pelajaran</span>;
+    const opt = typeof selected === "object" && selected !== null
+      ? selected
+      : mapelOptions.find((o) => o.value === selected);
+    if (!opt) return <span>{selected}</span>;
+    const nama = opt.label?.split(" (")[0] ?? opt.label;
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{nama}</span>
+        <Tag value={opt.value} severity="info" className="text-xs" />
+      </div>
+    );
+  };
 
   // --- 1. INITIAL LOAD ---
   useEffect(() => {
@@ -83,19 +116,22 @@ export default function MasterPredikatPage() {
       if (res.data.status === "00") {
         const data = res.data.data || [];
 
-        // --- SORTING DARI A KE B (ASCENDING) ---
         data.sort((a, b) => a.ID - b.ID);
 
-        // --- Build Filter Options: tahun + tingkat (hapus lainnya) ---
         const tahunSet = new Set();
-        const tingkatSet = new Set();
+        // collect mapel by kode to ensure unique and preserve kode
+        const mapelMap = {};
 
         data.forEach((item) => {
           if (item.tahun_ajaran?.NAMA_TAHUN_AJARAN) {
             tahunSet.add(item.tahun_ajaran.NAMA_TAHUN_AJARAN);
           }
-          if (item.TINGKATAN_ID) {
-            tingkatSet.add(item.TINGKATAN_ID);
+
+          // prefer mata_pelajaran.KODE_MAPEL, fallback to row.KODE_MAPEL
+          const kode = item.mata_pelajaran?.KODE_MAPEL || item.KODE_MAPEL || null;
+          const nama = item.mata_pelajaran?.NAMA_MAPEL || null;
+          if (kode) {
+            mapelMap[kode] = nama || kode;
           }
         });
 
@@ -103,9 +139,11 @@ export default function MasterPredikatPage() {
         setOriginalData(data);
 
         setTahunOptions(Array.from(tahunSet).map((y) => ({ label: y, value: y })));
-        setTingkatOptions(
-          Array.from(tingkatSet).map((tg) => ({ label: `Kelas ${tg}`, value: tg }))
-        );
+        const mapelOpts = Object.keys(mapelMap).map((kode) => ({
+          label: `${mapelMap[kode]} (${kode})`,
+          value: kode,
+        }));
+        setMapelOptions(mapelOpts);
       } else {
         toastRef.current?.showToast("01", res.data.message || "Gagal memuat data Predikat");
       }
@@ -117,51 +155,62 @@ export default function MasterPredikatPage() {
     }
   };
 
-  // --- 3. HANDLE SEARCH & FILTER (updated to tahun + tingkat) ---
+  // --- 3. HANDLE SEARCH & FILTER ---
   const handleSearch = (keyword) => {
     if (!keyword) {
-      applyFiltersWithValue(tahunFilter, tingkatFilter);
-    } else {
-      let filtered = [...originalData];
-
-      // Apply dropdown filters first
-      if (tahunFilter) {
-        filtered = filtered.filter(
-          (item) => item.tahun_ajaran?.NAMA_TAHUN_AJARAN === tahunFilter
-        );
-      }
-      if (tingkatFilter) {
-        filtered = filtered.filter((item) => item.TINGKATAN_ID === tingkatFilter);
-      }
-
-      // Then apply search keyword
-      const lowerKeyword = keyword.toLowerCase();
-      filtered = filtered.filter((item) => {
-        const tahun = item.tahun_ajaran?.NAMA_TAHUN_AJARAN?.toLowerCase() || "";
-        const tingkat = item.TINGKATAN_ID?.toString().toLowerCase() || "";
-        const deskA = item.deskripsi?.A?.toLowerCase() || "";
-        const deskB = item.deskripsi?.B?.toLowerCase() || "";
-
-        return (
-          tahun.includes(lowerKeyword) ||
-          tingkat.includes(lowerKeyword) ||
-          deskA.includes(lowerKeyword) ||
-          deskB.includes(lowerKeyword)
-        );
-      });
-
-      setPredikatList(filtered);
+      applyFiltersWithValue(tahunFilter, mapelFilter);
+      return;
     }
+
+    let filtered = [...originalData];
+
+    if (tahunFilter) {
+      filtered = filtered.filter(
+        (item) => item.tahun_ajaran?.NAMA_TAHUN_AJARAN === tahunFilter
+      );
+    }
+    if (mapelFilter) {
+      filtered = filtered.filter((item) => {
+        const kode = item.mata_pelajaran?.KODE_MAPEL || item.KODE_MAPEL || "";
+        return kode === mapelFilter;
+      });
+    }
+
+    const lowerKeyword = keyword.toLowerCase();
+    filtered = filtered.filter((item) => {
+      const tahun = item.tahun_ajaran?.NAMA_TAHUN_AJARAN?.toLowerCase() || "";
+      const mapelName = item.mata_pelajaran?.NAMA_MAPEL?.toLowerCase() || "";
+      const mapelKode = (item.mata_pelajaran?.KODE_MAPEL || item.KODE_MAPEL || "").toLowerCase();
+      const deskA = item.deskripsi?.A?.toLowerCase() || "";
+      const deskB = item.deskripsi?.B?.toLowerCase() || "";
+      const deskC = item.deskripsi?.C?.toLowerCase() || "";
+      const deskD = item.deskripsi?.D?.toLowerCase() || "";
+
+      return (
+        tahun.includes(lowerKeyword) ||
+        mapelName.includes(lowerKeyword) ||
+        mapelKode.includes(lowerKeyword) ||
+        deskA.includes(lowerKeyword) ||
+        deskB.includes(lowerKeyword) ||
+        deskC.includes(lowerKeyword) ||
+        deskD.includes(lowerKeyword)
+      );
+    });
+
+    setPredikatList(filtered);
   };
 
-  const applyFiltersWithValue = (tahun, tingkat) => {
+  const applyFiltersWithValue = (tahun, mapelKode) => {
     let filtered = [...originalData];
 
     if (tahun) {
       filtered = filtered.filter((item) => item.tahun_ajaran?.NAMA_TAHUN_AJARAN === tahun);
     }
-    if (tingkat) {
-      filtered = filtered.filter((item) => item.TINGKATAN_ID === tingkat);
+    if (mapelKode) {
+      filtered = filtered.filter((item) => {
+        const kode = item.mata_pelajaran?.KODE_MAPEL || item.KODE_MAPEL || "";
+        return kode === mapelKode;
+      });
     }
 
     setPredikatList(filtered);
@@ -169,7 +218,7 @@ export default function MasterPredikatPage() {
 
   const resetFilter = () => {
     setTahunFilter(null);
-    setTingkatFilter(null);
+    setMapelFilter(null);
     setPredikatList(originalData);
   };
 
@@ -177,7 +226,6 @@ export default function MasterPredikatPage() {
   const handleSubmit = async (data) => {
     try {
       if (selectedPredikat) {
-        // UPDATE
         const res = await axios.put(
           `${API_URL}/master-predikat/${selectedPredikat.ID}`,
           data,
@@ -191,7 +239,6 @@ export default function MasterPredikatPage() {
           return;
         }
       } else {
-        // CREATE
         const res = await axios.post(`${API_URL}/master-predikat`, data, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -218,7 +265,7 @@ export default function MasterPredikatPage() {
 
   const handleDelete = (rowData) => {
     confirmDialog({
-      message: `Yakin hapus deskripsi mapel "${rowData.mapel?.NAMA_MAPEL}"?`,
+      message: `Yakin hapus data predikat ini?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
       acceptLabel: "Ya, Hapus",
@@ -257,68 +304,58 @@ export default function MasterPredikatPage() {
       body: (row) => row.ID,
     },
 
-    // ✅ KOLOM TAHUN AJARAN
+    // ✅ KOLOM MATA PELAJARAN (tampilkan nama + kode)
     {
-      field: "TAHUN_AJARAN",
-      header: "Tahun Ajaran",
-      style: { minWidth: "180px" },
-      body: (row) => (
-        <span className="font-bold text-blue-700">
-          {row.tahun_ajaran?.NAMA_TAHUN_AJARAN || row.TAHUN_AJARAN_ID || "-"}
-        </span>
-      ),
-    },
-
-    // ✅ KOLOM TINGKATAN (NULLABLE)
-    {
-      field: "TINGKATAN",
-      header: "Tingkatan",
-      style: { minWidth: "100px", textAlign: "center" },
+      field: "MATA_PELAJARAN",
+      header: "Mata Pelajaran",
+      style: { minWidth: "225px" },
       body: (row) => {
-        if (row.TINGKATAN_ID) {
-          return (
-            <span className="font-medium text-gray-700">
-              Kelas {row.tingkatan?.TINGKATAN || row.TINGKATAN_ID}
-            </span>
-          );
-        }
-        return <span className="text-gray-400 italic text-sm">Semua Tingkat</span>;
+        const nama = row.mata_pelajaran?.NAMA_MAPEL || row.NAMA_MAPEL || "-";
+        const kode = row.mata_pelajaran?.KODE_MAPEL || row.KODE_MAPEL || null;
+        return (
+          <div className="flex align-items-center gap-2">
+            <span>{nama}</span>
+            {kode && <Tag value={kode} severity="info" className="text-xs" />}
+          </div>
+        );
       },
     },
 
-    // ✅ PREDIKAT A
+    {
+      field: "TAHUN_AJARAN",
+      header: "Tahun Ajaran",
+      style: { minWidth: "150px" },
+      body: (row) => row.tahun_ajaran?.NAMA_TAHUN_AJARAN || row.TAHUN_AJARAN_ID || "-",
+    },
+
     {
       field: "DESKRIPSI_A",
       header: "Predikat A (Sangat Baik)",
-      style: { minWidth: "250px", fontSize: "0.95rem", verticalAlign: "top" },
-      body: (row) => <div className="line-clamp-3 text-green-700">{row.deskripsi?.A || "-"}</div>,
+      style: { minWidth: "250px" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.A || "-"}</div>,
     },
 
-    // ✅ PREDIKAT B
     {
       field: "DESKRIPSI_B",
       header: "Predikat B (Baik)",
-      style: { minWidth: "250px", fontSize: "0.95rem", verticalAlign: "top" },
-      body: (row) => <div className="line-clamp-3 text-blue-700">{row.deskripsi?.B || "-"}</div>,
+      style: { minWidth: "250px" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.B || "-"}</div>,
     },
 
-    // ✅ PREDIKAT C
     {
       field: "DESKRIPSI_C",
       header: "Predikat C (Cukup)",
-      style: { minWidth: "250px", fontSize: "0.95rem", verticalAlign: "top" },
-      body: (row) => <div className="line-clamp-3 text-orange-700">{row.deskripsi?.C || "-"}</div>,
+      style: { minWidth: "250px" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.C || "-"}</div>,
     },
 
-    // ✅ PREDIKAT D
     {
       field: "DESKRIPSI_D",
       header: "Predikat D (Kurang)",
-      style: { minWidth: "250px", fontSize: "0.95rem", verticalAlign: "top" },
-      body: (row) => <div className="line-clamp-3 text-red-700">{row.deskripsi?.D || "-"}</div>,
+      style: { minWidth: "250px" },
+      body: (row) => <div className="line-clamp-3">{row.deskripsi?.D || "-"}</div>,
     },
 
-    // ✅ AKSI
     {
       header: "Aksi",
       body: (rowData) => (
@@ -344,7 +381,7 @@ export default function MasterPredikatPage() {
           />
         </div>
       ),
-      style: { width: "100px", textAlign: "center", verticalAlign: "top" },
+      style: { width: "100px", textAlign: "center" },
     },
   ];
 
@@ -355,9 +392,7 @@ export default function MasterPredikatPage() {
 
       <h3 className="text-xl font-semibold mb-3">Master Predikat</h3>
 
-      {/* --- FILTER & TOOLBAR SECTION --- */}
       <div className="flex flex-col md:flex-row justify-content-between md:items-center gap-4 mb-4">
-        {/* Filter Dropdowns (only Tahun + Tingkatan) */}
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex flex-column gap-2">
             <label htmlFor="tahun-filter" className="text-sm font-medium">
@@ -369,7 +404,7 @@ export default function MasterPredikatPage() {
               options={tahunOptions}
               onChange={(e) => {
                 setTahunFilter(e.value);
-                applyFiltersWithValue(e.value, tingkatFilter);
+                applyFiltersWithValue(e.value, mapelFilter);
               }}
               placeholder="Pilih Tahun"
               className="w-52"
@@ -377,21 +412,25 @@ export default function MasterPredikatPage() {
             />
           </div>
 
+          {/* ✅ FILTER MAPEL: tampilkan nama + tag kode, value = KODE_MAPEL */}
           <div className="flex flex-column gap-2">
-            <label htmlFor="tingkat-filter" className="text-sm font-medium">
-              Tingkatan
+            <label htmlFor="mapel-filter" className="text-sm font-medium">
+              Mata Pelajaran
             </label>
             <Dropdown
-              id="tingkat-filter"
-              value={tingkatFilter}
-              options={tingkatOptions}
+              id="mapel-filter"
+              value={mapelFilter}
+              options={mapelOptions}
               onChange={(e) => {
-                setTingkatFilter(e.value);
+                setMapelFilter(e.value);
                 applyFiltersWithValue(tahunFilter, e.value);
               }}
-              placeholder="Pilih Tingkat"
-              className="w-40"
+              placeholder="Pilih Mapel"
+              className="w-52"
               showClear
+              filter
+              itemTemplate={mapelOptionTemplate}
+              valueTemplate={mapelValueTemplate}
             />
           </div>
 
@@ -403,7 +442,6 @@ export default function MasterPredikatPage() {
           />
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center justify-end gap-2">
           <Button
             icon="pi pi-print"
@@ -425,10 +463,8 @@ export default function MasterPredikatPage() {
         </div>
       </div>
 
-      {/* --- TABLE --- */}
       <CustomDataTable data={predikatList} loading={isLoading} columns={predikatColumns} />
 
-      {/* Dialogs */}
       <FormPredikat
         visible={dialogVisible}
         onHide={() => {
