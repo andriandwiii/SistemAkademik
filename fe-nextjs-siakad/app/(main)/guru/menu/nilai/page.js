@@ -531,7 +531,7 @@ export default function EntryNilaiPage() {
       value={rowData[gradeType][subType]}
       onChange={(e) => onGradeChange(e, rowData, gradeType, subType)}
       className="w-full text-center"
-      placeholder="0-100"
+      placeholder="0"
     />
   );
 

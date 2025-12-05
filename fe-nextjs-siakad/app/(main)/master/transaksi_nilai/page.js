@@ -1,21 +1,33 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Tag } from "primereact/tag";
 import { Toast } from "primereact/toast";
-import { Toolbar } from "primereact/toolbar";
-import { Dialog } from "primereact/dialog";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { ProgressSpinner } from "primereact/progressspinner";
+import { Card } from "primereact/card";
+import { Divider } from "primereact/divider";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Helper function untuk fetch dengan axios-like interface
+const apiCall = async (url, options = {}) => {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  });
+  return {
+    data: await response.json()
+  };
+};
 
 export default function EntryNilaiPage() {
   const toast = useRef(null);
@@ -46,20 +58,16 @@ export default function EntryNilaiPage() {
 
   const [loading, setLoading] = useState(false);
   const [loadingMapel, setLoadingMapel] = useState(false);
-
-  // =============================== EDIT FORM ====================================
-  const [editDialog, setEditDialog] = useState(false);
-  const [editRow, setEditRow] = useState(null);
+  const [isTableVisible, setIsTableVisible] = useState(false);
 
   // ============================ LOAD MASTER DATA ===============================
   useEffect(() => {
     const loadMaster = async () => {
       try {
-        const [thn, tkt, jur, trxSiswa] = await Promise.all([
-          axios.get(`${API_URL}/master-tahun-ajaran`),
-          axios.get(`${API_URL}/master-tingkatan`),
-          axios.get(`${API_URL}/master-jurusan`),
-          axios.get(`${API_URL}/transaksi-siswa`),
+        const [thn, tkt, jur] = await Promise.all([
+          apiCall(`${API_URL}/master-tahun-ajaran`),
+          apiCall(`${API_URL}/master-tingkatan`),
+          apiCall(`${API_URL}/master-jurusan`),
         ]);
 
         setOpsiTahun((thn.data.data || []).map((i) => ({
@@ -100,7 +108,7 @@ export default function EntryNilaiPage() {
       }
 
       try {
-        const res = await axios.get(`${API_URL}/transaksi-siswa`);
+        const res = await apiCall(`${API_URL}/transaksi-siswa`);
         
         const trxFiltered = (res.data.data || []).filter(
           trx => trx.tahun_ajaran.TAHUN_AJARAN_ID === filters.TAHUN_AJARAN_ID
@@ -145,15 +153,14 @@ export default function EntryNilaiPage() {
 
       setLoadingMapel(true);
       try {
-        const res = await axios.get(`${API_URL}/transaksi-nilai/mapel`, {
-          params: {
-            kelasId: filters.KELAS_ID,
-            tahunId: filters.TAHUN_AJARAN_ID
-          }
+        const params = new URLSearchParams({
+          kelasId: filters.KELAS_ID,
+          tahunId: filters.TAHUN_AJARAN_ID
         });
+        
+        const res = await apiCall(`${API_URL}/transaksi-nilai/mapel?${params}`);
 
         if (res.data.status === "00") {
-          // Build options label as "Nama Mapel (KODE)"
           const mapelOptions = (res.data.data || []).map(m => ({
             label: `${m.NAMA_MAPEL} (${m.KODE_MAPEL})`,
             value: m.KODE_MAPEL
@@ -161,7 +168,6 @@ export default function EntryNilaiPage() {
           
           setOpsiMapel(mapelOptions);
           
-          // Reset pilihan mapel jika yang sebelumnya tidak ada di list baru
           if (filters.KODE_MAPEL) {
             const exists = mapelOptions.find(m => m.value === filters.KODE_MAPEL);
             if (!exists) {
@@ -208,22 +214,28 @@ export default function EntryNilaiPage() {
   // ============================ LOAD NILAI ===================================
   const fetchEntryData = async () => {
     if (!filters.TAHUN_AJARAN_ID || !filters.KELAS_ID || !filters.KODE_MAPEL) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "Peringatan",
+        detail: "Lengkapi filter terlebih dahulu"
+      });
       return;
     }
 
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/transaksi-nilai`, {
-        params: {
-          kelasId: filters.KELAS_ID,
-          mapelId: filters.KODE_MAPEL,
-          tahunId: filters.TAHUN_AJARAN_ID,
-        },
+      const params = new URLSearchParams({
+        kelasId: filters.KELAS_ID,
+        mapelId: filters.KODE_MAPEL,
+        tahunId: filters.TAHUN_AJARAN_ID,
       });
+      
+      const res = await apiCall(`${API_URL}/transaksi-nilai?${params}`);
 
       if (res.data.status === "00") {
         setStudents(res.data.data);
         setMeta(res.data.meta);
+        setIsTableVisible(true);
 
         toast.current?.show({
           severity: "success",
@@ -232,6 +244,7 @@ export default function EntryNilaiPage() {
         });
       } else {
         setStudents([]);
+        setIsTableVisible(false);
         toast.current?.show({
           severity: "warn",
           summary: "Info",
@@ -241,6 +254,7 @@ export default function EntryNilaiPage() {
     } catch (e) {
       console.error(e);
       setStudents([]);
+      setIsTableVisible(false);
       toast.current?.show({
         severity: "error",
         summary: "Error",
@@ -250,11 +264,6 @@ export default function EntryNilaiPage() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchEntryData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.TAHUN_AJARAN_ID, filters.KELAS_ID, filters.KODE_MAPEL]);
 
   // ========================== PREDIKAT DINAMIS ================================
   const getPredikat = (nilai) => {
@@ -282,29 +291,6 @@ export default function EntryNilaiPage() {
     );
   };
 
-  // ========================== UPDATE SATU SISWA ================================
-  const updateSingle = async () => {
-    try {
-      await axios.put(`${API_URL}/transaksi-nilai/${editRow.id}`, editRow);
-
-      toast.current?.show({
-        severity: "success",
-        summary: "Berhasil",
-        detail: "Nilai berhasil diperbarui",
-      });
-
-      setEditDialog(false);
-      fetchEntryData();
-    } catch (e) {
-      console.error(e);
-      toast.current?.show({
-        severity: "error",
-        summary: "Gagal",
-        detail: "Gagal memperbarui nilai",
-      });
-    }
-  };
-
   // ============================ DELETE SATU SISWA =============================
   const deleteSingle = (row) => {
     confirmDialog({
@@ -314,7 +300,9 @@ export default function EntryNilaiPage() {
       acceptClassName: "p-button-danger",
       accept: async () => {
         try {
-          await axios.delete(`${API_URL}/transaksi-nilai/${row.id}`);
+          await apiCall(`${API_URL}/transaksi-nilai/${row.id}`, {
+            method: 'DELETE'
+          });
 
           toast.current?.show({
             severity: "success",
@@ -348,11 +336,14 @@ export default function EntryNilaiPage() {
 
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/transaksi-nilai`, {
-        students,
-        kelasId: filters.KELAS_ID,
-        mapelId: filters.KODE_MAPEL,
-        tahunId: filters.TAHUN_AJARAN_ID,
+      await apiCall(`${API_URL}/transaksi-nilai`, {
+        method: 'POST',
+        body: JSON.stringify({
+          students,
+          kelasId: filters.KELAS_ID,
+          mapelId: filters.KODE_MAPEL,
+          tahunId: filters.TAHUN_AJARAN_ID,
+        })
       });
 
       toast.current?.show({
@@ -374,25 +365,71 @@ export default function EntryNilaiPage() {
     }
   };
 
+  // ============================== HELPER: Save Single Grade =============================
+  const saveGrades = async (rowData) => {
+    try {
+      const payload = {
+        students: [
+          {
+            id: rowData.id,
+            nilai_p: rowData.nilai_p === '' ? null : Number(rowData.nilai_p),
+            nilai_k: rowData.nilai_k === '' ? null : Number(rowData.nilai_k)
+          }
+        ],
+        kelasId: filters.KELAS_ID,
+        mapelId: filters.KODE_MAPEL,
+        tahunId: filters.TAHUN_AJARAN_ID
+      };
+
+      const res = await apiCall(`${API_URL}/transaksi-nilai`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.data?.status === '00') {
+        toast.current?.show({
+          severity: "success",
+          summary: "Berhasil",
+          detail: `Nilai siswa ${rowData.nama} berhasil disimpan!`,
+        });
+        fetchEntryData();
+      } else {
+        toast.current?.show({
+          severity: "error",
+          summary: "Gagal",
+          detail: res.data?.message || 'Gagal menyimpan nilai',
+        });
+      }
+    } catch (err) {
+      console.error('Error save single:', err);
+      toast.current?.show({
+        severity: "error",
+        summary: "Gagal",
+        detail: 'Gagal menyimpan nilai',
+      });
+    }
+  };
+
   // ============================== TEMPLATE COLUMNS =============================
-  const inputTpl = (row, field) => (
-    <InputNumber
-      value={row[field] ?? null}
-      onValueChange={(e) => onValueChange(row.id, field, e.value)}
-      min={0}
-      max={100}
-      className="w-full"
-      inputClassName="text-center"
+  const nilaiTemplate = (row, field) => (
+    <input
+      type="text"
+      value={row[field] ?? ''}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val !== '' && isNaN(val)) return;
+        if (val !== '' && (Number(val) < 0 || Number(val) > 100)) return;
+        onValueChange(row.id, field, val === '' ? '' : val);
+      }}
+      className="p-inputtext p-component w-full text-center"
       placeholder="0"
     />
   );
 
-  // ---------- CHANGED: show predikat as plain text (no colors) ----------
   const predTpl = (row, field) => {
     const p = getPredikat(row[field]);
     return <span className="font-medium">{p}</span>;
   };
-  // -----------------------------------------------------------------------
 
   const deskTpl = (row, field) => {
    return <span className="font-medium">{getDeskripsi(row[field])}</span>;
@@ -400,22 +437,18 @@ export default function EntryNilaiPage() {
 
   // ============================== ACTION COLUMN ===============================
   const actionTpl = (row) => (
-    <div className="flex gap-2 justify-center">
+    <div className="flex gap-2">
       <Button
-        icon="pi pi-pencil"
-        severity="warning"
+        icon="pi pi-save"
         size="small"
-        onClick={() => {
-          setEditRow({ ...row });
-          setEditDialog(true);
-        }}
-        tooltip="Edit"
+        onClick={() => saveGrades(row)}
+        tooltip="Simpan"
       />
 
       <Button
         icon="pi pi-trash"
-        severity="danger"
         size="small"
+        className="p-button-danger"
         onClick={() => deleteSingle(row)}
         tooltip="Hapus"
       />
@@ -451,160 +484,207 @@ export default function EntryNilaiPage() {
     );
   };
 
+  const getSelectedMapelLabel = () => {
+    const sel = filters.KODE_MAPEL;
+    if (!sel) return '';
+    const found = opsiMapel.find(o => o.value === sel);
+    if (found) {
+      const match = String(found.label).match(/^(.*)\s+\((.*)\)$/);
+      return match ? `${match[1]} (${match[2]})` : String(found.label);
+    }
+    return String(sel);
+  };
+
   // =============================== RENDER ====================================
   return (
-    <div className="p-4 bg-gray-50 min-h-screen">
+    <div className="grid justify-content-center">
       <Toast ref={toast} />
       <ConfirmDialog />
 
-      <h2 className="text-2xl font-bold mb-4">Entry Nilai Siswa</h2>
+      <div className="col-12 md:col-11">
+        <Card className="mb-4 shadow-1">
+          <h5 className="font-bold text-900">Entry Nilai Siswa</h5>
+          <p className="text-sm text-500 mb-3">
+            Pilih filter di bawah untuk menampilkan data nilai siswa. Klik &quot;Tampilkan Tabel&quot; untuk memuat data.
+          </p>
+          <Divider />
 
-      {/* ============================ FILTER ============================ */}
-      <div className="card mb-4 p-4 bg-white shadow-sm rounded-lg">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-          {/* Tahun Ajaran */}
-          <div className="col-span-12 md:col-span-3">
-            <label className="block text-sm font-medium mb-2">Tahun Ajaran</label>
-            <Dropdown
-              value={filters.TAHUN_AJARAN_ID}
-              options={opsiTahun}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  TAHUN_AJARAN_ID: e.value,
-                  TINGKATAN_ID: "",
-                  JURUSAN_ID: "",
-                  KELAS_ID: "",
-                  KODE_MAPEL: "",
-                })
-              }
-              placeholder="Pilih Tahun"
-              className="w-full"
-              aria-label="Pilih Tahun Ajaran"
+          <div className="p-fluid formgrid grid">
+            {/* Tahun Ajaran */}
+            <div className="field col-12 md:col-2">
+              <label className="font-medium">Tahun Ajaran</label>
+              <Dropdown
+                value={filters.TAHUN_AJARAN_ID}
+                options={opsiTahun}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    TAHUN_AJARAN_ID: e.value,
+                    TINGKATAN_ID: "",
+                    JURUSAN_ID: "",
+                    KELAS_ID: "",
+                    KODE_MAPEL: "",
+                  })
+                }
+                placeholder="Pilih Tahun"
+                aria-label="Pilih Tahun Ajaran"
+              />
+            </div>
+
+            {/* Tingkat */}
+            <div className="field col-12 md:col-2">
+              <label className="font-medium">Tingkat</label>
+              <Dropdown
+                value={filters.TINGKATAN_ID}
+                options={opsiTingkat}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    TINGKATAN_ID: e.value,
+                    KELAS_ID: "",
+                    KODE_MAPEL: "",
+                  })
+                }
+                placeholder="Pilih Tingkat"
+                showClear
+                aria-label="Pilih Tingkat"
+              />
+            </div>
+
+            {/* Jurusan */}
+            <div className="field col-12 md:col-2">
+              <label className="font-medium">Jurusan</label>
+              <Dropdown
+                value={filters.JURUSAN_ID}
+                options={opsiJurusan}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    JURUSAN_ID: e.value,
+                    KELAS_ID: "",
+                    KODE_MAPEL: "",
+                  })
+                }
+                placeholder="Pilih Jurusan"
+                showClear
+                aria-label="Pilih Jurusan"
+              />
+            </div>
+
+            {/* Kelas */}
+            <div className="field col-12 md:col-2">
+              <label className="font-medium">Kelas</label>
+              <Dropdown
+                value={filters.KELAS_ID}
+                options={kelasFiltered}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    KELAS_ID: e.value,
+                    KODE_MAPEL: "",
+                  })
+                }
+                placeholder="Pilih Kelas"
+                disabled={!filters.TAHUN_AJARAN_ID || kelasFiltered.length === 0}
+                emptyMessage="Tidak ada kelas untuk tahun ini"
+                aria-label="Pilih Kelas"
+              />
+              {filters.TAHUN_AJARAN_ID && kelasFiltered.length === 0 && (
+                <small className="text-orange-600">Kelas untuk tahun ajaran ini belum tersedia.</small>
+              )}
+            </div>
+
+            {/* Mata Pelajaran */}
+            <div className="field col-12 md:col-3">
+              <label className="font-medium">
+                Mata Pelajaran
+                {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm" aria-hidden />}
+              </label>
+              <Dropdown
+                value={filters.KODE_MAPEL}
+                options={opsiMapel}
+                onChange={(e) => setFilters({ ...filters, KODE_MAPEL: e.value })}
+                placeholder="Pilih Mapel"
+                filter
+                disabled={!filters.KELAS_ID || loadingMapel}
+                emptyMessage="Belum ada jadwal untuk kelas ini"
+                aria-label="Pilih Mata Pelajaran"
+                itemTemplate={mapelOptionTemplate}
+                valueTemplate={mapelValueTemplate}
+              />
+              {filters.KELAS_ID && !loadingMapel && opsiMapel.length === 0 && (
+                <small className="text-orange-600">Belum ada jadwal mata pelajaran untuk kelas ini.</small>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-content-end gap-2 mt-4">
+            <Button 
+              label="Bersihkan" 
+              icon="pi pi-times" 
+              outlined 
+              onClick={() => {
+                setFilters({ 
+                  TAHUN_AJARAN_ID: '', 
+                  TINGKATAN_ID: '', 
+                  JURUSAN_ID: '', 
+                  KELAS_ID: '', 
+                  KODE_MAPEL: '' 
+                });
+                setStudents([]);
+                setIsTableVisible(false);
+              }} 
+            />
+            <Button 
+              label="Tampilkan Tabel" 
+              icon="pi pi-check" 
+              onClick={fetchEntryData}
+              disabled={!filters.TAHUN_AJARAN_ID || !filters.KELAS_ID || !filters.KODE_MAPEL}
             />
           </div>
 
-          {/* Tingkat */}
-          <div className="col-span-12 md:col-span-2">
-            <label className="block text-sm font-medium mb-2">Tingkat</label>
-            <Dropdown
-              value={filters.TINGKATAN_ID}
-              options={opsiTingkat}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  TINGKATAN_ID: e.value,
-                  KELAS_ID: "",
-                  KODE_MAPEL: "",
-                })
-              }
-              placeholder="Pilih Tingkat"
-              className="w-full"
-              aria-label="Pilih Tingkat"
-            />
-          </div>
-
-          {/* Jurusan */}
-          <div className="col-span-12 md:col-span-3">
-            <label className="block text-sm font-medium mb-2">Jurusan</label>
-            <Dropdown
-              value={filters.JURUSAN_ID}
-              options={opsiJurusan}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  JURUSAN_ID: e.value,
-                  KELAS_ID: "",
-                  KODE_MAPEL: "",
-                })
-              }
-              placeholder="Pilih Jurusan"
-              className="w-full"
-              showClear
-              aria-label="Pilih Jurusan"
-            />
-          </div>
-
-          {/* Kelas */}
-          <div className="col-span-12 md:col-span-2">
-            <label className="block text-sm font-medium mb-2">Kelas</label>
-            <Dropdown
-              value={filters.KELAS_ID}
-              options={kelasFiltered}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  KELAS_ID: e.value,
-                  KODE_MAPEL: "",
-                })
-              }
-              placeholder="Pilih Kelas"
-              className="w-full"
-              disabled={!filters.TAHUN_AJARAN_ID || kelasFiltered.length === 0}
-              emptyMessage="Tidak ada kelas untuk tahun ini"
-              aria-label="Pilih Kelas"
-            />
-            {filters.TAHUN_AJARAN_ID && kelasFiltered.length === 0 && (
-              <p className="mt-2 text-xs text-orange-600">Kelas untuk tahun ajaran ini belum tersedia.</p>
-            )}
-          </div>
-
-          {/* Mata Pelajaran */}
-          <div className="col-span-12 md:col-span-2">
-            <label className="block text-sm font-medium mb-2">
-              Mata Pelajaran
-              {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm" aria-hidden />}
-            </label>
-            <Dropdown
-              value={filters.KODE_MAPEL}
-              options={opsiMapel}
-              onChange={(e) => setFilters({ ...filters, KODE_MAPEL: e.value })}
-              placeholder="Pilih Mapel"
-              className="w-full"
-              filter
-              disabled={!filters.KELAS_ID || loadingMapel}
-              emptyMessage="Belum ada jadwal untuk kelas ini"
-              aria-label="Pilih Mata Pelajaran"
-              itemTemplate={mapelOptionTemplate}
-              valueTemplate={mapelValueTemplate}
-            />
-            {filters.KELAS_ID && !loadingMapel && opsiMapel.length === 0 && (
-              <p className="mt-2 text-xs text-orange-600">Belum ada jadwal mata pelajaran untuk kelas ini.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Info KKM */}
-        {meta?.kkm && students.length > 0 && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-md">
-            <p className="m-0 text-sm">
-              <strong>KKM:</strong> {meta.kkm}
-              <strong className="ml-4">Interval:</strong>
-              {Object.entries(meta.interval_predikat || {}).map(([key, val], idx) => (
-                <span key={key} className="inline-flex items-center ml-3 text-sm">
-                  <span className="font-semibold mr-1">{key}:</span>
-                  <span>{val}</span>
-                </span>
-              ))}
-            </p>
-          </div>
-        )}
+          {/* Info KKM */}
+          {meta?.kkm && students.length > 0 && isTableVisible && (
+            <>
+              <Divider className="my-3" />
+              <div className="p-3 bg-blue-50 border-round">
+                <p className="m-0 text-sm">
+                  <strong>KKM:</strong> {meta.kkm}
+                  <strong className="ml-4">Interval:</strong>
+                  {Object.entries(meta.interval_predikat || {}).map(([key, val]) => (
+                    <span key={key} className="inline-flex items-center ml-3 text-sm">
+                      <span className="font-semibold mr-1">{key}:</span>
+                      <span>{val}</span>
+                    </span>
+                  ))}
+                </p>
+              </div>
+            </>
+          )}
+        </Card>
       </div>
-
 
       {/* =============================== TABLE ================================ */}
       {loading && (
-        <div className="flex justify-center p-8">
-          <ProgressSpinner />
+        <div className="col-12 md:col-11">
+          <div className="flex justify-content-center p-8">
+            <ProgressSpinner />
+          </div>
         </div>
       )}
 
-      {!loading && students.length > 0 && (
-        <div className="card bg-white shadow-sm border-round">
+      {!loading && isTableVisible && students.length > 0 && (
+        <div className="col-12 md:col-11">
+          <Card className="shadow-1">
+            <h5 className="font-bold text-900">
+              Tabel Nilai ({filters.KELAS_ID} - {getSelectedMapelLabel()})
+            </h5>
+            <p className="text-sm text-500 mb-3">
+              Isi nilai angka untuk setiap siswa, predikat dan deskripsi akan muncul otomatis.
+            </p>
+            <Divider className="my-2" />
 
-          <Toolbar
-            className="mb-3"
-            right={
+            <div className="flex justify-content-end mb-3">
               <Button
                 label="Simpan Semua"
                 icon="pi pi-save"
@@ -612,102 +692,63 @@ export default function EntryNilaiPage() {
                 onClick={saveAll}
                 loading={loading}
               />
-            }
-          />
+            </div>
 
-          <DataTable
-            value={students}
-            scrollable
-            scrollHeight="600px"
-            showGridlines
-            stripedRows
-          >
-            <Column
-              header="No"
-              body={(d, opt) => opt.rowIndex + 1}
-              style={{ width: "60px", textAlign: "center" }}
-            />
+            <DataTable
+              value={students.map((s, idx) => ({
+                ...s,
+                no: idx + 1,
+                namaSiswa: s.nama || s.NAMA || s.namaSiswa || 'Tanpa Nama'
+              }))}
+              scrollable
+              scrollHeight="600px"
+              showGridlines
+              stripedRows
+              paginator
+              rows={10}
+              rowsPerPageOptions={[10, 20, 50]}
+            >
+              <Column
+                field="no"
+                header="No."
+                style={{ width: "50px" }}
+              />
 
-            <Column
-              field="nama"
-              header="Nama Siswa"
-              style={{ minWidth: "200px" }}
-            />
+              <Column
+                field="namaSiswa"
+                header="Nama Siswa"
+                style={{ minWidth: "150px" }}
+              />
 
-            {/* PENGETAHUAN */}
-            <Column header="Nilai Pengetahuan" body={(r) => inputTpl(r, "nilai_p")} style={{ width: "120px" }} />
-            <Column header="Predikat" body={(r) => predTpl(r, "nilai_p")} style={{ width: "80px" }} />
-            <Column header="Deskripsi" body={(r) => deskTpl(r, "nilai_p")} style={{ minWidth: "200px" }} />
+              {/* PENGETAHUAN */}
+              <Column header="Angka (Pengetahuan)" body={(r) => nilaiTemplate(r, "nilai_p")} style={{ width: "100px" }} />
+              <Column field="predikat_p" header="Predikat (Pengetahuan)" body={(r) => predTpl(r, "nilai_p")} style={{ width: "80px" }} />
+              <Column field="deskripsi_p" header="Deskripsi (Pengetahuan)" body={(r) => deskTpl(r, "nilai_p")} style={{ minWidth: "200px" }} />
 
-            {/* KETERAMPILAN */}
-            <Column header="Nilai Keterampilan" body={(r) => inputTpl(r, "nilai_k")} style={{ width: "120px" }} />
-            <Column header="Predikat" body={(r) => predTpl(r, "nilai_k")} style={{ width: "80px" }} />
-            <Column header="Deskripsi" body={(r) => deskTpl(r, "nilai_k")} style={{ minWidth: "200px" }} />
+              {/* KETERAMPILAN */}
+              <Column header="Angka (Keterampilan)" body={(r) => nilaiTemplate(r, "nilai_k")} style={{ width: "100px" }} />
+              <Column field="predikat_k" header="Predikat (Keterampilan)" body={(r) => predTpl(r, "nilai_k")} style={{ width: "80px" }} />
+              <Column field="deskripsi_k" header="Deskripsi (Keterampilan)" body={(r) => deskTpl(r, "nilai_k")} style={{ minWidth: "200px" }} />
 
-            {/* ACTION */}
-            <Column
-              header="Aksi"
-              body={actionTpl}
-              style={{ width: "120px" }}
-            />
-          </DataTable>
+              {/* ACTION */}
+              <Column
+                header="Aksi"
+                body={actionTpl}
+                style={{ width: "120px" }}
+              />
+            </DataTable>
+          </Card>
         </div>
       )}
 
-      {!loading && students.length === 0 && filters.KELAS_ID && filters.KODE_MAPEL && (
-        <div className="card p-6 bg-white text-center">
-          <i className="pi pi-info-circle text-4xl text-gray-400 mb-3"></i>
-          <p className="text-gray-600">Tidak ada data siswa atau KKM belum diatur</p>
+      {!loading && isTableVisible && students.length === 0 && (
+        <div className="col-12 md:col-11">
+          <Card className="p-6 text-center">
+            <i className="pi pi-info-circle text-4xl text-gray-400 mb-3"></i>
+            <p className="text-gray-600">Tidak ada data siswa atau KKM belum diatur</p>
+          </Card>
         </div>
       )}
-
-      {/* ============================ EDIT DIALOG ============================= */}
-      <Dialog
-        visible={editDialog}
-        onHide={() => setEditDialog(false)}
-        header="Edit Nilai Siswa"
-        modal
-        style={{ width: "400px" }}
-      >
-        {editRow && (
-          <div className="flex flex-column gap-3">
-            <h4 className="m-0">{editRow.nama}</h4>
-
-            <div>
-              <label className="block mb-2">Nilai Pengetahuan</label>
-              <InputNumber
-                className="w-full"
-                value={editRow.nilai_p}
-                onValueChange={(e) =>
-                  setEditRow({ ...editRow, nilai_p: e.value })
-                }
-                min={0}
-                max={100}
-              />
-            </div>
-
-            <div>
-              <label className="block mb-2">Nilai Keterampilan</label>
-              <InputNumber
-                className="w-full"
-                value={editRow.nilai_k}
-                onValueChange={(e) =>
-                  setEditRow({ ...editRow, nilai_k: e.value })
-                }
-                min={0}
-                max={100}
-              />
-            </div>
-
-            <Button 
-              label="Simpan" 
-              severity="success" 
-              onClick={updateSingle}
-              className="w-full" 
-            />
-          </div>
-        )}
-      </Dialog>
     </div>
   );
 }
