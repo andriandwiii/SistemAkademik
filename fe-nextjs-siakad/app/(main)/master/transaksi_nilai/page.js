@@ -1,6 +1,7 @@
-"use client";
+/* eslint-disable @next/next/no-img-element */
+'use client';
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -21,16 +22,22 @@ const apiCall = async (url, options = {}) => {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers
-    }
+      ...(options.headers || {})
+    },
+    signal: options.signal
   });
-  return {
-    data: await response.json()
-  };
+  const json = await response.json();
+  return { data: json };
 };
 
 export default function EntryNilaiPage() {
   const toast = useRef(null);
+
+  // debounce / abort refs
+  const kelasDebounceRef = useRef(null);
+  const mapelDebounceRef = useRef(null);
+  const kelasAbortRef = useRef(null);
+  const mapelAbortRef = useRef(null);
 
   // =============================== FILTERS =====================================
   const [filters, setFilters] = useState({
@@ -53,11 +60,12 @@ export default function EntryNilaiPage() {
   const [opsiTahun, setOpsiTahun] = useState([]);
   const [opsiTingkat, setOpsiTingkat] = useState([]);
   const [opsiJurusan, setOpsiJurusan] = useState([]);
-  const [opsiKelas, setOpsiKelas] = useState([]);
+  const [opsiKelas, setOpsiKelas] = useState([]); // internal raw kelas objects for filtering
   const [opsiMapel, setOpsiMapel] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [loadingMapel, setLoadingMapel] = useState(false);
+  const [loadingKelas, setLoadingKelas] = useState(false);
   const [isTableVisible, setIsTableVisible] = useState(false);
 
   // ============================ LOAD MASTER DATA ===============================
@@ -76,7 +84,7 @@ export default function EntryNilaiPage() {
         })));
 
         setOpsiTingkat((tkt.data.data || []).map((i) => ({
-          label: i.TINGKATAN,
+          label: i.TINGKATAN || i.NAMA_TINGKATAN,
           value: i.TINGKATAN_ID,
         })));
 
@@ -100,52 +108,99 @@ export default function EntryNilaiPage() {
   }, []);
 
   // ===================== RELOAD KELAS SAAT TAHUN BERUBAH ======================
+  // Debounce + AbortController
   useEffect(() => {
-    const loadKelasByTahun = async () => {
+    const loadKelasByTahun = async (signal) => {
       if (!filters.TAHUN_AJARAN_ID) {
         setOpsiKelas([]);
         return;
       }
 
+      setLoadingKelas(true);
       try {
-        const res = await apiCall(`${API_URL}/transaksi-siswa`);
-        
+        // Ambil transaksi siswa/jadwal atau endpoint yang relevan untuk mendapatkan daftar kelas (sesuaikan endpoint jika perlu)
+        // Di kode sebelumnya endpoint: /transaksi-siswa — kita pakai itu
+        const res = await apiCall(`${API_URL}/transaksi-siswa`, { signal });
+
         const trxFiltered = (res.data.data || []).filter(
-          trx => trx.tahun_ajaran.TAHUN_AJARAN_ID === filters.TAHUN_AJARAN_ID
+          trx => trx.tahun_ajaran?.TAHUN_AJARAN_ID === filters.TAHUN_AJARAN_ID
         );
-        
+
         const kelasUnique = [];
         const kelasSeen = new Set();
-        
+
         trxFiltered.forEach(trx => {
-          const kelasId = trx.kelas.KELAS_ID;
-          
+          const kelasId = trx.kelas?.KELAS_ID;
+          if (!kelasId) return;
           if (!kelasSeen.has(kelasId)) {
             kelasSeen.add(kelasId);
             kelasUnique.push({
               KELAS_ID: trx.kelas.KELAS_ID,
-              TINGKATAN_ID: trx.tingkatan.TINGKATAN_ID,
-              JURUSAN_ID: trx.jurusan.JURUSAN_ID,
+              TINGKATAN_ID: trx.tingkatan?.TINGKATAN_ID,
+              JURUSAN_ID: trx.jurusan?.JURUSAN_ID,
               NAMA_RUANG: trx.kelas.NAMA_RUANG,
               GEDUNG_ID: trx.kelas.GEDUNG_ID,
               RUANG_ID: trx.kelas.RUANG_ID,
             });
           }
         });
-        
+
         setOpsiKelas(kelasUnique);
-        
       } catch (e) {
+        if (e.name === 'AbortError') {
+          return; // dibatalkan, abaikan
+        }
         console.error("Error loading kelas by tahun:", e);
+        toast.current?.show({
+          severity: "error",
+          summary: "Error",
+          detail: "Gagal memuat kelas"
+        });
+        setOpsiKelas([]);
+      } finally {
+        setLoadingKelas(false);
       }
     };
 
-    loadKelasByTahun();
+    // clear previous debounce & abort
+    if (kelasDebounceRef.current) clearTimeout(kelasDebounceRef.current);
+    if (kelasAbortRef.current) {
+      try { kelasAbortRef.current.abort(); } catch (_) {}
+      kelasAbortRef.current = null;
+    }
+
+    // schedule debounce (250ms)
+    kelasDebounceRef.current = setTimeout(() => {
+      const ac = new AbortController();
+      kelasAbortRef.current = ac;
+      loadKelasByTahun(ac.signal);
+    }, 250);
+
+    return () => {
+      if (kelasDebounceRef.current) clearTimeout(kelasDebounceRef.current);
+      if (kelasAbortRef.current) {
+        try { kelasAbortRef.current.abort(); } catch (_) {}
+        kelasAbortRef.current = null;
+      }
+    };
   }, [filters.TAHUN_AJARAN_ID]);
 
+  // ===================== DERIVE kelasFiltered untuk dropdown ==================
+  const kelasFiltered = (opsiKelas || [])
+    .filter(k => {
+      const tingkatMatch = !filters.TINGKATAN_ID || k.TINGKATAN_ID === filters.TINGKATAN_ID;
+      const jurusanMatch = !filters.JURUSAN_ID || k.JURUSAN_ID === filters.JURUSAN_ID;
+      return tingkatMatch && jurusanMatch;
+    })
+    .map(k => ({
+      label: `${k.KELAS_ID}${k.NAMA_RUANG ? ` - ${k.NAMA_RUANG}` : ''}`,
+      value: k.KELAS_ID
+    }));
+
   // ============== LOAD MAPEL DARI JADWAL SAAT KELAS DIPILIH ===================
+  // Debounce + AbortController (mapel biasanya sedikit lebih berat)
   useEffect(() => {
-    const loadMapelByKelas = async () => {
+    const loadMapelByKelas = async (signal) => {
       if (!filters.KELAS_ID || !filters.TAHUN_AJARAN_ID) {
         setOpsiMapel([]);
         return;
@@ -157,25 +212,28 @@ export default function EntryNilaiPage() {
           kelasId: filters.KELAS_ID,
           tahunId: filters.TAHUN_AJARAN_ID
         });
-        
-        const res = await apiCall(`${API_URL}/transaksi-nilai/mapel?${params}`);
+
+        const res = await apiCall(`${API_URL}/transaksi-nilai/mapel?${params.toString()}`, { signal });
 
         if (res.data.status === "00") {
+          // hanya ambil mapel yang sesuai jadwal untuk kelas ini
           const mapelOptions = (res.data.data || []).map(m => ({
             label: `${m.NAMA_MAPEL} (${m.KODE_MAPEL})`,
-            value: m.KODE_MAPEL
+            value: String(m.KODE_MAPEL)
           }));
-          
+
           setOpsiMapel(mapelOptions);
-          
+
+          // jika KODE_MAPEL saat ini tidak ada di opsi baru -> reset
           if (filters.KODE_MAPEL) {
-            const exists = mapelOptions.find(m => m.value === filters.KODE_MAPEL);
+            const exists = mapelOptions.find(m => String(m.value) === String(filters.KODE_MAPEL));
             if (!exists) {
               setFilters(prev => ({ ...prev, KODE_MAPEL: "" }));
             }
           }
         } else {
           setOpsiMapel([]);
+          // beri tahu user kalau memang belum ada jadwal
           toast.current?.show({
             severity: "info",
             summary: "Info",
@@ -183,6 +241,9 @@ export default function EntryNilaiPage() {
           });
         }
       } catch (e) {
+        if (e.name === 'AbortError') {
+          return;
+        }
         console.error("Error loading mapel by kelas:", e);
         setOpsiMapel([]);
         toast.current?.show({
@@ -195,21 +256,28 @@ export default function EntryNilaiPage() {
       }
     };
 
-    loadMapelByKelas();
-  }, [filters.KELAS_ID, filters.TAHUN_AJARAN_ID]);
+    // clear pending timers & abort previous request
+    if (mapelDebounceRef.current) clearTimeout(mapelDebounceRef.current);
+    if (mapelAbortRef.current) {
+      try { mapelAbortRef.current.abort(); } catch (_) {}
+      mapelAbortRef.current = null;
+    }
 
-  // ============================ FILTER KELAS DINAMIS ===========================
-  const kelasFiltered = opsiKelas
-    .filter(k => {
-      const tingkatMatch = !filters.TINGKATAN_ID || k.TINGKATAN_ID === filters.TINGKATAN_ID;
-      const jurusanMatch = !filters.JURUSAN_ID || k.JURUSAN_ID === filters.JURUSAN_ID;
-      
-      return tingkatMatch && jurusanMatch;
-    })
-    .map(k => ({
-      label: `${k.KELAS_ID} ${k.NAMA_RUANG ? `- ${k.NAMA_RUANG}` : ''}`,
-      value: k.KELAS_ID
-    }));
+    // schedule new fetch (350ms debounce)
+    mapelDebounceRef.current = setTimeout(() => {
+      const ac = new AbortController();
+      mapelAbortRef.current = ac;
+      loadMapelByKelas(ac.signal);
+    }, 350);
+
+    return () => {
+      if (mapelDebounceRef.current) clearTimeout(mapelDebounceRef.current);
+      if (mapelAbortRef.current) {
+        try { mapelAbortRef.current.abort(); } catch (_) {}
+        mapelAbortRef.current = null;
+      }
+    };
+  }, [filters.KELAS_ID, filters.TAHUN_AJARAN_ID]);
 
   // ============================ LOAD NILAI ===================================
   const fetchEntryData = async () => {
@@ -229,18 +297,23 @@ export default function EntryNilaiPage() {
         mapelId: filters.KODE_MAPEL,
         tahunId: filters.TAHUN_AJARAN_ID,
       });
-      
-      const res = await apiCall(`${API_URL}/transaksi-nilai?${params}`);
+
+      const res = await apiCall(`${API_URL}/transaksi-nilai?${params.toString()}`);
 
       if (res.data.status === "00") {
-        setStudents(res.data.data);
-        setMeta(res.data.meta);
+        setStudents(res.data.data.map(s => ({
+          ...s,
+          // ensure fields exist and normalized
+          nilai_p: s.NILAI_P ?? s.nilai_p ?? null,
+          nilai_k: s.NILAI_K ?? s.nilai_k ?? null,
+        })));
+        setMeta(res.data.meta || { kkm: 75, deskripsi_template: {}, interval_predikat: {} });
         setIsTableVisible(true);
 
         toast.current?.show({
           severity: "success",
           summary: "Berhasil",
-          detail: `Data dimuat. KKM: ${res.data.meta.kkm}`,
+          detail: `Data dimuat. KKM: ${res.data.meta?.kkm ?? '-'}`,
         });
       } else {
         setStudents([]);
@@ -248,7 +321,7 @@ export default function EntryNilaiPage() {
         toast.current?.show({
           severity: "warn",
           summary: "Info",
-          detail: res.data.message
+          detail: res.data.message || "Tidak ada data nilai"
         });
       }
     } catch (e) {
@@ -269,8 +342,9 @@ export default function EntryNilaiPage() {
   const getPredikat = (nilai) => {
     if (nilai === null || nilai === "" || nilai === undefined) return "-";
 
-    const kkm = parseFloat(meta.kkm);
+    const kkm = parseFloat(meta.kkm ?? 75);
     const val = parseFloat(nilai);
+    if (isNaN(val)) return "-";
     const interval = (100 - kkm) / 3;
 
     if (val < kkm) return "D";
@@ -281,7 +355,7 @@ export default function EntryNilaiPage() {
 
   const getDeskripsi = (nilai) => {
     const pred = getPredikat(nilai);
-    return meta.deskripsi_template[pred] || "-";
+    return meta.deskripsi_template?.[pred] || "-";
   };
 
   // ========================== UPDATE NILAI ====================================
@@ -294,7 +368,7 @@ export default function EntryNilaiPage() {
   // ============================ DELETE SATU SISWA =============================
   const deleteSingle = (row) => {
     confirmDialog({
-      message: `Hapus nilai siswa ${row.nama}?`,
+      message: `Hapus nilai siswa ${row.nama || row.NAMA || row.namaSiswa}?`,
       header: "Konfirmasi Hapus",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
@@ -339,7 +413,11 @@ export default function EntryNilaiPage() {
       await apiCall(`${API_URL}/transaksi-nilai`, {
         method: 'POST',
         body: JSON.stringify({
-          students,
+          students: students.map(s => ({
+            id: s.id,
+            nilai_p: s.nilai_p === '' ? null : (s.nilai_p ?? null),
+            nilai_k: s.nilai_k === '' ? null : (s.nilai_k ?? null),
+          })),
           kelasId: filters.KELAS_ID,
           mapelId: filters.KODE_MAPEL,
           tahunId: filters.TAHUN_AJARAN_ID,
@@ -385,12 +463,12 @@ export default function EntryNilaiPage() {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      
+
       if (res.data?.status === '00') {
         toast.current?.show({
           severity: "success",
           summary: "Berhasil",
-          detail: `Nilai siswa ${rowData.nama} berhasil disimpan!`,
+          detail: `Nilai siswa ${rowData.nama || rowData.NAMA || rowData.namaSiswa} berhasil disimpan!`,
         });
         fetchEntryData();
       } else {
@@ -432,7 +510,7 @@ export default function EntryNilaiPage() {
   };
 
   const deskTpl = (row, field) => {
-   return <span className="font-medium">{getDeskripsi(row[field])}</span>;
+    return <span className="font-medium">{getDeskripsi(row[field])}</span>;
   };
 
   // ============================== ACTION COLUMN ===============================
@@ -473,8 +551,8 @@ export default function EntryNilaiPage() {
     if (!selected) return <span className="text-500">Pilih Mapel</span>;
     const opt = typeof selected === "object" && selected !== null
       ? selected
-      : opsiMapel.find((o) => o.value === selected);
-    if (!opt) return <span>{selected}</span>;
+      : opsiMapel.find((o) => String(o.value) === String(selected));
+    if (!opt) return <span>{String(selected)}</span>;
     const nama = opt.label?.split(" (")[0] ?? opt.label;
     return (
       <div className="flex align-items-center gap-2">
@@ -487,7 +565,7 @@ export default function EntryNilaiPage() {
   const getSelectedMapelLabel = () => {
     const sel = filters.KODE_MAPEL;
     if (!sel) return '';
-    const found = opsiMapel.find(o => o.value === sel);
+    const found = opsiMapel.find(o => String(o.value) === String(sel));
     if (found) {
       const match = String(found.label).match(/^(.*)\s+\((.*)\)$/);
       return match ? `${match[1]} (${match[2]})` : String(found.label);
@@ -585,17 +663,18 @@ export default function EntryNilaiPage() {
                   })
                 }
                 placeholder="Pilih Kelas"
-                disabled={!filters.TAHUN_AJARAN_ID || kelasFiltered.length === 0}
+                disabled={!filters.TAHUN_AJARAN_ID || kelasFiltered.length === 0 || loadingKelas}
                 emptyMessage="Tidak ada kelas untuk tahun ini"
                 aria-label="Pilih Kelas"
               />
-              {filters.TAHUN_AJARAN_ID && kelasFiltered.length === 0 && (
+              {loadingKelas && <small className="text-sm text-500">Memuat daftar kelas...</small>}
+              {filters.TAHUN_AJARAN_ID && !loadingKelas && kelasFiltered.length === 0 && (
                 <small className="text-orange-600">Kelas untuk tahun ajaran ini belum tersedia.</small>
               )}
             </div>
 
             {/* Mata Pelajaran */}
-            <div className="field col-12 md:col-3">
+            <div className="field col-12 md:col-4">
               <label className="font-medium">
                 Mata Pelajaran
                 {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm" aria-hidden />}
@@ -619,27 +698,27 @@ export default function EntryNilaiPage() {
           </div>
 
           <div className="flex justify-content-end gap-2 mt-4">
-            <Button 
-              label="Bersihkan" 
-              icon="pi pi-times" 
-              outlined 
+            <Button
+              label="Bersihkan"
+              icon="pi pi-times"
+              outlined
               onClick={() => {
-                setFilters({ 
-                  TAHUN_AJARAN_ID: '', 
-                  TINGKATAN_ID: '', 
-                  JURUSAN_ID: '', 
-                  KELAS_ID: '', 
-                  KODE_MAPEL: '' 
+                setFilters({
+                  TAHUN_AJARAN_ID: '',
+                  TINGKATAN_ID: '',
+                  JURUSAN_ID: '',
+                  KELAS_ID: '',
+                  KODE_MAPEL: ''
                 });
                 setStudents([]);
                 setIsTableVisible(false);
-              }} 
+              }}
             />
-            <Button 
-              label="Tampilkan Tabel" 
-              icon="pi pi-check" 
+            <Button
+              label="Tampilkan Tabel"
+              icon="pi pi-check"
               onClick={fetchEntryData}
-              disabled={!filters.TAHUN_AJARAN_ID || !filters.KELAS_ID || !filters.KODE_MAPEL}
+              disabled={!filters.TAHUN_AJARAN_ID || !filters.KELAS_ID || !filters.KODE_MAPEL || loadingMapel || loadingKelas}
             />
           </div>
 
@@ -708,17 +787,8 @@ export default function EntryNilaiPage() {
               rows={10}
               rowsPerPageOptions={[10, 20, 50]}
             >
-              <Column
-                field="no"
-                header="No."
-                style={{ width: "50px" }}
-              />
-
-              <Column
-                field="namaSiswa"
-                header="Nama Siswa"
-                style={{ minWidth: "150px" }}
-              />
+              <Column field="no" header="No." style={{ width: "50px" }} />
+              <Column field="namaSiswa" header="Nama Siswa" style={{ minWidth: "150px" }} />
 
               {/* PENGETAHUAN */}
               <Column header="Angka (Pengetahuan)" body={(r) => nilaiTemplate(r, "nilai_p")} style={{ width: "100px" }} />
@@ -731,11 +801,7 @@ export default function EntryNilaiPage() {
               <Column field="deskripsi_k" header="Deskripsi (Keterampilan)" body={(r) => deskTpl(r, "nilai_k")} style={{ minWidth: "200px" }} />
 
               {/* ACTION */}
-              <Column
-                header="Aksi"
-                body={actionTpl}
-                style={{ width: "120px" }}
-              />
+              <Column header="Aksi" body={actionTpl} style={{ width: "120px" }} />
             </DataTable>
           </Card>
         </div>

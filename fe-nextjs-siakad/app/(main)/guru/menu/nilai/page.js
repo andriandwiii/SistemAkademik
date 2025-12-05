@@ -49,11 +49,16 @@ export default function EntryNilaiPage() {
 
   // ui
   const [loading, setLoading] = useState(false);
-  const [loadingMapel, setLoadingMapel] = useState(false);
+  const [loadingMapel, setLoadingMapel] = useState(false); // general loading for mapel/kelas fetch
+  const [loadingMapelCalc, setLoadingMapelCalc] = useState(false); // specific: calculating opsiMapel from many kelas
   const [isTableVisible, setIsTableVisible] = useState(false);
 
   // keep master years for iteration
   const [masterTahun, setMasterTahun] = useState([]);
+
+  // debounce + request id refs
+  const debounceRef = useRef(null);
+  const mapelRequestIdRef = useRef(0);
 
   useEffect(() => {
     const t = localStorage.getItem('token');
@@ -163,113 +168,193 @@ export default function EntryNilaiPage() {
     }
   };
 
-  /* ================= Load Tingkatan, Jurusan, Kelas, Mapel berdasarkan Tahun & Guru ================ */
+  /* ================= Load Tingkatan, Jurusan, Kelas, Mapel berdasarkan Tahun & Guru ================
+     NOTE: opsiMapel computation is debounced + uses request id to ignore stale results.
+  */
   useEffect(() => {
-    const loadDataByYear = async () => {
-      if (!token || !currentGuru || !filters.TAHUN_AJARAN_ID) {
-        setOpsiTingkat([]);
-        setOpsiJurusan([]);
-        setOpsiKelas([]);
-        setOpsiMapel([]);
+    // debounce wrapper to avoid calling heavy logic on every quick change
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      loadDataByYearAndFilters();
+    }, 400); // 400 ms debounce
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.TAHUN_AJARAN_ID, filters.TINGKATAN_ID, filters.JURUSAN_ID, filters.KELAS_ID, currentGuru, token]);
+
+  const loadDataByYearAndFilters = async () => {
+    if (!token || !currentGuru || !filters.TAHUN_AJARAN_ID) {
+      setOpsiTingkat([]);
+      setOpsiJurusan([]);
+      setOpsiKelas([]);
+      setOpsiMapel([]);
+      return;
+    }
+
+    setLoadingMapel(true);
+    // increment request id for this run
+    const reqId = ++mapelRequestIdRef.current;
+
+    try {
+      // 1) Load TINGKATAN yang diampu guru
+      const rTingkat = await axiosWithAuth(token).get('/transaksi-nilai/tingkatan-guru', {
+        params: { nip: currentGuru.NIP, tahunId: filters.TAHUN_AJARAN_ID }
+      });
+      const tingkatList = (rTingkat.data?.data || []).map(t => ({
+        label: t.NAMA_TINGKATAN,
+        value: t.TINGKATAN_ID
+      }));
+      setOpsiTingkat(tingkatList);
+
+      // 2) Load JURUSAN yang diampu guru (filter by tingkat jika ada)
+      const rJurusan = await axiosWithAuth(token).get('/transaksi-nilai/jurusan-guru', {
+        params: {
+          nip: currentGuru.NIP,
+          tahunId: filters.TAHUN_AJARAN_ID,
+          tingkatanId: filters.TINGKATAN_ID || undefined
+        }
+      });
+      const jurusanList = (rJurusan.data?.data || []).map(j => ({
+        label: j.NAMA_JURUSAN,
+        value: j.JURUSAN_ID
+      }));
+      setOpsiJurusan(jurusanList);
+
+      // 3) Load KELAS yang diampu guru (dengan filter tingkat & jurusan)
+      const rKelas = await axiosWithAuth(token).get('/transaksi-nilai/kelas-guru', {
+        params: {
+          nip: currentGuru.NIP,
+          tahunId: filters.TAHUN_AJARAN_ID,
+          tingkatanId: filters.TINGKATAN_ID || undefined,
+          jurusanId: filters.JURUSAN_ID || undefined
+        }
+      });
+      const kelasRaw = (rKelas.data?.data || []);
+      const kelasList = kelasRaw.map(k => {
+        const namaKelas = typeof k.NAMA_KELAS === 'string' ? k.NAMA_KELAS : (k.NAMA_RUANG || '');
+        return {
+          KELAS_ID: k.KELAS_ID,
+          label: `${k.KELAS_ID} | ${namaKelas}`,
+          value: k.KELAS_ID
+        };
+      });
+      setOpsiKelas(kelasList);
+
+      // 4) Load MAPEL yang diampu guru (semua mapel guru untuk tahun itu)
+      const rMapelGuru = await axiosWithAuth(token).get('/transaksi-nilai/mapel-guru', {
+        params: { nip: currentGuru.NIP, tahunId: filters.TAHUN_AJARAN_ID }
+      });
+      const teacherMapelArr = (rMapelGuru.data?.data || []);
+
+      // NEW: compute allowedMapelCodes using kelas filter(s)
+      // show special loading spinner when computing mapel across many kelas
+      setLoadingMapelCalc(true);
+      let allowedMapelCodes = new Set();
+
+      try {
+        if (filters.KELAS_ID) {
+          // specific kelas -> single quick call to mapel endpoint
+          const rMapelByKelas = await axiosWithAuth(token).get('/transaksi-nilai/mapel', {
+            params: { kelasId: filters.KELAS_ID, tahunId: filters.TAHUN_AJARAN_ID }
+          });
+          (rMapelByKelas.data?.data || []).forEach(m => {
+            const kode = m.KODE_MAPEL || m.KODE || (m.value ? String(m.value) : null);
+            if (kode) allowedMapelCodes.add(String(kode));
+          });
+        } else if (filters.TINGKATAN_ID || filters.JURUSAN_ID) {
+          // multiple kelas -> potentially many calls; use Promise.all but guard with reqId
+          const kelasIds = kelasRaw.map(k => k.KELAS_ID).filter(Boolean);
+          if (kelasIds.length > 0) {
+            // to avoid overloading, chunk requests if very many (optional improvement)
+            const promises = kelasIds.map(kid =>
+              axiosWithAuth(token).get('/transaksi-nilai/mapel', {
+                params: { kelasId: kid, tahunId: filters.TAHUN_AJARAN_ID }
+              }).then(r => r.data?.data || []).catch(() => [])
+            );
+            const results = await Promise.all(promises);
+
+            // ignore stale if a newer request started
+            if (reqId !== mapelRequestIdRef.current) {
+              // stale -> bail out
+              return;
+            }
+
+            results.flat().forEach(m => {
+              const kode = m.KODE_MAPEL || m.KODE || (m.value ? String(m.value) : null);
+              if (kode) allowedMapelCodes.add(String(kode));
+            });
+          }
+        } else {
+          // no kelas/tingkat/jurusan filter -> allow all teacher mapel
+          teacherMapelArr.forEach(m => {
+            const kode = m.KODE_MAPEL || m.KODE || (m.value ? String(m.value) : null);
+            if (kode) allowedMapelCodes.add(String(kode));
+          });
+        }
+      } catch (e) {
+        console.warn('gagal ambil mapel by kelas/tingkat/jurusan', e);
+      } finally {
+        setLoadingMapelCalc(false);
+      }
+
+      // ignore if stale
+      if (reqId !== mapelRequestIdRef.current) {
         return;
       }
 
-      setLoadingMapel(true);
-      try {
-        // 1) Load TINGKATAN yang diampu guru
-        const rTingkat = await axiosWithAuth(token).get('/transaksi-nilai/tingkatan-guru', {
-          params: { nip: currentGuru.NIP, tahunId: filters.TAHUN_AJARAN_ID }
+      // Intersect teacherMapelArr with allowedMapelCodes
+      let finalTeacherMapel = [];
+      if (allowedMapelCodes.size === 0) {
+        finalTeacherMapel = [];
+      } else {
+        finalTeacherMapel = teacherMapelArr.filter(m => {
+          const kode = (m.KODE_MAPEL || m.KODE || (m.value ? String(m.value) : '') || '').toString();
+          return allowedMapelCodes.has(String(kode));
         });
-        const tingkatList = (rTingkat.data?.data || []).map(t => ({
-          label: t.NAMA_TINGKATAN,
-          value: t.TINGKATAN_ID
-        }));
-        setOpsiTingkat(tingkatList);
+      }
 
-        // 2) Load JURUSAN yang diampu guru (filter by tingkat jika ada)
-        const rJurusan = await axiosWithAuth(token).get('/transaksi-nilai/jurusan-guru', {
-          params: {
-            nip: currentGuru.NIP,
-            tahunId: filters.TAHUN_AJARAN_ID,
-            tingkatanId: filters.TINGKATAN_ID || undefined
-          }
-        });
-        const jurusanList = (rJurusan.data?.data || []).map(j => ({
-          label: j.NAMA_JURUSAN,
-          value: j.JURUSAN_ID
-        }));
-        setOpsiJurusan(jurusanList);
+      // Build opsiMapel as label "Nama (KODE)" value = kode
+      const mapelList = finalTeacherMapel.map(m => {
+        const nama = m?.NAMA_MAPEL || (m?.mata_pelajaran && m.mata_pelajaran.NAMA_MAPEL) || 'Unknown';
+        const kode = m?.KODE_MAPEL || (m?.mata_pelajaran && m.mata_pelajaran.KODE_MAPEL) || String(m?.value || '');
+        return {
+          label: `${nama} (${kode})`,
+          value: String(kode)
+        };
+      });
 
-        // 3) Load KELAS yang diampu guru (dengan filter tingkat & jurusan)
-        const rKelas = await axiosWithAuth(token).get('/transaksi-nilai/kelas-guru', {
-          params: {
-            nip: currentGuru.NIP,
-            tahunId: filters.TAHUN_AJARAN_ID,
-            tingkatanId: filters.TINGKATAN_ID || undefined,
-            jurusanId: filters.JURUSAN_ID || undefined
-          }
-        });
-        const kelasList = (rKelas.data?.data || []).map(k => {
-          // Pastikan NAMA_KELAS adalah string, bukan object
-          const namaKelas = typeof k.NAMA_KELAS === 'string' ? k.NAMA_KELAS : (k.NAMA_RUANG || '');
-          return {
-            label: `${k.KELAS_ID} | ${namaKelas}`, // Format: XA | 10 IPS A
-            value: k.KELAS_ID
-          };
-        });
-        setOpsiKelas(kelasList);
-
-        // 4) Load MAPEL yang diampu guru
-        const rMapel = await axiosWithAuth(token).get('/transaksi-nilai/mapel-guru', {
-          params: { nip: currentGuru.NIP, tahunId: filters.TAHUN_AJARAN_ID }
-        });
-
-        // --- IMPORTANT: buat label string jelas (Nama (KODE)) dan value = KODE (string)
-        const mapelList = (rMapel.data?.data || []).map(m => {
-          const nama = m?.NAMA_MAPEL || (m?.mata_pelajaran && m.mata_pelajaran.NAMA_MAPEL) || 'Unknown';
-          const kode = m?.KODE_MAPEL || (m?.mata_pelajaran && m.mata_pelajaran.KODE_MAPEL) || String(m?.value || '');
-          return {
-            label: `${nama} (${kode})`,
-            value: String(kode)
-          };
-        });
+      // final guard against stale
+      if (reqId === mapelRequestIdRef.current) {
         setOpsiMapel(mapelList);
-
-        // Clear selected filters if not in new sets
-        if (filters.TINGKATAN_ID && !tingkatList.find(t => t.value === filters.TINGKATAN_ID)) {
-          setFilters(prev => ({ ...prev, TINGKATAN_ID: '', JURUSAN_ID: '', KELAS_ID: '' }));
-        }
-        if (filters.JURUSAN_ID && !jurusanList.find(j => j.value === filters.JURUSAN_ID)) {
-          setFilters(prev => ({ ...prev, JURUSAN_ID: '', KELAS_ID: '' }));
-        }
-        if (filters.KELAS_ID && !kelasList.find(k => k.value === filters.KELAS_ID)) {
-          setFilters(prev => ({ ...prev, KELAS_ID: '' }));
-        }
+        // clear KODE_MAPEL if no longer present
         if (filters.KODE_MAPEL && !mapelList.find(m => m.value === String(filters.KODE_MAPEL))) {
           setFilters(prev => ({ ...prev, KODE_MAPEL: '' }));
         }
-
-      } catch (err) {
-        console.error('Error load data by year:', err);
-        setOpsiTingkat([]);
-        setOpsiJurusan([]);
-        setOpsiKelas([]);
-        setOpsiMapel([]);
-      } finally {
+      }
+    } catch (err) {
+      console.error('Error load data by year:', err);
+      // on error, clear relevant lists
+      setOpsiTingkat([]);
+      setOpsiJurusan([]);
+      setOpsiKelas([]);
+      setOpsiMapel([]);
+    } finally {
+      // only clear general loading if this request is current
+      if (mapelRequestIdRef.current) {
+        setLoadingMapel(false);
+      } else {
         setLoadingMapel(false);
       }
-    };
-
-    loadDataByYear();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.TAHUN_AJARAN_ID, filters.TINGKATAN_ID, filters.JURUSAN_ID, currentGuru, token]);
+    }
+  };
 
   /* ================= Template untuk Dropdown Mapel dengan Tag ================= */
   const mapelOptionTemplate = (option) => {
     if (!option) return null;
-    // Pastikan label dan value adalah string
     const namaLabel = typeof option.label === 'string' ? option.label : String(option.label || '');
-    // If label is "Name (CODE)" we want to extract name and code for nicer display in itemTemplate
     const match = namaLabel.match(/^(.*)\s+\((.*)\)$/);
     const nama = match ? match[1] : namaLabel;
     const kode = match ? match[2] : (typeof option.value === 'string' ? option.value : String(option.value || ''));
@@ -284,25 +369,20 @@ export default function EntryNilaiPage() {
   const mapelValueTemplate = (selected) => {
     if (!selected) return <span className="text-500">Pilih Mata Pelajaran</span>;
 
-    // selected may be string (kode) or an object (if someone set value as object)
     let opt = null;
     if (typeof selected === 'string' || typeof selected === 'number') {
       opt = opsiMapel.find((o) => String(o.value) === String(selected));
     } else if (typeof selected === 'object' && selected !== null) {
-      // try to map object -> find by value inside
       const selValue = selected.value ?? selected.KODE_MAPEL ?? selected.KODE ?? null;
       if (selValue) opt = opsiMapel.find((o) => String(o.value) === String(selValue));
       else opt = selected;
     }
 
     if (!opt) return <span>{String(selected)}</span>;
-
-    // opt.label is like "Name (CODE)" — show nicely
     const namaLabel = typeof opt.label === 'string' ? opt.label : String(opt.label || '');
     const match = namaLabel.match(/^(.*)\s+\((.*)\)$/);
     const nama = match ? match[1] : namaLabel;
     const kode = match ? match[2] : (opt.value ?? '');
-
     return (
       <div className="flex align-items-center gap-2">
         <span>{nama}</span>
@@ -315,17 +395,14 @@ export default function EntryNilaiPage() {
   const getSelectedMapelLabel = () => {
     const sel = filters.KODE_MAPEL;
     if (!sel) return '';
-    // Jika sel adalah string (kode), cari opsiMapel untuk label
     if (typeof sel === 'string' || typeof sel === 'number') {
       const found = opsiMapel.find(o => String(o.value) === String(sel));
       if (found) {
-        // extract nama (before parentheses) for compact display
         const match = String(found.label).match(/^(.*)\s+\((.*)\)$/);
         return match ? `${match[1]} (${match[2]})` : String(found.label);
       }
       return String(sel);
     }
-    // Jika sel adalah object, coba ambil properties yang umum
     if (typeof sel === 'object') {
       const nama = sel.label || sel.NAMA_MAPEL || sel.NAMA || sel.name;
       const kode = sel.value || sel.KODE_MAPEL || sel.KODE || sel.code;
@@ -563,7 +640,7 @@ export default function EntryNilaiPage() {
           <Divider />
 
           <div className="p-fluid formgrid grid">
-            <div className="field col-12 md:col-3">
+            <div className="field col-12 md:col-2">
               <label className="font-medium">Tahun Ajaran</label>
               <Dropdown
                 value={filters.TAHUN_AJARAN_ID}
@@ -607,7 +684,7 @@ export default function EntryNilaiPage() {
               />
             </div>
 
-            <div className="field col-12 md:col-3">
+            <div className="field col-12 md:col-2">
               <label className="font-medium">Jurusan</label>
               <Dropdown
                 value={filters.JURUSAN_ID}
@@ -641,10 +718,13 @@ export default function EntryNilaiPage() {
               />
             </div>
 
-            <div className="field col-12 md:col-2">
+            <div className="field col-12 md:col-4">
               <label className="font-medium">
                 Mata Pelajaran
-                {loadingMapel && <i className="pi pi-spin pi-spinner ml-2 text-sm" aria-hidden />}
+                {/* show spinner when either general mapel loading or the intensive calculation is running */}
+                {(loadingMapel || loadingMapelCalc) && (
+                  <i className="pi pi-spin pi-spinner ml-2 text-sm" aria-hidden />
+                )}
               </label>
               <Dropdown
                 value={filters.KODE_MAPEL}
@@ -657,9 +737,11 @@ export default function EntryNilaiPage() {
                 itemTemplate={mapelOptionTemplate}
                 valueTemplate={mapelValueTemplate}
                 disabled={!filters.TAHUN_AJARAN_ID || loadingMapel || opsiMapel.length === 0}
+                showClear
+                filter
               />
               {filters.TAHUN_AJARAN_ID && !loadingMapel && opsiMapel.length === 0 && (
-                <small className="text-orange-600">Mapel yang Anda ampu belum tersedia untuk tahun ini.</small>
+                <small className="text-orange-600">Mapel yang Anda ampu belum tersedia untuk filter yang dipilih.</small>
               )}
             </div>
           </div>
