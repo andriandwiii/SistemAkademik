@@ -1,4 +1,4 @@
-import { db } from "../core/config/knex.js"; // Sesuaikan path ini
+import { db } from "../core/config/knex.js";
 
 /* --- 1. LIST GURU (DROPDOWN) --- */
 export const getListGuru = async () => {
@@ -23,8 +23,8 @@ export const getAbsensiByNipDate = async (nip, tanggal) => {
     .first();
 };
 
-/* --- 4. GET ALL DATA (REKAP ADMIN) --- */
-export const getAllAbsensiWithGuru = async ({ startDate, endDate } = {}) => {
+/* --- 4. GET ALL DATA (REKAP ADMIN) dengan Filter NIP Optional --- */
+export const getAllAbsensiWithGuru = async ({ startDate, endDate, nip } = {}) => {
   const query = db("absensi_guru as ag")
     .join("master_guru as mg", "ag.NIP", "mg.NIP")
     .leftJoin("master_jabatan as mj", "mg.KODE_JABATAN", "mj.KODE_JABATAN")
@@ -35,8 +35,14 @@ export const getAllAbsensiWithGuru = async ({ startDate, endDate } = {}) => {
       "mj.NAMA_JABATAN"
     );
 
+  // Filter by date range
   if (startDate && endDate) {
     query.whereBetween("ag.TANGGAL", [startDate, endDate]);
+  }
+
+  // 🆕 Filter by NIP (untuk guru yang login)
+  if (nip) {
+    query.where("ag.NIP", nip);
   }
 
   return query.orderBy("ag.TANGGAL", "desc").orderBy("ag.JAM_MASUK", "asc");
@@ -50,24 +56,19 @@ export const getRiwayatAbsensiByNip = async (nip, limit = 30) => {
     .limit(limit);
 };
 
-/* ===========================================================
- * 6. CREATE / INSERT ABSEN MASUK (PERBAIKAN UTAMA DISINI)
- * =========================================================== */
+/* --- 6. CREATE / INSERT ABSEN MASUK --- */
 export const createAbsenMasuk = async (data) => {
-  
-  // 1. Generate Kode Custom (AG + 5 Angka Random)
-  // Contoh: AG12345
+  // Generate Kode Custom (AG + 5 Angka Random)
   const randomNum = Math.floor(10000 + Math.random() * 90000);
   const customKode = `AG${randomNum}`;
 
-  // 2. Insert Data
-  // Catatan: Kolom 'ID' tidak perlu diisi, karena Auto Increment
+  // Insert Data
   const [newId] = await db("absensi_guru").insert({
-    KODE: customKode, // Pakai kode custom
+    KODE: customKode,
     ...data
   });
   
-  // 3. Return data yang baru saja dibuat berdasarkan ID baru
+  // Return data yang baru dibuat
   return db("absensi_guru")
     .where("ID", newId)
     .first();

@@ -36,6 +36,185 @@ const generateIntervalPredikat = (kkm) => {
 };
 
 /* ===========================================================
+ * GET TINGKATAN YANG DIAMPU GURU
+ * =========================================================== */
+export const getTingkatanByGuru = async (req, res) => {
+    try {
+        const { nip, tahunId } = req.query;
+
+        if (!nip || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter nip dan tahunId wajib diisi."
+            });
+        }
+
+        const tingkatList = await NilaiModel.getTingkatanByGuru({
+            NIP: nip,
+            TAHUN_AJARAN_ID: tahunId
+        });
+
+        return res.status(200).json({
+            status: "00",
+            message: "Daftar tingkatan berhasil diambil.",
+            data: tingkatList
+        });
+
+    } catch (err) {
+        console.error("❌ Error getTingkatanByGuru:", err);
+        return res.status(500).json({
+            status: "99",
+            message: "Terjadi kesalahan server.",
+            error: err.message
+        });
+    }
+};
+
+/* ===========================================================
+ * GET JURUSAN YANG DIAMPU GURU
+ * =========================================================== */
+export const getJurusanByGuru = async (req, res) => {
+    try {
+        const { nip, tahunId, tingkatanId } = req.query;
+
+        if (!nip || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter nip dan tahunId wajib diisi."
+            });
+        }
+
+        const jurusanList = await NilaiModel.getJurusanByGuru({
+            NIP: nip,
+            TAHUN_AJARAN_ID: tahunId,
+            TINGKATAN_ID: tingkatanId || null
+        });
+
+        return res.status(200).json({
+            status: "00",
+            message: "Daftar jurusan berhasil diambil.",
+            data: jurusanList
+        });
+
+    } catch (err) {
+        console.error("❌ Error getJurusanByGuru:", err);
+        return res.status(500).json({
+            status: "99",
+            message: "Terjadi kesalahan server.",
+            error: err.message
+        });
+    }
+};
+
+/* ===========================================================
+ * GET KELAS DENGAN FILTER TINGKAT DAN JURUSAN
+ * =========================================================== */
+export const getKelasByGuruFiltered = async (req, res) => {
+    try {
+        const { nip, tahunId, tingkatanId, jurusanId } = req.query;
+
+        if (!nip || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter nip dan tahunId wajib diisi."
+            });
+        }
+
+        const kelasList = await NilaiModel.getKelasByGuruFiltered({
+            NIP: nip,
+            TAHUN_AJARAN_ID: tahunId,
+            TINGKATAN_ID: tingkatanId || null,
+            JURUSAN_ID: jurusanId || null
+        });
+
+        return res.status(200).json({
+            status: "00",
+            message: "Daftar kelas berhasil diambil.",
+            data: kelasList
+        });
+
+    } catch (err) {
+        console.error("❌ Error getKelasByGuruFiltered:", err);
+        return res.status(500).json({
+            status: "99",
+            message: "Terjadi kesalahan server.",
+            error: err.message
+        });
+    }
+};
+
+/* ===========================================================
+ * GET MATA PELAJARAN YANG DIAMPU GURU (DARI PROFILE + JADWAL)
+ * =========================================================== */
+export const getMapelByGuru = async (req, res) => {
+    try {
+        const { nip, tahunId } = req.query;
+
+        if (!nip || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter nip dan tahunId wajib diisi."
+            });
+        }
+
+        const mapelList = await NilaiModel.getMapelByGuru({
+            NIP: nip,
+            TAHUN_AJARAN_ID: tahunId
+        });
+
+        return res.status(200).json({
+            status: "00",
+            message: "Daftar mata pelajaran yang diampu berhasil diambil.",
+            data: mapelList
+        });
+
+    } catch (err) {
+        console.error("❌ Error getMapelByGuru:", err);
+        return res.status(500).json({
+            status: "99",
+            message: "Terjadi kesalahan server.",
+            error: err.message
+        });
+    }
+};
+
+/* ===========================================================
+ * GET KELAS BERDASARKAN MAPEL DAN GURU
+ * =========================================================== */
+export const getKelasByMapelGuru = async (req, res) => {
+    try {
+        const { nip, kodeMapel, tahunId } = req.query;
+
+        if (!nip || !kodeMapel || !tahunId) {
+            return res.status(400).json({
+                status: "99",
+                message: "Parameter nip, kodeMapel, dan tahunId wajib diisi."
+            });
+        }
+
+        const kelasList = await NilaiModel.getKelasByMapelGuru({
+            NIP: nip,
+            KODE_MAPEL: kodeMapel,
+            TAHUN_AJARAN_ID: tahunId
+        });
+
+        return res.status(200).json({
+            status: "00",
+            message: "Daftar kelas berhasil diambil.",
+            data: kelasList
+        });
+
+    } catch (err) {
+        console.error("❌ Error getKelasByMapelGuru:", err);
+        return res.status(500).json({
+            status: "99",
+            message: "Terjadi kesalahan server.",
+            error: err.message
+        });
+    }
+};
+
+/* ===========================================================
  * GET MATA PELAJARAN BERDASARKAN KELAS (DARI JADWAL)
  * =========================================================== */
 export const getMapelByKelas = async (req, res) => {

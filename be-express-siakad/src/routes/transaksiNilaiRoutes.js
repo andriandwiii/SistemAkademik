@@ -3,8 +3,22 @@ import * as TransaksiNilaiController from "../controllers/transaksiNilaiControll
 
 const router = express.Router();
 
+// ✅ GET — Ambil Tingkatan yang diampu guru (dari Jadwal + NIP guru)
+router.get("/tingkatan-guru", TransaksiNilaiController.getTingkatanByGuru);
+
+// ✅ GET — Ambil Jurusan yang diampu guru (dari Jadwal + NIP guru)
+router.get("/jurusan-guru", TransaksiNilaiController.getJurusanByGuru);
+
+// ✅ GET — Ambil Kelas yang diampu guru dengan filter tingkat dan jurusan
+router.get("/kelas-guru", TransaksiNilaiController.getKelasByGuruFiltered);
+
+// ✅ GET — Ambil Mata Pelajaran yang diampu guru (dari Jadwal + NIP guru)
+router.get("/mapel-guru", TransaksiNilaiController.getMapelByGuru);
+
+// ✅ GET — Ambil Kelas berdasarkan Mapel dan Guru
+router.get("/kelas-by-mapel", TransaksiNilaiController.getKelasByMapelGuru);
+
 // ✅ GET — Ambil Mata Pelajaran berdasarkan Kelas (dari Jadwal)
-// PENTING: Route ini harus di atas route "/:id" agar tidak bentrok
 router.get("/mapel", TransaksiNilaiController.getMapelByKelas);
 
 // GET — Ambil Data Entry Nilai (Siswa + Nilai + KKM + Predikat)

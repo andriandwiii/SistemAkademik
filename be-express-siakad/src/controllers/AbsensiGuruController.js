@@ -1,9 +1,9 @@
-import * as AbsensiModel from "../models/AbsensiGuruModel.js"; // Import Model
+import * as AbsensiModel from "../models/AbsensiGuruModel.js";
 import fs from "fs";
 import path from "path";
 
 /* ===========================================================
- * 0. LIST GURU (Untuk Dropdown Frontend)
+ * 0. LIST GURU (Untuk Dropdown Frontend - HANYA UNTUK ADMIN)
  * =========================================================== */
 export const getListGuru = async (req, res) => {
     try {
@@ -25,10 +25,8 @@ export const cekStatusHarian = async (req, res) => {
     if (!nip) return res.status(400).json({ message: "NIP diperlukan" });
 
     try {
-        // Panggil Model
         const data = await AbsensiModel.getAbsensiByNipDate(nip, today);
 
-        // Logika Response Frontend
         if (!data) {
             return res.json({ status: "success", step: "BELUM_ABSEN", data: null });
         }
@@ -65,9 +63,9 @@ export const absenMasuk = async (req, res) => {
     // 3. Persiapan Data
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
-    const jamMasuk = now.toTimeString().split(' ')[0]; // Format HH:mm:ss
+    const jamMasuk = now.toTimeString().split(' ')[0];
     
-    // Cek Terlambat (Contoh: > 07:00)
+    // Cek Terlambat (Batas: > 07:00)
     const batasJam = "07:00:00";
     const isTerlambat = (jamMasuk > batasJam && STATUS === 'Hadir') ? 1 : 0;
     
@@ -84,7 +82,7 @@ export const absenMasuk = async (req, res) => {
             return res.status(400).json({ status: "error", message: "Anda sudah absen hari ini!" });
         }
 
-        // 5. Simpan via Model (Model akan handle generate KODE AGxxxxx)
+        // 5. Simpan via Model
         await AbsensiModel.createAbsenMasuk({
             NIP,
             TANGGAL: today,
@@ -104,7 +102,6 @@ export const absenMasuk = async (req, res) => {
         // Bersihkan file jika error insert DB
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         
-        // Cek error duplicate entry (untuk safety tambahan)
         if (error.code === 'ER_DUP_ENTRY' || (error.message && error.message.includes('Duplicate'))) {
              return res.status(400).json({ status: "error", message: "Anda sudah absen hari ini!" });
         }
@@ -151,29 +148,49 @@ export const absenPulang = async (req, res) => {
 };
 
 /* ===========================================================
- * 4. RIWAYAT SAYA (GET)
+ * 4. RIWAYAT SAYA (GET) - Filter by NIP
  * =========================================================== */
 export const getRiwayatSaya = async (req, res) => {
     const { nip } = req.query;
+    
+    if (!nip) {
+        return res.status(400).json({ 
+            status: "error", 
+            message: "NIP diperlukan" 
+        });
+    }
+    
     try {
         const data = await AbsensiModel.getRiwayatAbsensiByNip(nip);
         res.json({ status: "success", data });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ 
+            status: "error", 
+            message: error.message 
+        });
     }
 };
 
 /* ===========================================================
- * 5. REKAP ADMIN (GET)
+ * 5. REKAP ADMIN (GET) - Dengan Filter NIP Optional
  * =========================================================== */
 export const getRekapAbsensiAdmin = async (req, res) => {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, nip } = req.query;
+    
     try {
-        const data = await AbsensiModel.getAllAbsensiWithGuru({ startDate, endDate });
+        const data = await AbsensiModel.getAllAbsensiWithGuru({ 
+            startDate, 
+            endDate,
+            nip // Tambahkan filter NIP (optional, untuk guru yang login)
+        });
+        
         res.json({ status: "success", data });
     } catch (error) {
         console.error("Error Rekap Admin:", error);
-        res.status(500).json({ message: "Gagal mengambil data rekap." });
+        res.status(500).json({ 
+            status: "error", 
+            message: "Gagal mengambil data rekap." 
+        });
     }
 };
 
@@ -184,11 +201,14 @@ export const deleteAbsensi = async (req, res) => {
     const { id } = req.params;
 
     try {
-        // 1. Ambil data dulu lewat Model (untuk dapat nama file foto)
+        // 1. Ambil data dulu lewat Model
         const data = await AbsensiModel.getAbsensiById(id);
         
         if (!data) {
-            return res.status(404).json({ status: "error", message: "Data tidak ditemukan" });
+            return res.status(404).json({ 
+                status: "error", 
+                message: "Data tidak ditemukan" 
+            });
         }
 
         // 2. Hapus dari Database via Model
@@ -196,9 +216,6 @@ export const deleteAbsensi = async (req, res) => {
 
         // 3. Hapus File Fisik (Cleanup)
         if (data.FOTO_MASUK) {
-            // Asumsi: Path di DB diawali dengan '/uploads/...', 
-            // Kita perlu hapus slash depan jika menggunakan path.join dengan process.cwd()
-            // atau pastikan path folder public sudah benar
             const filePath = path.join(process.cwd(), "public", data.FOTO_MASUK); 
             
             if (fs.existsSync(filePath)) {
@@ -206,15 +223,20 @@ export const deleteAbsensi = async (req, res) => {
                     fs.unlinkSync(filePath);
                 } catch (err) {
                     console.error("Gagal hapus file fisik:", err);
-                    // Tidak perlu throw error, karena data DB sudah terhapus
                 }
             }
         }
 
-        res.json({ status: "success", message: "Data absensi berhasil dihapus" });
+        res.json({ 
+            status: "success", 
+            message: "Data absensi berhasil dihapus" 
+        });
 
     } catch (error) {
         console.error("Error Delete:", error);
-        res.status(500).json({ message: "Gagal menghapus data" });
+        res.status(500).json({ 
+            status: "error", 
+            message: "Gagal menghapus data" 
+        });
     }
 };

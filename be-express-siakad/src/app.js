@@ -96,7 +96,7 @@ app.use("/api/master-gedung", masterGedungRoutes);
 app.use("/api/transaksi-siswa", transaksiSiswaRoutes);
 app.use("/api/master-hari", masterHariRoutes);
 app.use("/api/mapel-kelas", mapelKelasRoutes);
-app.use("/api/jadwal", jadwalRoutes); // 🟢 route jadwal terpasang di sini
+app.use("/api/jadwal", jadwalRoutes); // 
 app.use("/api/absensi", absensiRoutes);
 app.use("/api/master-infosekolah", masterInfoSekolahRoutes);
 app.use("/api/master-tingkatan", masterTingkatanRoutes);

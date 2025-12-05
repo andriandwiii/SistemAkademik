@@ -1,6 +1,139 @@
 import { db } from "../core/config/knex.js";
 
 /* ===========================================================
+ * GET TINGKATAN YANG DIAMPU GURU (DARI JADWAL)
+ * =========================================================== */
+export const getTingkatanByGuru = async ({ NIP, TAHUN_AJARAN_ID }) => {
+  const tingkatList = await db("master_jadwal as j")
+    .join("master_tingkatan as t", "j.TINGKATAN_ID", "t.TINGKATAN_ID")
+    .select(
+      "t.TINGKATAN_ID",
+      "t.TINGKATAN as NAMA_TINGKATAN"
+    )
+    .where({
+      "j.NIP": NIP,
+      "j.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
+    .whereNotNull("j.TINGKATAN_ID")
+    .groupBy("t.TINGKATAN_ID", "t.TINGKATAN")
+    .orderBy("t.TINGKATAN_ID", "asc");
+
+  return tingkatList;
+};
+
+/* ===========================================================
+ * GET JURUSAN YANG DIAMPU GURU (DARI JADWAL)
+ * =========================================================== */
+export const getJurusanByGuru = async ({ NIP, TAHUN_AJARAN_ID, TINGKATAN_ID }) => {
+  const query = db("master_jadwal as j")
+    .join("master_jurusan as ju", "j.JURUSAN_ID", "ju.JURUSAN_ID")
+    .select(
+      "ju.JURUSAN_ID",
+      "ju.NAMA_JURUSAN"
+    )
+    .where({
+      "j.NIP": NIP,
+      "j.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
+    .whereNotNull("j.JURUSAN_ID");
+
+  if (TINGKATAN_ID) {
+    query.where("j.TINGKATAN_ID", TINGKATAN_ID);
+  }
+
+  const jurusanList = await query
+    .groupBy("ju.JURUSAN_ID", "ju.NAMA_JURUSAN")
+    .orderBy("ju.NAMA_JURUSAN", "asc");
+
+  return jurusanList;
+};
+
+/* ===========================================================
+ * GET KELAS YANG DIAMPU GURU (DENGAN FILTER TINGKAT & JURUSAN)
+ * =========================================================== */
+export const getKelasByGuruFiltered = async ({ 
+  NIP, 
+  TAHUN_AJARAN_ID, 
+  TINGKATAN_ID, 
+  JURUSAN_ID 
+}) => {
+  const query = db("master_jadwal as j")
+    .join("master_kelas as k", "j.KELAS_ID", "k.KELAS_ID")
+    .leftJoin("master_ruang as r", "k.RUANG_ID", "r.RUANG_ID")
+    .select(
+      "k.KELAS_ID",
+      "r.NAMA_RUANG",
+      "j.TINGKATAN_ID",
+      "j.JURUSAN_ID"
+    )
+    .where({
+      "j.NIP": NIP,
+      "j.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    });
+
+  if (TINGKATAN_ID) {
+    query.where("j.TINGKATAN_ID", TINGKATAN_ID);
+  }
+
+  if (JURUSAN_ID) {
+    query.where("j.JURUSAN_ID", JURUSAN_ID);
+  }
+
+  const kelasList = await query
+    .groupBy("k.KELAS_ID", "r.NAMA_RUANG", "j.TINGKATAN_ID", "j.JURUSAN_ID")
+    .orderBy("k.KELAS_ID", "asc");
+
+  // Format hasil dengan nama kelas yang lebih friendly (tanpa duplikasi KELAS_ID)
+  return kelasList.map(k => ({
+    KELAS_ID: k.KELAS_ID,
+    NAMA_KELAS: k.NAMA_RUANG || '', // Hanya tampilkan NAMA_RUANG (contoh: "10 IPS A")
+    TINGKATAN_ID: k.TINGKATAN_ID,
+    JURUSAN_ID: k.JURUSAN_ID
+  }));
+};
+
+/* ===========================================================
+ * GET MATA PELAJARAN YANG DIAMPU GURU (DARI JADWAL)
+ * =========================================================== */
+export const getMapelByGuru = async ({ NIP, TAHUN_AJARAN_ID }) => {
+  const mapelList = await db("master_jadwal as j")
+    .join("master_mata_pelajaran as mp", "j.KODE_MAPEL", "mp.KODE_MAPEL")
+    .select(
+      "mp.KODE_MAPEL",
+      "mp.NAMA_MAPEL"
+    )
+    .where({
+      "j.NIP": NIP,
+      "j.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
+    .groupBy("mp.KODE_MAPEL", "mp.NAMA_MAPEL")
+    .orderBy("mp.NAMA_MAPEL", "asc");
+
+  return mapelList;
+};
+
+/* ===========================================================
+ * GET KELAS BERDASARKAN MAPEL DAN GURU
+ * =========================================================== */
+export const getKelasByMapelGuru = async ({ NIP, KODE_MAPEL, TAHUN_AJARAN_ID }) => {
+  const kelasList = await db("master_jadwal as j")
+    .join("master_kelas as k", "j.KELAS_ID", "k.KELAS_ID")
+    .select(
+      "k.KELAS_ID",
+      "k.NAMA_KELAS"
+    )
+    .where({
+      "j.NIP": NIP,
+      "j.KODE_MAPEL": KODE_MAPEL,
+      "j.TAHUN_AJARAN_ID": TAHUN_AJARAN_ID
+    })
+    .groupBy("k.KELAS_ID", "k.NAMA_KELAS")
+    .orderBy("k.NAMA_KELAS", "asc");
+
+  return kelasList;
+};
+
+/* ===========================================================
  * GET MATA PELAJARAN DARI JADWAL BERDASARKAN KELAS
  * =========================================================== */
 export const getMapelByKelas = async ({ KELAS_ID, TAHUN_AJARAN_ID }) => {
