@@ -153,7 +153,7 @@ export default function EntryNilaiPage() {
         }
       }
       setOpsiTahun(allowedYears);
-      
+
       // Clear filters if selected year is not available
       if (filters.TAHUN_AJARAN_ID && !allowedYears.find(a => a.value === filters.TAHUN_AJARAN_ID)) {
         setFilters(prev => ({ ...prev, TAHUN_AJARAN_ID: '', KELAS_ID: '', KODE_MAPEL: '', TINGKATAN_ID: '', JURUSAN_ID: '' }));
@@ -343,11 +343,7 @@ export default function EntryNilaiPage() {
       setOpsiMapel([]);
     } finally {
       // only clear general loading if this request is current
-      if (mapelRequestIdRef.current) {
-        setLoadingMapel(false);
-      } else {
-        setLoadingMapel(false);
-      }
+      setLoadingMapel(false);
     }
   };
 
@@ -770,6 +766,25 @@ export default function EntryNilaiPage() {
               disabled={!filters.TAHUN_AJARAN_ID || !filters.KELAS_ID || !filters.KODE_MAPEL}
             />
           </div>
+
+          {/* Info KKM & Interval (ditampilkan setelah data dimuat) */}
+          {meta?.kkm !== undefined && grades.length > 0 && isTableVisible && (
+            <>
+              <Divider className="my-3" />
+              <div className="p-3 bg-blue-50 border-round">
+                <p className="m-0 text-sm">
+                  <strong>KKM:</strong> {meta.kkm}
+                  <strong className="ml-4">Interval:</strong>
+                  {Object.entries(meta.interval_predikat || {}).map(([key, val]) => (
+                    <span key={key} className="inline-flex items-center ml-3 text-sm">
+                      <span className="font-semibold mr-1">{key}:</span>
+                      <span>{val}</span>
+                    </span>
+                  ))}
+                </p>
+              </div>
+            </>
+          )}
         </Card>
       </div>
 
