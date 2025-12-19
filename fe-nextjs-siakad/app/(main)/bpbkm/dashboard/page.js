@@ -1,195 +1,206 @@
-/* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useContext, useRef, useState } from 'react';
+import React, { useContext, useRef, useState, useEffect } from 'react';
 import { LayoutContext } from '../../../../layout/context/layoutcontext';
 import { Chart } from 'primereact/chart';
 import { Button } from 'primereact/button';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
-import CustomDataTable from '../../../components/DataTable';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import { Tag } from 'primereact/tag';
+import { Calendar } from 'primereact/calendar';
+import axios from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const DashboardBPBK = () => {
-  const { layoutConfig } = useContext(LayoutContext);
-  const toast = useRef(null);
+    const { layoutConfig } = useContext(LayoutContext);
+    const toast = useRef(null);
 
-  // === Dummy summary ===
-  const summary = {
-    totalAbsensi: 1280,
-    totalPelanggaran: 25,
-    totalKonseling: 12,
-    siswaBermasalah: 8,
-  };
+    const [absensiHariIni, setAbsensiHariIni] = useState([]);
+    const [statistikHarian, setStatistikHarian] = useState({ HADIR: 0, ALPA: 0, IZIN: 0, SAKIT: 0, MEMBOLOS: 0 });
+    const [loading, setLoading] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // === Chart data ===
-  const trendPelanggaran = {
-    labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-    datasets: [
-      {
-        label: 'Jumlah Pelanggaran',
-        data: [5, 8, 6, 6],
-        fill: false,
-        borderColor: '#ef4444',
-        backgroundColor: '#ef4444',
-        tension: 0.3,
-      },
-    ],
-  };
+    const fetchDataDashboard = async (date) => {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const formattedDate = date.toISOString().split('T')[0];
 
-  const distribusiPelanggaran = {
-    labels: ['Terlambat', 'Seragam', 'Perilaku', 'Bolos', 'Lainnya'],
-    datasets: [
-      {
-        data: [40, 25, 15, 10, 10],
-        backgroundColor: ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#f59e0b'],
-      },
-    ],
-  };
+        try {
+            const res = await axios.get(`${API_URL}/laporan-absensi/dashboard-bk?tanggal=${formattedDate}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
 
-  const chartOptions = {
-    plugins: {
-      legend: { labels: { color: layoutConfig.colorScheme === 'light' ? '#495057' : '#ebedef' } },
-    },
-    scales: {
-      x: { ticks: { color: layoutConfig.colorScheme === 'light' ? '#495057' : '#ebedef' } },
-      y: { ticks: { color: layoutConfig.colorScheme === 'light' ? '#495057' : '#ebedef' } },
-    },
-  };
+            const { statistik_harian, detail_absensi } = res.data.data;
 
-  // === Data tables ===
-  const [catatanBK, setCatatanBK] = useState([
-    { id: 1, nama: 'Siswa A', kelas: 'XI IPA 1', catatan: 'Sering terlambat', tanggal: '2025-09-20' },
-    { id: 2, nama: 'Siswa B', kelas: 'X IPS 2', catatan: 'Bolos pelajaran', tanggal: '2025-09-18' },
-    { id: 3, nama: 'Siswa C', kelas: 'XI IPA 3', catatan: 'Tidak memakai seragam', tanggal: '2025-09-17' },
-  ]);
+            setAbsensiHariIni(detail_absensi || []);
 
-  const catatanColumns = [
-    { field: 'id', header: 'ID', style: { width: '60px' } },
-    { field: 'nama', header: 'Nama' },
-    { field: 'kelas', header: 'Kelas' },
-    { field: 'catatan', header: 'Catatan' },
-    { field: 'tanggal', header: 'Tanggal' },
-    {
-      header: 'Aksi',
-      body: (row) => (
-        <div className="flex gap-2">
-          <Button icon="pi pi-pencil" size="small" severity="warning" onClick={() => toast.current?.show({ severity: 'info', summary: 'Edit', detail: `Edit catatan ${row.nama}` })} />
-          <Button
-            icon="pi pi-trash"
-            size="small"
-            severity="danger"
-            onClick={() =>
-              confirmDialog({
-                message: `Hapus catatan untuk ${row.nama}?`,
-                header: 'Konfirmasi',
-                icon: 'pi pi-exclamation-triangle',
-                accept: () => setCatatanBK((prev) => prev.filter((c) => c.id !== row.id)),
-              })
+            const harianObj = { HADIR: 0, ALPA: 0, IZIN: 0, SAKIT: 0, MEMBOLOS: 0 };
+            if (statistik_harian) {
+                statistik_harian.forEach(item => {
+                    harianObj[item.STATUS] = parseInt(item.TOTAL);
+                });
             }
-          />
-        </div>
-      ),
-    },
-  ];
+            setStatistikHarian(harianObj);
 
-  // === Export CSV helper ===
-  const exportCSV = (rows, filename = 'export.csv') => {
-    if (!rows || rows.length === 0) {
-      toast.current?.show({ severity: 'warn', summary: 'Kosong', detail: 'Tidak ada data untuk diexport' });
-      return;
-    }
+        } catch (error) {
+            console.error("Error fetching dashboard:", error);
+            toast.current?.show({ 
+                severity: 'error', 
+                summary: 'Gagal Memuat Data', 
+                detail: 'Cek koneksi server atau token anda' 
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const keys = Object.keys(rows[0]);
-    const csv = [
-      keys.join(','),
-      ...rows.map((r) => keys.map((k) => `"${(r[k] ?? '').toString().replace(/"/g, '""')}"`).join(',')),
-    ].join('\n');
+    useEffect(() => {
+        fetchDataDashboard(selectedDate);
+    }, [selectedDate]);
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute('download', filename);
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+    const getStatusSeverity = (status) => {
+        switch (status) {
+            case 'ALPA': return 'danger';
+            case 'MEMBOLOS': return 'warning';
+            case 'IZIN': return 'info';
+            case 'SAKIT': return 'success';
+            default: return null;
+        }
+    };
 
-  // === UI ===
-  return (
-    <div className="grid">
-      <Toast ref={toast} />
-      <ConfirmDialog />
+    const pieData = {
+        labels: ['Hadir', 'Alpa', 'Izin', 'Sakit', 'Bolos'],
+        datasets: [{
+            data: [statistikHarian.HADIR, statistikHarian.ALPA, statistikHarian.IZIN, statistikHarian.SAKIT, statistikHarian.MEMBOLOS],
+            backgroundColor: ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#7c3aed'],
+        }],
+    };
 
-      {/* Summary Cards */}
-      {[
-        { label: 'Total Absensi', value: summary.totalAbsensi, icon: 'pi pi-users', color: 'green' },
-        { label: 'Pelanggaran', value: summary.totalPelanggaran, icon: 'pi pi-exclamation-triangle', color: 'red' },
-        { label: 'Sesi Konseling', value: summary.totalKonseling, icon: 'pi pi-comments', color: 'blue' },
-        { label: 'Siswa Bermasalah', value: summary.siswaBermasalah, icon: 'pi pi-user-minus', color: 'orange' },
-      ].map((c, i) => (
-        <div key={i} className="col-12 lg:col-6 xl:col-3">
-          <div className="card mb-2">
-            <div className="flex justify-content-between">
-              <div>
-                <span className="block text-500 font-medium mb-2">{c.label}</span>
-                <div className="text-900 font-medium text-xl">{c.value}</div>
-              </div>
-              <div
-                className={`flex align-items-center justify-content-center bg-${c.color}-100 border-round`}
-                style={{ width: '3rem', height: '3rem' }}
-              >
-                <i className={`pi ${c.icon} text-${c.color}-600 text-xl`} />
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
+    const chartOptions = {
+        plugins: {
+            legend: { position: 'bottom', labels: { color: layoutConfig.colorScheme === 'light' ? '#495057' : '#ebedef' } }
+        },
+        maintainAspectRatio: false
+    };
 
-      {/* Charts */}
-      <div className="col-12 md:col-7">
-        <div className="card">
-          <h5>Tren Pelanggaran</h5>
-          <Chart type="line" data={trendPelanggaran} options={chartOptions} />
-        </div>
-      </div>
+    return (
+        <div className="grid">
+            <Toast ref={toast} />
 
-      <div className="col-12 md:col-5">
-        <div className="card">
-          <h5>Distribusi Jenis Pelanggaran</h5>
-          <Chart type="pie" data={distribusiPelanggaran} options={chartOptions} />
-        </div>
-      </div>
-
-      {/* Catatan BK */}
-      <div className="col-12">
-        <div className="card">
-          <div className="flex justify-content-between align-items-center mb-3">
-            <h5>Catatan BK Terbaru</h5>
-            <Button label="Export CSV" icon="pi pi-file" onClick={() => exportCSV(catatanBK, 'catatan-bk.csv')} />
-          </div>
-
-          {CustomDataTable ? (
-            <CustomDataTable data={catatanBK} loading={false} columns={catatanColumns} />
-          ) : (
-            <DataTable value={catatanBK} paginator rows={10}>
-              <Column field="nama" header="Nama" />
-              <Column field="kelas" header="Kelas" />
-              <Column field="catatan" header="Catatan" />
-              <Column field="tanggal" header="Tanggal" />
-              <Column header="Aksi" body={(row) => (
-                <div className="flex gap-2">
-                  <Button icon="pi pi-pencil" size="small" severity="warning" />
-                  <Button icon="pi pi-trash" size="small" severity="danger" />
+            <div className="col-12 flex flex-column md:flex-row align-items-center justify-content-between mb-3">
+                <h4 className="m-0">Dashboard Pemantauan Siswa</h4>
+                <div className="p-inputgroup flex-1 md:flex-none" style={{ width: '250px' }}>
+                    <span className="p-inputgroup-addon bg-primary border-primary">
+                        <i className="pi pi-calendar"></i>
+                    </span>
+                    <Calendar 
+                        value={selectedDate} 
+                        onChange={(e) => setSelectedDate(e.value)} 
+                        dateFormat="yy-mm-dd" 
+                        showIcon={false} 
+                        placeholder="Pilih Tanggal"
+                    />
                 </div>
-              )} />
-            </DataTable>
-          )}
+            </div>
+
+            {/* Stats Cards */}
+            <div className="col-12 lg:col-3">
+                <div className="card mb-0 shadow-2 border-left-3 border-red-500">
+                    <div className="flex justify-content-between mb-3">
+                        <div>
+                            <span className="block text-500 font-medium mb-2">Total Alpa</span>
+                            <div className="text-900 font-bold text-xl">{statistikHarian.ALPA}</div>
+                        </div>
+                        <div className="flex align-items-center justify-content-center bg-red-100 border-round" style={{ width: '2.5rem', height: '2.5rem' }}>
+                            <i className="pi pi-user-times text-red-500 text-xl" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="col-12 lg:col-3">
+                <div className="card mb-0 shadow-2 border-left-3 border-purple-500">
+                    <div className="flex justify-content-between mb-3">
+                        <div>
+                            <span className="block text-500 font-medium mb-2">Membolos</span>
+                            <div className="text-900 font-bold text-xl">{statistikHarian.MEMBOLOS}</div>
+                        </div>
+                        <div className="flex align-items-center justify-content-center bg-purple-100 border-round" style={{ width: '2.5rem', height: '2.5rem' }}>
+                            <i className="pi pi-directions text-purple-500 text-xl" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="col-12 lg:col-3">
+                <div className="card mb-0 shadow-2 border-left-3 border-blue-500">
+                    <div className="flex justify-content-between mb-3">
+                        <div>
+                            <span className="block text-500 font-medium mb-2">Izin & Sakit</span>
+                            <div className="text-900 font-bold text-xl">{statistikHarian.IZIN + statistikHarian.SAKIT}</div>
+                        </div>
+                        <div className="flex align-items-center justify-content-center bg-blue-100 border-round" style={{ width: '2.5rem', height: '2.5rem' }}>
+                            <i className="pi pi-info-circle text-blue-500 text-xl" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="col-12 lg:col-3">
+                <div className="card mb-0 shadow-2 border-left-3 border-green-500">
+                    <div className="flex justify-content-between mb-3">
+                        <div>
+                            <span className="block text-500 font-medium mb-2">Persentase Hadir</span>
+                            <div className="text-900 font-bold text-xl">
+                                {Math.round((statistikHarian.HADIR / (Object.values(statistikHarian).reduce((a, b) => a + b, 0) || 1)) * 100)}%
+                            </div>
+                        </div>
+                        <div className="flex align-items-center justify-content-center bg-green-100 border-round" style={{ width: '2.5rem', height: '2.5rem' }}>
+                            <i className="pi pi-check-circle text-green-500 text-xl" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="col-12 xl:col-4">
+                <div className="card">
+                    <h5>Status Absensi</h5>
+                    <div style={{ height: '300px' }}>
+                        <Chart type="doughnut" data={pieData} options={chartOptions} />
+                    </div>
+                </div>
+            </div>
+
+            <div className="col-12 xl:col-8">
+                <div className="card">
+                    <div className="flex align-items-center justify-content-between mb-4">
+                        <h5>Daftar Ketidakhadiran Siswa</h5>
+                        <Button icon="pi pi-refresh" rounded text onClick={() => fetchDataDashboard(selectedDate)} loading={loading} />
+                    </div>
+                    <DataTable 
+                        value={absensiHariIni} 
+                        rows={6} 
+                        paginator 
+                        responsiveLayout="scroll" 
+                        loading={loading}
+                        emptyMessage="Semua siswa hadir pada tanggal ini."
+                    >
+                        <Column field="NIS" header="NIS" style={{ width: '20%' }} />
+                        <Column field="NAMA" header="Nama Siswa" style={{ width: '40%' }} />
+                        <Column field="KELAS_ID" header="Kelas" style={{ width: '20%' }} />
+                        <Column 
+                            field="STATUS" 
+                            header="Status" 
+                            body={(row) => <Tag severity={getStatusSeverity(row.STATUS)} value={row.STATUS} />} 
+                            style={{ width: '20%' }} 
+                        />
+                    </DataTable>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default DashboardBPBK;
