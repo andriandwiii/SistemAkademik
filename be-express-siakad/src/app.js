@@ -40,6 +40,9 @@ import masterKKMRoutes from "./routes/masterKKMRoutes.js";
 import masterPredikatRoutes from "./routes/masterPredikatRoutes.js"
 import TransaksiNilaiRoutes from "./routes/transaksiNilaiRoutes.js"
 import AbsensiGuruRoutes from "./routes/AbsensiGuruRoutes.js"; 
+import masterJenisUjianRoutes from "./routes/masterJenisUjianRoute.js";
+import masterDataUjianRoutes from "./routes/masterDataUjianRoutes.js";
+
 
 const app = express();
 
@@ -111,5 +114,6 @@ app.use("/api/master-kkm", masterKKMRoutes);
 app.use("/api/master-predikat", masterPredikatRoutes);
 app.use("/api/transaksi-nilai", TransaksiNilaiRoutes);
 app.use("/api/absensi-guru", AbsensiGuruRoutes);
-
+app.use("/api/master-jenis-ujian", masterJenisUjianRoutes);
+app.use("/api/master-data-ujian", masterDataUjianRoutes);
 export default app;

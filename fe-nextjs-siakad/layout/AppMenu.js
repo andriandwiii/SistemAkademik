@@ -56,6 +56,9 @@ const AppMenu = () => {
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
                             { label: "Master KKM", icon: "pi pi-fw pi-file", to: "/master/kkm" },
                             { label: "Master Predikat", icon: "pi pi-fw pi-file", to: "/master/predikat" },
+                            { label: "Master Jenis Ujian", icon: "pi pi-fw pi-file-edit", to: "/master/jenis_ujian" },
+                            { label: "Master Data Ujian", icon: "pi pi-fw pi-book", to: "/master/data_ujian" }
+
                             
 
                         ]
