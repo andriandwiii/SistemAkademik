@@ -18,7 +18,7 @@ const DashboardSiswa = () => {
     const [jadwalHariIni, setJadwalHariIni] = useState([]);
     const [allJadwal, setAllJadwal] = useState([]);
     
-    // State baru untuk data absensi real
+
     const [attendanceStats, setAttendanceStats] = useState([0, 0, 0, 0]); // [Hadir, Sakit, Izin, Alpa]
 
     useEffect(() => {
@@ -82,7 +82,6 @@ const DashboardSiswa = () => {
                 console.error("Gagal mengambil data absensi:", err);
             }
 
-            // 3. Fetch Jadwal
             const transaksiKelas = sisData.transaksi_siswa_kelas;
             if (transaksiKelas && transaksiKelas.length > 0) {
                 const kelasId = transaksiKelas[0].KELAS_ID;
