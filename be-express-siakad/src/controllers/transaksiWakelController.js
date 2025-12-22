@@ -24,10 +24,21 @@ export const createTransaksi = async (req, res) => {
     if (!NIP || !TINGKATAN_ID || !JURUSAN_ID || !KELAS_ID) {
       return res.status(400).json({
         status: "99",
-        message:
-          "Semua field wajib diisi (NIP, TINGKATAN_ID, JURUSAN_ID, KELAS_ID)",
+        message: "Semua field wajib diisi (NIP, TINGKATAN_ID, JURUSAN_ID, KELAS_ID)",
       });
     }
+
+    // --- LOGIKA TAMBAHAN: CEK APAKAH GURU SUDAH JADI WAKEL ---
+    const allData = await TransaksiModel.getAllTransaksi();
+    const isAlreadyWakel = allData.find(item => item.NIP === NIP);
+
+    if (isAlreadyWakel) {
+      return res.status(400).json({
+        status: "99",
+        message: `Gagal! Guru dengan NIP ${NIP} sudah menjabat sebagai wali kelas di kelas lain.`,
+      });
+    }
+    // --------------------------------------------------------
 
     const result = await TransaksiModel.createTransaksi({
       NIP,
@@ -43,15 +54,12 @@ export const createTransaksi = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error createTransaksi:", err);
-    
-    // Handle duplicate key error (guru sudah jadi wali kelas yang sama)
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({
         status: "99",
-        message: "Guru sudah menjadi wali kelas di kelas ini",
+        message: "Kelas ini sudah memiliki wali kelas",
       });
     }
-    
     res.status(500).json({ status: "99", message: err.message });
   }
 };
@@ -65,10 +73,22 @@ export const updateTransaksi = async (req, res) => {
     if (!NIP || !TINGKATAN_ID || !JURUSAN_ID || !KELAS_ID) {
       return res.status(400).json({
         status: "99",
-        message:
-          "Semua field wajib diisi (NIP, TINGKATAN_ID, JURUSAN_ID, KELAS_ID)",
+        message: "Semua field wajib diisi (NIP, TINGKATAN_ID, JURUSAN_ID, KELAS_ID)",
       });
     }
+
+    // --- LOGIKA TAMBAHAN: CEK APAKAH GURU SUDAH JADI WAKEL DI TRANSAKSI LAIN ---
+    const allData = await TransaksiModel.getAllTransaksi();
+    // Cari apakah NIP ini sudah dipakai di ID yang berbeda dengan yang sedang di-update
+    const isUsedByOther = allData.find(item => item.NIP === NIP && item.ID != id);
+
+    if (isUsedByOther) {
+      return res.status(400).json({
+        status: "99",
+        message: `Gagal! Guru dengan NIP ${NIP} sudah menjadi wali kelas di kelas lain.`,
+      });
+    }
+    // -------------------------------------------------------------------------
 
     const updated = await TransaksiModel.updateTransaksi(id, {
       NIP,
@@ -91,15 +111,12 @@ export const updateTransaksi = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error updateTransaksi:", err);
-    
-    // Handle duplicate key error
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({
         status: "99",
-        message: "Guru sudah menjadi wali kelas di kelas ini",
+        message: "Kelas ini sudah memiliki wali kelas",
       });
     }
-    
     res.status(500).json({ status: "99", message: err.message });
   }
 };
