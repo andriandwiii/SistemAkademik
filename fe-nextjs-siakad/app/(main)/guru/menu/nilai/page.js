@@ -804,13 +804,13 @@ export default function EntryNilaiPage() {
             <Divider className="my-2" />
 
             <div className="flex justify-content-end mb-3">
-              <Button 
-                label="Simpan Semua" 
-                icon="pi pi-save" 
-                severity="success" 
-                onClick={saveAll} 
-                loading={loading} 
-              />
+            <Button
+            label="Simpan Semua"
+            icon="pi pi-save"
+            onClick={saveAll}
+            loading={loading}
+            disabled={loading || grades.length === 0}
+            />
             </div>
 
             <CustomDataTable

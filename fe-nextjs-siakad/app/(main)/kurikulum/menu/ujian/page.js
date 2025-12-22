@@ -1,161 +1,202 @@
-/* eslint-disable @next/next/no-img-element */
-'use client';
+"use client";
 
-import React, { useContext, useRef, useState, useEffect } from 'react';
-import { LayoutContext } from '../../../../../layout/context/layoutcontext';
-import { Button } from 'primereact/button';
-import { InputText } from 'primereact/inputtext';
-import { Dropdown } from 'primereact/dropdown';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import { Toast } from 'primereact/toast';
-import { DataTable } from 'primereact/datatable';
-import { Column } from 'primereact/column';
-import CustomDataTable from '../../../../components/DataTable';
+import { useEffect, useRef, useState } from "react";
+import { Button } from "primereact/button";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import ToastNotifier from "../../../../components/ToastNotifier";
+import CustomDataTable from "../../../../components/DataTable";
+import FormUjian from "./components/formujian";
 
-const DashboardUjian = () => {
-    const { layoutConfig } = useContext(LayoutContext);
-    const toast = useRef(null);
+export default function MengaturUjianPage() {
+  const toastRef = useRef(null);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-    // --- Contoh data ujian (dummy) ---
-    const [exams, setExams] = useState([
-        { id: 1, no: 1, kodeUjian: 'UAS-001', namaUjian: 'UAS Matematika', paketKeahlian: 'MIPA', kelas: 'X IPA 1', tanggal: '2025-12-15', waktu: '08:00 - 10:00' },
-        { id: 2, no: 2, kodeUjian: 'PTS-002', namaUjian: 'PTS Sejarah', paketKeahlian: 'IPS', kelas: 'XI IPS 2', tanggal: '2025-10-20', waktu: '10:30 - 12:00' },
-        { id: 3, no: 3, kodeUjian: 'UTS-003', namaUjian: 'UTS Fisika', paketKeahlian: 'MIPA', kelas: 'XII IPA 3', tanggal: '2025-10-22', waktu: '13:00 - 14:30' },
-        { id: 4, no: 4, kodeUjian: 'UAS-004', namaUjian: 'UAS Biologi', paketKeahlian: 'MIPA', kelas: 'X IPA 1', tanggal: '2025-12-16', waktu: '08:00 - 10:00' },
-        { id: 5, no: 5, kodeUjian: 'PTS-005', namaUjian: 'PTS Geografi', paketKeahlian: 'IPS', kelas: 'XI IPS 1', tanggal: '2025-10-21', waktu: '08:00 - 09:30' },
-    ]);
+  const [ujianList, setUjianList] = useState([]);
+  const [kelasOptions, setKelasOptions] = useState([]);
+  const [mapelOptions, setMapelOptions] = useState([]);
+  const [guruOptions, setGuruOptions] = useState([]);
 
-    // Filter / search
-    const [globalFilter, setGlobalFilter] = useState('');
-    const [specializationFilter, setSpecializationFilter] = useState(null);
+  const [dialogMode, setDialogMode] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
 
-    // Filtered data based on dropdown selection
-    const [filteredExams, setFilteredExams] = useState(exams);
+  /* ===============================
+   * FETCH DATA
+   * =============================== */
 
-    // Get unique specialization options from data
-    const specializationOptions = ['Semua Paket Keahlian', ...new Set(exams.map(item => item.paketKeahlian))];
+  useEffect(() => {
+    fetchUjian();
+    fetchKelas();
+    fetchMapel();
+    fetchGuru();
+  }, []);
 
-    // Apply filter whenever specialization selection changes
-    useEffect(() => {
-        if (specializationFilter && specializationFilter !== 'Semua Paket Keahlian') {
-            setFilteredExams(exams.filter(e => e.paketKeahlian === specializationFilter));
-        } else {
-            setFilteredExams(exams);
-        }
-    }, [specializationFilter, exams]);
+  const fetchUjian = async () => {
+    try {
+      const res = await fetch(`${API_URL}/ujian`);
+      const json = await res.json();
+      setUjianList(Array.isArray(json.data) ? json.data : []);
+    } catch {
+      setUjianList([]);
+    }
+  };
 
+  const fetchKelas = async () => {
+    try {
+      const res = await fetch(`${API_URL}/kelas`);
+      const json = await res.json();
 
-    // Export CSV helper
-    const exportCSV = (rows, filename = 'jadwal_ujian.csv') => {
-        if (!rows || rows.length === 0) {
-            toast.current?.show({ severity: 'warn', summary: 'Kosong', detail: 'Tidak ada data untuk diexport' });
-            return;
-        }
+      setKelasOptions(
+        Array.isArray(json.data)
+          ? json.data.map((k) => ({
+              label: `${k.TINGKATAN} ${k.NAMA_JURUSAN} ${k.NAMA_RUANG || ""}`,
+              value: k.KELAS_ID,
+            }))
+          : []
+      );
+    } catch {
+      setKelasOptions([]);
+    }
+  };
 
-        const keys = Object.keys(rows[0]);
-        const csv = [
-            keys.join(','),
-            ...rows.map((r) => keys.map((k) => `"${(r[k] ?? '').toString().replace(/"/g, '""')}"`).join(',')),
-        ].join('\n');
+  const fetchMapel = async () => {
+    try {
+      const res = await fetch(`${API_URL}/master-mapel`);
+      const json = await res.json();
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.href = url;
-        link.setAttribute('download', filename);
-        link.click();
-        URL.revokeObjectURL(url);
-    };
+      setMapelOptions(
+        Array.isArray(json.data)
+          ? json.data.map((m) => ({
+              label: `${m.KODE_MAPEL} - ${m.NAMA_MAPEL}`,
+              value: m.MAPEL_ID,
+            }))
+          : []
+      );
+    } catch {
+      setMapelOptions([]);
+    }
+  };
 
-    // Cetak jadwal (print window)
-    const handlePrintSchedule = () => {
-        window.print();
-    };
+  const fetchGuru = async () => {
+    try {
+      const res = await fetch(`${API_URL}/guru`);
+      const json = await res.json();
 
-    // Actions pada jadwal
-    const handleDeleteExam = (rowData) => {
-        confirmDialog({
-            message: `Hapus jadwal ujian ${rowData.namaUjian} di kelas ${rowData.kelas}?`,
-            header: 'Konfirmasi Hapus',
-            icon: 'pi pi-exclamation-triangle',
-            accept: () => {
-                setExams((prev) => prev.filter((e) => e.id !== rowData.id));
-                toast.current?.show({ severity: 'success', summary: 'Dihapus', detail: 'Jadwal ujian berhasil dihapus' });
-            },
-        });
-    };
+      setGuruOptions(
+        Array.isArray(json.data)
+          ? json.data.map((g) => ({
+              label: g.NAMA_GURU,
+              value: g.GURU_ID,
+            }))
+          : []
+      );
+    } catch {
+      setGuruOptions([]);
+    }
+  };
 
-    const actionTemplate = (rowData) => (
+  /* ===============================
+   * ACTION
+   * =============================== */
+
+  const handleSave = async (data) => {
+    try {
+      const url =
+        dialogMode === "add"
+          ? `${API_URL}/ujian`
+          : `${API_URL}/ujian/${selectedItem.UJIAN_ID}`;
+
+      await fetch(url, {
+        method: dialogMode === "add" ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      toastRef.current.showToast("00", "Data ujian berhasil disimpan");
+      fetchUjian();
+      setDialogMode(null);
+      setSelectedItem(null);
+    } catch {
+      toastRef.current.showToast("01", "Gagal menyimpan data");
+    }
+  };
+
+  const handleDelete = (row) => {
+    confirmDialog({
+      message: "Yakin ingin menghapus ujian ini?",
+      header: "Konfirmasi",
+      acceptClassName: "p-button-danger",
+      accept: async () => {
+        await fetch(`${API_URL}/ujian/${row.UJIAN_ID}`, { method: "DELETE" });
+        fetchUjian();
+      },
+    });
+  };
+
+  /* ===============================
+   * TABLE
+   * =============================== */
+
+  const columns = [
+    { field: "KODE_UJIAN", header: "Kode" },
+    { field: "NAMA_UJIAN", header: "Nama Ujian" },
+    { field: "JENIS_UJIAN", header: "Jenis" },
+    { field: "TANGGAL", header: "Tanggal" },
+    { field: "STATUS", header: "Status" },
+    {
+      header: "Aksi",
+      body: (row) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" size="small" severity="warning" onClick={() => toast.current?.show({ severity: 'info', summary: 'Edit', detail: `Implementasi edit untuk ID ${rowData.id}` })} />
-            <Button icon="pi pi-trash" size="small" severity="danger" onClick={() => handleDeleteExam(rowData)} />
+          <Button
+            icon="pi pi-pencil"
+            severity="warning"
+            onClick={() => {
+              setSelectedItem(row);
+              setDialogMode("edit");
+            }}
+          />
+          <Button
+            icon="pi pi-trash"
+            severity="danger"
+            onClick={() => handleDelete(row)}
+          />
         </div>
-    );
+      ),
+    },
+  ];
 
-    // Kolom untuk DataTable
-    const examColumns = [
-        { field: 'no', header: 'No.', style: { width: '50px' } },
-        { field: 'kodeUjian', header: 'Kode Ujian' },
-        { field: 'namaUjian', header: 'Nama Ujian' },
-        { field: 'paketKeahlian', header: 'Paket Keahlian' },
-        { field: 'kelas', header: 'Kelas' },
-        { field: 'tanggal', header: 'Tanggal' },
-        { field: 'waktu', header: 'Waktu' },
-        { header: 'Aksi', body: actionTemplate, style: { width: '120px' } },
-    ];
+  /* ===============================
+   * RENDER
+   * =============================== */
 
-    // Cek apakah CustomDataTable tersedia
-    const useCustom = !!(typeof CustomDataTable !== 'undefined');
+  return (
+    <div className="card p-4">
+      <ToastNotifier ref={toastRef} />
+      <ConfirmDialog />
 
-    return (
-        <div className="grid">
-            <Toast ref={toast} />
+      <h3>Mengatur Jadwal Ujian</h3>
 
-            <div className="col-12">
-                <div className="card mb-2">
-                    <div className="flex align-items-center justify-content-between">
-                        <div className="flex align-items-center gap-3">
-                            <InputText placeholder="Cari..." value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} />
-                            <Dropdown
-                                value={specializationFilter}
-                                options={specializationOptions}
-                                onChange={(e) => setSpecializationFilter(e.value)}
-                                placeholder="Pilih Paket Keahlian"
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                            <Button label="Tambah Ujian" icon="pi pi-plus" onClick={() => toast.current?.show({ severity: 'info', summary: 'Tambah', detail: 'Form tambah ujian akan muncul di sini' })} />
-                            <Button label="Export CSV" icon="pi pi-file" onClick={() => exportCSV(filteredExams, 'jadwal_ujian.csv')} />
-                            <Button label="Cetak Jadwal" icon="pi pi-print" onClick={handlePrintSchedule} />
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <div className="flex justify-content-end mb-3">
+        <Button
+          label="Tambah Ujian"
+          icon="pi pi-plus"
+          onClick={() => {
+            setDialogMode("add");
+            setSelectedItem(null);
+          }}
+        />
+      </div>
 
-            {/* Tabel Jadwal Ujian */}
-            <div className="col-12">
-                <div className="card">
-                    <h5>Jadwal Ujian</h5>
-                    {useCustom ? (
-                        <CustomDataTable data={filteredExams} loading={false} columns={examColumns} />
-                    ) : (
-                        <DataTable value={filteredExams} paginator rows={10} className="text-sm" globalFilter={globalFilter}>
-                            <Column field="no" header="No." sortable />
-                            <Column field="kodeUjian" header="Kode Ujian" sortable />
-                            <Column field="namaUjian" header="Nama Ujian" sortable />
-                            <Column field="paketKeahlian" header="Paket Keahlian" sortable />
-                            <Column field="kelas" header="Kelas" sortable />
-                            <Column field="tanggal" header="Tanggal" sortable />
-                            <Column field="waktu" header="Waktu" sortable />
-                            <Column header="Aksi" body={actionTemplate} style={{ width: '120px' }} />
-                        </DataTable>
-                    )}
-                </div>
-            </div>
+      <CustomDataTable data={ujianList} columns={columns} />
 
-            <ConfirmDialog />
-        </div>
-    );
-};
-
-export default DashboardUjian;
+      <FormUjian
+        visible={dialogMode !== null}
+        onHide={() => setDialogMode(null)}
+        onSave={handleSave}
+        selectedItem={selectedItem}
+        kelasOptions={kelasOptions}
+        mapelOptions={mapelOptions}
+        guruOptions={guruOptions}
+      />
+    </div>
+  );
+}

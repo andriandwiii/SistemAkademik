@@ -39,11 +39,6 @@ import masterKKMRoutes from "./routes/masterKKMRoutes.js";
 import masterPredikatRoutes from "./routes/masterPredikatRoutes.js"
 import TransaksiNilaiRoutes from "./routes/transaksiNilaiRoutes.js"
 import AbsensiGuruRoutes from "./routes/AbsensiGuruRoutes.js"; 
-import tuAbsensiRoutes from "./routes/tuAbsensiRoutes.js";
-import bkAbsensiRoutes from "./routes/bkAbsensiRoutes.js";
-import laporanAbsensiRoutes from "./routes/laporanAbsensiRoutes.js";
-import masterPelanggaranRoute from "./routes/masterPelanggaranRoute.js";
-import dashboardTURoutes from "./routes/dashboardTURoutes.js";
 
 const app = express();
 
@@ -110,11 +105,5 @@ app.use("/api/master-kkm", masterKKMRoutes);
 app.use("/api/master-predikat", masterPredikatRoutes);
 app.use("/api/transaksi-nilai", TransaksiNilaiRoutes);
 app.use("/api/absensi-guru", AbsensiGuruRoutes);
-app.use("/api/tu-absensi", tuAbsensiRoutes);
-app.use("/api/bk-absensi", bkAbsensiRoutes);
-app.use("/api/laporan-absensi", laporanAbsensiRoutes);
-app.use("/api/master-pelanggaran", masterPelanggaranRoute);
-app.use("/api/dashboard-tu", dashboardTURoutes);
-
 
 export default app;
