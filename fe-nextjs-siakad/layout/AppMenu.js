@@ -94,169 +94,360 @@ if (userRole === "SUPER_ADMIN") {
     // =========================
     // 2. KURIKULUM
     // =========================
-    else if (userRole === "KURIKULUM") {
-        model = [
-            {
-                label: "Dashboard Kurikulum",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/kurikulum/dashboard" }],
-            },
-            {
-                label: "Akademik",
-                items: [
+   else if (userRole === "KURIKULUM") {
+    model = [
+        {
+            label: "Dashboard Kurikulum",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/kurikulum/dashboard" }
+            ],
+        },
+        {
+            label: "Manajemen Akademik",
+            icon: "pi pi-fw pi-book",
+            items: [
+                {
+                    label: "Perencanaan & Penjadwalan",
+                    icon: "pi pi-fw pi-calendar",
+                    items: [
                         { label: "Pengaturan Jadwal Pelajaran", icon: "pi pi-fw pi-calendar", to: "/kurikulum/menu/jadwal" },
-                        { label: "Ujian", icon: "pi pi-fw pi-pencil", to: "/kurikulum/menu/ujian" },
-                        { label: "Cetak Rapor", icon: "pi pi-fw pi-file", to: "/kurikulum/menu/rapor" },
                         { label: "Perencanaan Kegiatan Belajar", icon: "pi pi-fw pi-book", to: "/kurikulum/menu/rencana" },
-                ],
-            },
-        ];
-    }
+                    ],
+                },
+                {
+                    label: "Penilaian & Laporan",
+                    icon: "pi pi-fw pi-file",
+                    items: [
+                        { label: "Penilaian", icon: "pi pi-fw pi-pencil", to: "/kurikulum/menu/penilaian" },
+                        { label: "Cetak / Penulisan Rapor", icon: "pi pi-fw pi-file", to: "/kurikulum/menu/rapor" },
+                    ],
+                },
+                {
+                    label: "Evaluasi & Informasi",
+                    icon: "pi pi-fw pi-chart-line",
+                    items: [
+                        { label: "Evaluasi Diri / Review", icon: "pi pi-fw pi-chart-line", to: "/kurikulum/menu/evaluasi" },
+                        { label: "Informasi Akademik", icon: "pi pi-fw pi-info-circle", to: "/kurikulum/menu/informasi" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
+
 
     // =========================
     // 3. KESISWAAN
     // =========================
-    else if (userRole === "KESISWAAN") {
-        model = [
-            {
-                label: "Dashboard Kesiswaan",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/kesiswaan/dashboard" }],
-            },
-            {
-                label: "Data Siswa",
-                items: [
+   else if (userRole === "KESISWAAN") {
+    model = [
+        {
+            label: "Dashboard Kesiswaan",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/kesiswaan/dashboard" }
+            ],
+        },
+        {
+            label: "Manajemen Siswa",
+            icon: "pi pi-fw pi-users",
+            items: [
+                {
+                    label: "Data & Administrasi",
+                    icon: "pi pi-fw pi-database",
+                    items: [
                         { label: "Manajemen Data Siswa", icon: "pi pi-fw pi-users", to: "/kesiswaan/menu/data-siswa" },
+                        { label: "Profil Siswa", icon: "pi pi-fw pi-id-card", to: "/kesiswaan/menu/profil-siswa" },
+                        { label: "Kehadiran Siswa", icon: "pi pi-fw pi-calendar", to: "/kesiswaan/menu/kehadiran" },
+                        { label: "Penanganan Administrasi", icon: "pi pi-fw pi-folder", to: "/kesiswaan/menu/administrasi" },
+                    ],
+                },
+                {
+                    label: "Akademik",
+                    icon: "pi pi-fw pi-book",
+                    items: [
                         { label: "Kenaikan Kelas", icon: "pi pi-fw pi-arrow-up", to: "/kesiswaan/menu/kenaikan-kelas" },
                         { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/kesiswaan/menu/transaksi-siswa" },
-                ],
-            },
-        ];
-    }
+                    ],
+                },
+            ],
+        },
+        {
+            label: "Komunikasi",
+            icon: "pi pi-fw pi-comments",
+            items: [
+                {
+                    label: "Rumah – Sekolah",
+                    icon: "pi pi-fw pi-comments",
+                    items: [
+                        { label: "Komunikasi Rumah - Sekolah", icon: "pi pi-fw pi-comments", to: "/kesiswaan/menu/komunikasi" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
 
     // =========================
     // 4. KEUANGAN
     // =========================
-    else if (userRole === "KEUANGAN") {
-        model = [
-            {
-                label: "Dashboard Keuangan",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/keuangan/dashboard" }],
-            },
-            {
-                label: "Keuangan",
-                items: [
+   else if (userRole === "KEUANGAN") {
+    model = [
+        {
+            label: "Dashboard Keuangan",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/keuangan/dashboard" }
+            ],
+        },
+        {
+            label: "Manajemen Keuangan",
+            icon: "pi pi-fw pi-wallet",
+            items: [
+                {
+                    label: "Transaksi & Pembayaran",
+                    icon: "pi pi-fw pi-money-bill",
+                    items: [
                         { label: "Manajemen Keuangan", icon: "pi pi-fw pi-wallet", to: "/keuangan/menu/manajemen" },
+                        { label: "Pembayaran SPP", icon: "pi pi-fw pi-credit-card", to: "/keuangan/menu/spp" },
+                        { label: "Jenis Pembayaran/Biaya", icon: "pi pi-fw pi-list", to: "/keuangan/menu/jenis-biaya" },
+                    ],
+                },
+                {
+                    label: "Laporan & Rekap",
+                    icon: "pi pi-fw pi-file",
+                    items: [
                         { label: "Laporan Keuangan", icon: "pi pi-fw pi-file", to: "/keuangan/menu/laporan" },
-                ],
-            },
-        ];
-    }
+                        { label: "Rekap Pembayaran Siswa", icon: "pi pi-fw pi-chart-bar", to: "/keuangan/menu/rekap" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
+
 
     // =========================
     // 5. TU/TAS
     // =========================
-    else if (userRole === "TU" || userRole === "TU_TASM") {
-        model = [
-            {
-                label: "Dashboard TU/TAS",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/tutasm/dashboard" }],
-            },
-            {
-                label: "Kehadiran",
-                items: [
+   else if (userRole === "TU" || userRole === "TU_TASM") {
+    model = [
+        {
+            label: "Dashboard TU/TAS",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/tutasm/dashboard" }
+            ],
+        },
+        {
+            label: "Administrasi Akademik",
+            icon: "pi pi-fw pi-briefcase",
+            items: [
+                {
+                    label: "Kehadiran",
+                    icon: "pi pi-fw pi-calendar",
+                    items: [
                         { label: "Absensi Siswa", icon: "pi pi-fw pi-save", to: "/tutasm/absensi" },
                         { label: "Absensi Kelas", icon: "pi pi-fw pi-users", to: "/tutasm/jadwal" },
-                ],
-            },
-        ];
-    }
+                    ],
+                },
+                {
+                    label: "Agenda & Guru",
+                    icon: "pi pi-fw pi-user",
+                    items: [
+                        { label: "Agenda Guru", icon: "pi pi-fw pi-calendar-plus", to: "/tutasm/agenda-guru" },
+                    ],
+                },
+            ],
+        },
+        {
+            label: "Administrasi Sekolah",
+            icon: "pi pi-fw pi-database",
+            items: [
+                {
+                    label: "Data & Aset",
+                    icon: "pi pi-fw pi-folder",
+                    items: [
+                        { label: "Pengelolaan Aset", icon: "pi pi-fw pi-building", to: "/tutasm/aset" },
+                        { label: "Data Administrasi Sekolah", icon: "pi pi-fw pi-file", to: "/tutasm/administrasi-sekolah" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
+
 
     // =========================
     // 6. BP/BK
     // =========================
-    else if (userRole === "BP" || userRole === "BP_BKM") {
-        model = [
-            {
-                label: "Dashboard BK",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/bpbkm/dashboard" }],
-            },
-            {
-                label: "Bimbingan Konseling",
-                items: [
-                        { label: "Absensi Siswa", icon: "pi pi-fw pi-file-edit", to: "/bpbkm/menu/absensi" },
-                      
-                ],
-            },
-        ];
-    }
+   else if (userRole === "BP" || userRole === "BP_BKM") {
+    model = [
+        {
+            label: "Dashboard BK",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/bpbkm/dashboard" }
+            ],
+        },
+        {
+            label: "Bimbingan Konseling",
+            icon: "pi pi-fw pi-users",
+            items: [
+                {
+                    label: "Data Siswa",
+                    icon: "pi pi-fw pi-id-card",
+                    items: [
+                        { label: "Profil Siswa", icon: "pi pi-fw pi-id-card", to: "/bpbkm/menu/profil-siswa" },
+                        { label: "Kehadiran Siswa", icon: "pi pi-fw pi-calendar", to: "/bpbkm/menu/absensi" },
+                    ],
+                },
+                {
+                    label: "Layanan Konseling",
+                    icon: "pi pi-fw pi-comments",
+                    items: [
+                        { label: "Catatan BK", icon: "pi pi-fw pi-file-edit", to: "/bpbkm/menu/catatan-bk" },
+                        { label: "Evaluasi Perilaku Siswa", icon: "pi pi-fw pi-chart-line", to: "/bpbkm/menu/evaluasi-perilaku" },
+                        { label: "Kebutuhan Pendidikan Khusus", icon: "pi pi-fw pi-heart", to: "/bpbkm/menu/kebutuhan-khusus" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
+
 
     // =========================
     // 7. ADMIN WEB SEKOLAH
     // =========================
-    else if (userRole === "ADMIN_WEB") {
-        model = [
-            {
-                label: "Dashboard Admin Web",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/adminweb/dashboard" }],
-            },
-            {
-                label: "Pengelolaan Website",
-                items: [
+   else if (userRole === "ADMIN_WEB") {
+    model = [
+        {
+            label: "Dashboard Admin Web",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/adminweb/dashboard" }
+            ],
+        },
+        {
+            label: "Pengelolaan Konten",
+            icon: "pi pi-fw pi-globe",
+            items: [
+                {
+                    label: "Informasi Publik",
+                    icon: "pi pi-fw pi-info-circle",
+                    items: [
+                        { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/adminweb/informasi" },
+                        { label: "Pengumuman & Konten Publik", icon: "pi pi-fw pi-bullhorn", to: "/adminweb/pengumuman" },
+                    ],
+                },
+                {
+                    label: "Website & Media",
+                    icon: "pi pi-fw pi-share-alt",
+                    items: [
                         { label: "Website Sekolah", icon: "pi pi-fw pi-globe", to: "/adminweb/website" },
-                        { label: "Media Sosial", icon: "pi pi-fw pi-share-alt", to: "/adminweb/sosial" },
-                ],
-            },
-        ];
-    }
+                        { label: "Media Sosial Sekolah", icon: "pi pi-fw pi-share-alt", to: "/adminweb/sosial" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
+
 
     // =========================
     // 8. GURU
     // =========================
-    else if (userRole === "GURU") {
-        model = [
-            {
-                label: "Dashboard Guru",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/guru/dashboard" }],
-            },
-            {
-                label: "Kehadiran & Mengajar",
-                items: [
+   else if (userRole === "GURU") {
+    model = [
+        {
+            label: "Dashboard Guru",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/guru/dashboard" }
+            ],
+        },
+        {
+            label: "Manajemen Mengajar",
+            icon: "pi pi-fw pi-briefcase",
+            items: [
+                {
+                    label: "Aktivitas Mengajar",
+                    icon: "pi pi-fw pi-database",
+                    items: [
                         { label: "Absensi Guru", icon: "pi pi-fw pi-user", to: "/guru/menu/absensi" },
+                        { label: "Absensi Kelas", icon: "pi pi-fw pi-users", to: "/guru/menu/absensi-kelas" },
                         { label: "Agenda Mengajar", icon: "pi pi-fw pi-calendar", to: "/guru/menu/agenda" },
-                ],
-            },
-            {
-                label: "Penilaian",
-                items: [{ label: "Input Nilai", icon: "pi pi-fw pi-pencil", to: "/guru/menu/nilai" }],
-            },
-        ];
-    }
+                        { label: "Input Nilai", icon: "pi pi-fw pi-pencil", to: "/guru/menu/nilai" },
+                        { label: "Laporan Akademik", icon: "pi pi-fw pi-file-edit", to: "/guru/menu/laporan-akademik" },
+                    ],
+                },
+            ],
+        },
+        {
+            label: "Komunikasi",
+            icon: "pi pi-fw pi-comments",
+            items: [
+                {
+                    label: "Komunikasi Guru",
+                    icon: "pi pi-fw pi-comments",
+                    items: [
+                        { label: "Komunikasi Antar Guru", icon: "pi pi-fw pi-comments", to: "/guru/menu/komunikasi-guru" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
 
-    // =========================
-    // 9. SISWA
-    // =========================
-    else if (userRole === "SISWA") {
-        model = [
-            {
-                label: "Dashboard Siswa",
-                items: [{ label: "Beranda", icon: "pi pi-fw pi-home", to: "/siswa/dashboard" }],
-            },
-            {
-                label: "Akademik",
-                items: [
+
+
+   // =========================
+// 9. SISWA (Dropdown)
+// =========================
+else if (userRole === "SISWA") {
+    model = [
+        {
+            label: "Dashboard Siswa",
+            icon: "pi pi-fw pi-home",
+            items: [
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/siswa/dashboard" }
+            ],
+        },
+        {
+            label: "Manajemen Akademik",
+            icon: "pi pi-fw pi-book",
+            items: [
+                {
+                    label: "Data Akademik",
+                    icon: "pi pi-fw pi-database",
+                    items: [
+                        { label: "Profil Saya", icon: "pi pi-fw pi-id-card", to: "/siswa/menu/profil" },
                         { label: "Absensi Siswa", icon: "pi pi-fw pi-user-edit", to: "/siswa/menu/absensi" },
                         { label: "Nilai & Rapor", icon: "pi pi-fw pi-book", to: "/siswa/menu/nilai" },
                         { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/siswa/menu/informasi" },
-                ],
-            },
-            {
-                label: "Komunikasi",
-                items: [
+                    ],
+                },
+            ],
+        },
+        {
+            label: "Komunikasi",
+            icon: "pi pi-fw pi-comments",
+            items: [
+                {
+                    label: "Komunikasi Siswa",
+                    icon: "pi pi-fw pi-comments",
+                    items: [
                         { label: "Rumah - Sekolah", icon: "pi pi-fw pi-comments", to: "/siswa/komunikasi/rumah-sekolah" },
-                        { label: "Guru/Karyawan", icon: "pi pi-fw pi-users", to: "/siswa/komunikasi/guru" },
-                ],
-            },
-        ];
-    }
+                        { label: "Guru / Karyawan", icon: "pi pi-fw pi-users", to: "/siswa/komunikasi/guru" },
+                    ],
+                },
+            ],
+        },
+    ];
+}
+
 
     return (
         <MenuProvider>
