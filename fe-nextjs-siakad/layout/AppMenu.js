@@ -221,7 +221,6 @@ if (userRole === "SUPER_ADMIN") {
                 label: "Kehadiran & Mengajar",
                 items: [
                         { label: "Absensi Guru", icon: "pi pi-fw pi-user", to: "/guru/menu/absensi" },
-                        { label: "Absensi Kelas", icon: "pi pi-fw pi-box", to: "/guru/menu/absen-kelas" },
                         { label: "Agenda Mengajar", icon: "pi pi-fw pi-calendar", to: "/guru/menu/agenda" },
                 ],
             },
