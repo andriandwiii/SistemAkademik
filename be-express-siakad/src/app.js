@@ -4,7 +4,6 @@ import logger from "morgan";
 import path from "path";
 import { setResponseHeader } from "./middleware/set-headers.js";
 
-// === Import Semua Routes ===
 import authRoutes from "./routes/authRoutes.js";
 import siswaRoutes from "./routes/siswaRoutes.js";
 import kelasRoutes from "./routes/kelasRoutes.js";
@@ -40,16 +39,11 @@ import masterKKMRoutes from "./routes/masterKKMRoutes.js";
 import masterPredikatRoutes from "./routes/masterPredikatRoutes.js"
 import TransaksiNilaiRoutes from "./routes/transaksiNilaiRoutes.js"
 import AbsensiGuruRoutes from "./routes/AbsensiGuruRoutes.js"; 
-import masterJenisUjianRoutes from "./routes/masterJenisUjianRoute.js";
-import masterDataUjianRoutes from "./routes/masterDataUjianRoutes.js";
-
 
 const app = express();
 
-// === Static Folder Uploads ===
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// === CORS Configuration ===
 const allowedOrigins = ["http://localhost:3000"];
 
 app.use(
@@ -68,17 +62,14 @@ app.use(
   })
 );
 
-// === Middlewares ===
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// === Base Route ===
 app.get("/", [setResponseHeader], (req, res) => {
   return res.status(200).json(`Welcome to the server! ${new Date().toLocaleString()}`);
 });
 
-// === Routes Prefix ===
 app.use("/api/auth", authRoutes);
 app.use("/api/siswa", siswaRoutes);
 app.use("/api/kelas", kelasRoutes);
@@ -99,7 +90,7 @@ app.use("/api/master-gedung", masterGedungRoutes);
 app.use("/api/transaksi-siswa", transaksiSiswaRoutes);
 app.use("/api/master-hari", masterHariRoutes);
 app.use("/api/mapel-kelas", mapelKelasRoutes);
-app.use("/api/jadwal", jadwalRoutes); // 
+app.use("/api/jadwal", jadwalRoutes);
 app.use("/api/absensi", absensiRoutes);
 app.use("/api/master-infosekolah", masterInfoSekolahRoutes);
 app.use("/api/master-tingkatan", masterTingkatanRoutes);
@@ -114,6 +105,5 @@ app.use("/api/master-kkm", masterKKMRoutes);
 app.use("/api/master-predikat", masterPredikatRoutes);
 app.use("/api/transaksi-nilai", TransaksiNilaiRoutes);
 app.use("/api/absensi-guru", AbsensiGuruRoutes);
-app.use("/api/master-jenis-ujian", masterJenisUjianRoutes);
-app.use("/api/master-data-ujian", masterDataUjianRoutes);
+
 export default app;
