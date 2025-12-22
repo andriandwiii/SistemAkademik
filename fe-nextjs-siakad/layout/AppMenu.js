@@ -56,7 +56,10 @@ const AppMenu = () => {
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
                             { label: "Master KKM", icon: "pi pi-fw pi-file", to: "/master/kkm" },
                             { label: "Master Predikat", icon: "pi pi-fw pi-file", to: "/master/predikat" },
-                            
+                            { label: "Master Kategori Siswa", icon: "pi pi-fw pi-tags", to: "/master/kategori-siswa" },
+                            { label: "Master Komponen Biaya", icon: "pi pi-fw pi-tags", to: "/master/komponen-biaya" },
+                            { label: "Master Tarif Biaya", icon: "pi pi-fw pi-tags", to: "/master/tarif-biaya" },
+                            { label: "Tagihan Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/tagihan" }
 
                         ]
                     },
@@ -69,7 +72,8 @@ const AppMenu = () => {
                             { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa" },
                             { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
                             { label: "Transaksi Nilai", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi_nilai" },
-                            { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" }
+                            { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" },
+                            { label: "pembayaran Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/pembayaran" }
                         ]
                     },
                     {
