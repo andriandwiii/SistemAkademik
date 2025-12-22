@@ -23,7 +23,7 @@ const AppMenu = () => {
     // =========================
     // 1. SUPER ADMIN SEKOLAH
     // =========================
-    if (userRole === "SUPER_ADMIN") {
+if (userRole === "SUPER_ADMIN") {
         model = [
             {
                 label: "Dashboard",
@@ -40,10 +40,7 @@ const AppMenu = () => {
                         icon: "pi pi-fw pi-info-circle",
                         items: [
                             { label: "Master Agama", icon: "pi pi-user-plus", to: "/master/agama" },
-                            { label: "Master Wilayah", icon: "pi pi-fw pi-building", to: "/master/wilayah" },
-                            { label: "Master Aset Sekolah", icon: "pi pi-tags", to: "/master/aset_sekolah" },
                             { label: "Master Kelas", icon: "pi pi-fw pi-th-large", to: "/master/m.kelas" },
-                            { label: "Master Kurikulum", icon: "pi pi-fw pi-book", to: "/master/kurikulum" },
                             { label: "Master Mapel", icon: "pi pi-fw pi-bookmark", to: "/master/mapel" },
                             { label: "Master Hari", icon: "pi pi-fw pi-calendar", to: "/master/hari" },
                             { label: "Master Jadwal", icon: "pi pi-fw pi-calendar-times", to: "/master/jadwal" },
@@ -59,8 +56,8 @@ const AppMenu = () => {
                             { label: "Master Kategori Siswa", icon: "pi pi-fw pi-tags", to: "/master/kategori-siswa" },
                             { label: "Master Komponen Biaya", icon: "pi pi-fw pi-tags", to: "/master/komponen-biaya" },
                             { label: "Master Tarif Biaya", icon: "pi pi-fw pi-tags", to: "/master/tarif-biaya" },
-                            { label: "Tagihan Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/tagihan" }
-
+                            { label: "Tagihan Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/tagihan" },
+                            { label: "Master Pelanggaran", icon: "pi pi-fw pi-file", to: "/master/pelanggaran" },
                         ]
                     },
                     {
@@ -68,7 +65,6 @@ const AppMenu = () => {
                         icon: "pi pi-fw pi-users",
                         items: [
                             { label: "Manajemen Siswa", icon: "pi pi-fw pi-users", to: "/master/siswa" },
-                            { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/master/informasi_sekolah" },
                             { label: "Transaksi Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa" },
                             { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
                             { label: "Transaksi Nilai", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi_nilai" },
@@ -89,8 +85,9 @@ const AppMenu = () => {
                         label: "Manajemen Absensi",
                         icon: "pi pi-fw pi-check-square",
                         items: [
-                            { label: "Absensi Siswa", icon: "pi pi-fw pi-check-square", to: "/superadmin/menu/absensi-siswa" },
-                            { label: "Absensi Guru", icon: "pi pi-fw pi-user", to: "/superadmin/menu/absensi-guru" }
+                            // INI MENU YANG BARU DITAMBAHKAN SESUAI FOLDER TUTASM KAMU
+                            { label: "Input Absensi (TU)", icon: "pi pi-fw pi-pencil", to: "/master/tutasm/absensi" },
+                            { label: "Input Absensi (BPBK)", icon: "pi pi-fw pi-pencil", to: "/master/bpbkm" },
                         ]
                     }
                 ]
@@ -170,9 +167,8 @@ const AppMenu = () => {
             {
                 label: "Kehadiran",
                 items: [
-                        { label: "Absensi Siswa", icon: "pi pi-fw pi-user-check", to: "/tu/absensi-siswa" },
-                        { label: "Absensi Kelas", icon: "pi pi-fw pi-users", to: "/tu/absensi-kelas" },
-                        { label: "Agenda Guru", icon: "pi pi-fw pi-calendar", to: "/tu/agenda-guru" },
+                        { label: "Absensi Siswa", icon: "pi pi-fw pi-save", to: "/tutasm/absensi" },
+                        { label: "Absensi Kelas", icon: "pi pi-fw pi-users", to: "/tutasm/jadwal" },
                 ],
             },
         ];
@@ -190,8 +186,8 @@ const AppMenu = () => {
             {
                 label: "Bimbingan Konseling",
                 items: [
-                        { label: "Absensi Siswa", icon: "pi pi-fw pi-user-check", to: "/bpbkm/absensi" },
-                        { label: "Catatan BK", icon: "pi pi-fw pi-file-edit", to: "/bpbkm/menu/catatan" },
+                        { label: "Absensi Siswa", icon: "pi pi-fw pi-file-edit", to: "/bpbkm/menu/absensi" },
+                      
                 ],
             },
         ];
@@ -229,7 +225,6 @@ const AppMenu = () => {
                 label: "Kehadiran & Mengajar",
                 items: [
                         { label: "Absensi Guru", icon: "pi pi-fw pi-user", to: "/guru/menu/absensi" },
-                        { label: "Absensi Kelas", icon: "pi pi-fw pi-box", to: "/guru/menu/absen-kelas" },
                         { label: "Agenda Mengajar", icon: "pi pi-fw pi-calendar", to: "/guru/menu/agenda" },
                 ],
             },
