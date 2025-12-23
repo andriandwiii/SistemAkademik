@@ -381,6 +381,7 @@ if (userRole === "SUPER_ADMIN") {
                         { label: "Agenda Mengajar", icon: "pi pi-fw pi-calendar", to: "/guru/menu/agenda" },
                         { label: "Input Nilai", icon: "pi pi-fw pi-pencil", to: "/guru/menu/nilai" },
                         { label: "Laporan Akademik", icon: "pi pi-fw pi-file-edit", to: "/guru/menu/laporan-akademik" },
+                        { label: "Cetak Rapor", icon: "pi pi-fw pi-file", to: "/guru/menu/cetak-rapot" },
                     ],
                 },
             ],
@@ -423,7 +424,7 @@ else if (userRole === "SISWA") {
                     label: "Data Akademik",
                     icon: "pi pi-fw pi-database",
                     items: [
-                        { label: "Profil Saya", icon: "pi pi-fw pi-id-card", to: "/siswa/menu/profil" },
+                        { label: "Profil Saya", icon: "pi pi-fw pi-id-card", to: "/siswa/menu/profile" },
                         { label: "Absensi Siswa", icon: "pi pi-fw pi-user-edit", to: "/siswa/menu/absensi" },
                         { label: "Nilai & Rapor", icon: "pi pi-fw pi-book", to: "/siswa/menu/nilai" },
                         { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/siswa/menu/informasi" },
