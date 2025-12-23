@@ -29,8 +29,42 @@ export const getFullDataBukuInduk = async (req, res) => {
 
         const { nilaiSiswa, gabungMapel } = nilaiData;
 
-        // 3. Logika Gabungan Nilai (Contoh: Fisika + Kimia + Biologi -> IPA)
-        let finalNilai = [...nilaiSiswa];
+        // 3. Proses nilai dan tambahkan deskripsi berdasarkan predikat
+        let finalNilai = nilaiSiswa.map(item => {
+            const rataRata = item.RATA_RATA || 0;
+            const predikatP = Model.getPredikatByNilai(item.NILAI_P || 0);
+            const predikatK = Model.getPredikatByNilai(item.NILAI_K || 0);
+            
+            // Pilih template deskripsi berdasarkan predikat rata-rata
+            const predikatRata = Model.getPredikatByNilai(rataRata);
+            let templateDeskripsi = "";
+            
+            switch(predikatRata) {
+                case "A": templateDeskripsi = item.DESKRIPSI_A; break;
+                case "B": templateDeskripsi = item.DESKRIPSI_B; break;
+                case "C": templateDeskripsi = item.DESKRIPSI_C; break;
+                case "D": templateDeskripsi = item.DESKRIPSI_D; break;
+            }
+            
+            const deskripsi = Model.generateDeskripsi(predikatRata, templateDeskripsi, item.NAMA_MAPEL);
+            
+            return {
+                MAPEL_ID_ASLI: item.MAPEL_ID_ASLI,
+                KODE_MAPEL: item.KODE_MAPEL,
+                NAMA_MAPEL: item.NAMA_MAPEL,
+                KATEGORI: item.KATEGORI,
+                NILAI_P: item.NILAI_P,
+                NILAI_K: item.NILAI_K,
+                RATA_RATA: rataRata,
+                PREDIKAT_P: predikatP,
+                PREDIKAT_K: predikatK,
+                PREDIKAT_RATA: predikatRata,
+                DESKRIPSI_P: deskripsi, // Deskripsi utama (untuk pengetahuan)
+                DESKRIPSI_K: deskripsi  // Bisa sama atau berbeda jika ingin customize
+            };
+        });
+
+        // 4. Logika Gabungan Nilai (Contoh: Fisika + Kimia + Biologi -> IPA)
         const uniqueIndukIds = [...new Set(gabungMapel.map(gm => gm.MAPEL_INDUK_ID))];
 
         uniqueIndukIds.forEach(indukId => {
@@ -38,24 +72,33 @@ export const getFullDataBukuInduk = async (req, res) => {
                 .filter(gm => gm.MAPEL_INDUK_ID === indukId)
                 .map(gm => gm.MAPEL_KOMPONEN_ID);
             
-            const komponenNilai = nilaiSiswa.filter(n => komponenIds.includes(n.MAPEL_ID_ASLI));
+            const komponenNilai = finalNilai.filter(n => komponenIds.includes(n.MAPEL_ID_ASLI));
 
             if (komponenNilai.length > 0) {
                 const avgP = komponenNilai.reduce((a, b) => a + (b.NILAI_P || 0), 0) / komponenNilai.length;
                 const avgK = komponenNilai.reduce((a, b) => a + (b.NILAI_K || 0), 0) / komponenNilai.length;
+                const avgRata = Math.round((avgP + avgK) / 2);
+                
+                const namaGabungan = indukId == 26 ? "Ilmu Pengetahuan Alam (IPA)" : "Ilmu Pengetahuan Sosial (IPS)";
+                const predikatGabungan = Model.getPredikatByNilai(avgRata);
                 
                 finalNilai.push({
-                    NAMA_MAPEL: indukId == 26 ? "Ilmu Pengetahuan Alam (IPA)" : "Ilmu Pengetahuan Sosial (IPS)",
+                    NAMA_MAPEL: namaGabungan,
                     KATEGORI: "Gabungan",
                     NILAI_P: Math.round(avgP),
                     NILAI_K: Math.round(avgK),
-                    RATA_RATA: Math.round((avgP + avgK) / 2),
+                    RATA_RATA: avgRata,
+                    PREDIKAT_P: Model.getPredikatByNilai(Math.round(avgP)),
+                    PREDIKAT_K: Model.getPredikatByNilai(Math.round(avgK)),
+                    PREDIKAT_RATA: predikatGabungan,
+                    DESKRIPSI_P: `Menunjukkan pemahaman yang ${predikatGabungan === 'A' ? 'sangat baik' : predikatGabungan === 'B' ? 'baik' : predikatGabungan === 'C' ? 'cukup' : 'perlu ditingkatkan'} dalam ${namaGabungan}.`,
+                    DESKRIPSI_K: `Menunjukkan keterampilan yang ${predikatGabungan === 'A' ? 'sangat baik' : predikatGabungan === 'B' ? 'baik' : predikatGabungan === 'C' ? 'cukup' : 'perlu ditingkatkan'} dalam ${namaGabungan}.`,
                     is_gabungan: true
                 });
             }
         });
 
-        // 4. Grouping Berdasarkan KATEGORI (Wajib A, Wajib B, Peminatan, dll)
+        // 5. Grouping Berdasarkan KATEGORI (Wajib A, Wajib B, Peminatan, dll)
         const groupedNilai = finalNilai.reduce((acc, item) => {
             const kategori = item.KATEGORI || "Lainnya";
             if (!acc[kategori]) acc[kategori] = [];
@@ -63,7 +106,7 @@ export const getFullDataBukuInduk = async (req, res) => {
             return acc;
         }, {});
 
-        // 5. Final JSON Response
+        // 6. Final JSON Response
         return res.status(200).json({
             status: "00",
             message: "Success generate data raport",
@@ -104,7 +147,8 @@ export const getFullDataBukuInduk = async (req, res) => {
         return res.status(500).json({ status: "99", message: err.message });
     }
 };
-// Tambahkan fungsi baru khusus untuk guru wali kelas
+
+// Fungsi baru khusus untuk guru wali kelas
 export const getFullDataBukuIndukByWaliKelas = async (req, res) => {
     try {
         const { nis, tahun_ajaran_id, semester } = req.query;
@@ -184,8 +228,41 @@ export const getFullDataBukuIndukByWaliKelas = async (req, res) => {
 
         const { nilaiSiswa, gabungMapel } = nilaiData;
 
-        // 4. Logika Gabungan Nilai
-        let finalNilai = [...nilaiSiswa];
+        // 4. Proses nilai dan tambahkan deskripsi berdasarkan predikat (SAMA DENGAN FUNGSI ATAS)
+        let finalNilai = nilaiSiswa.map(item => {
+            const rataRata = item.RATA_RATA || 0;
+            const predikatP = Model.getPredikatByNilai(item.NILAI_P || 0);
+            const predikatK = Model.getPredikatByNilai(item.NILAI_K || 0);
+            
+            const predikatRata = Model.getPredikatByNilai(rataRata);
+            let templateDeskripsi = "";
+            
+            switch(predikatRata) {
+                case "A": templateDeskripsi = item.DESKRIPSI_A; break;
+                case "B": templateDeskripsi = item.DESKRIPSI_B; break;
+                case "C": templateDeskripsi = item.DESKRIPSI_C; break;
+                case "D": templateDeskripsi = item.DESKRIPSI_D; break;
+            }
+            
+            const deskripsi = Model.generateDeskripsi(predikatRata, templateDeskripsi, item.NAMA_MAPEL);
+            
+            return {
+                MAPEL_ID_ASLI: item.MAPEL_ID_ASLI,
+                KODE_MAPEL: item.KODE_MAPEL,
+                NAMA_MAPEL: item.NAMA_MAPEL,
+                KATEGORI: item.KATEGORI,
+                NILAI_P: item.NILAI_P,
+                NILAI_K: item.NILAI_K,
+                RATA_RATA: rataRata,
+                PREDIKAT_P: predikatP,
+                PREDIKAT_K: predikatK,
+                PREDIKAT_RATA: predikatRata,
+                DESKRIPSI_P: deskripsi,
+                DESKRIPSI_K: deskripsi
+            };
+        });
+
+        // 5. Logika Gabungan Nilai
         const uniqueIndukIds = [...new Set(gabungMapel.map(gm => gm.MAPEL_INDUK_ID))];
 
         uniqueIndukIds.forEach(indukId => {
@@ -193,24 +270,33 @@ export const getFullDataBukuIndukByWaliKelas = async (req, res) => {
                 .filter(gm => gm.MAPEL_INDUK_ID === indukId)
                 .map(gm => gm.MAPEL_KOMPONEN_ID);
             
-            const komponenNilai = nilaiSiswa.filter(n => komponenIds.includes(n.MAPEL_ID_ASLI));
+            const komponenNilai = finalNilai.filter(n => komponenIds.includes(n.MAPEL_ID_ASLI));
 
             if (komponenNilai.length > 0) {
                 const avgP = komponenNilai.reduce((a, b) => a + (b.NILAI_P || 0), 0) / komponenNilai.length;
                 const avgK = komponenNilai.reduce((a, b) => a + (b.NILAI_K || 0), 0) / komponenNilai.length;
+                const avgRata = Math.round((avgP + avgK) / 2);
+                
+                const namaGabungan = indukId == 26 ? "Ilmu Pengetahuan Alam (IPA)" : "Ilmu Pengetahuan Sosial (IPS)";
+                const predikatGabungan = Model.getPredikatByNilai(avgRata);
                 
                 finalNilai.push({
-                    NAMA_MAPEL: indukId == 26 ? "Ilmu Pengetahuan Alam (IPA)" : "Ilmu Pengetahuan Sosial (IPS)",
+                    NAMA_MAPEL: namaGabungan,
                     KATEGORI: "Gabungan",
                     NILAI_P: Math.round(avgP),
                     NILAI_K: Math.round(avgK),
-                    RATA_RATA: Math.round((avgP + avgK) / 2),
+                    RATA_RATA: avgRata,
+                    PREDIKAT_P: Model.getPredikatByNilai(Math.round(avgP)),
+                    PREDIKAT_K: Model.getPredikatByNilai(Math.round(avgK)),
+                    PREDIKAT_RATA: predikatGabungan,
+                    DESKRIPSI_P: `Menunjukkan pemahaman yang ${predikatGabungan === 'A' ? 'sangat baik' : predikatGabungan === 'B' ? 'baik' : predikatGabungan === 'C' ? 'cukup' : 'perlu ditingkatkan'} dalam ${namaGabungan}.`,
+                    DESKRIPSI_K: `Menunjukkan keterampilan yang ${predikatGabungan === 'A' ? 'sangat baik' : predikatGabungan === 'B' ? 'baik' : predikatGabungan === 'C' ? 'cukup' : 'perlu ditingkatkan'} dalam ${namaGabungan}.`,
                     is_gabungan: true
                 });
             }
         });
 
-        // 5. Grouping Berdasarkan KATEGORI
+        // 6. Grouping Berdasarkan KATEGORI
         const groupedNilai = finalNilai.reduce((acc, item) => {
             const kategori = item.KATEGORI || "Lainnya";
             if (!acc[kategori]) acc[kategori] = [];
@@ -218,7 +304,7 @@ export const getFullDataBukuIndukByWaliKelas = async (req, res) => {
             return acc;
         }, {});
 
-        // 6. Final JSON Response
+        // 7. Final JSON Response
         return res.status(200).json({
             status: "00",
             message: "Success generate data raport",
@@ -259,6 +345,7 @@ export const getFullDataBukuIndukByWaliKelas = async (req, res) => {
         return res.status(500).json({ status: "99", message: err.message });
     }
 };
+
 export const getSiswaKelasWali = async (req, res) => {
     try {
         const { tahun_ajaran_id } = req.query;

@@ -13,10 +13,14 @@ export const getKelasSiswa = async (NIS, TAHUN_ID) => {
     .first();
 };
 
-// 3. Ambil Nilai & Referensi Gabungan (IPA/IPS)
+// 3. Ambil Nilai & Predikat (dengan deskripsi berdasarkan nilai)
 export const getNilaiLengkap = async (NIS, TAHUN_ID, SEMESTER) => {
   const nilaiSiswa = await db("transaksi_nilai as tn")
     .join("master_mata_pelajaran as m", "tn.KODE_MAPEL", "m.KODE_MAPEL")
+    .leftJoin("master_predikat as p", function() {
+      this.on("p.KODE_MAPEL", "=", "m.KODE_MAPEL")
+          .andOn("p.TAHUN_AJARAN_ID", "=", "tn.TAHUN_AJARAN_ID");
+    })
     .select(
       "m.ID as MAPEL_ID_ASLI",
       "m.KODE_MAPEL",
@@ -24,13 +28,42 @@ export const getNilaiLengkap = async (NIS, TAHUN_ID, SEMESTER) => {
       "m.KATEGORI",
       "tn.NILAI_P",
       "tn.NILAI_K",
-      db.raw("((tn.NILAI_P + tn.NILAI_K) / 2) as RATA_RATA")
+      db.raw("ROUND((tn.NILAI_P + tn.NILAI_K) / 2) as RATA_RATA"),
+      "p.DESKRIPSI_A",
+      "p.DESKRIPSI_B",
+      "p.DESKRIPSI_C",
+      "p.DESKRIPSI_D"
     )
     .where({ "tn.NIS": NIS, "tn.TAHUN_AJARAN_ID": TAHUN_ID, "tn.SEMESTER": SEMESTER });
 
   const gabungMapel = await db("transaksi_gabung_mapel").select("MAPEL_INDUK_ID", "MAPEL_KOMPONEN_ID");
 
   return { nilaiSiswa, gabungMapel };
+};
+
+// Fungsi helper untuk menentukan predikat berdasarkan nilai
+export const getPredikatByNilai = (nilai) => {
+  if (nilai >= 90) return "A";
+  if (nilai >= 80) return "B";
+  if (nilai >= 70) return "C";
+  return "D";
+};
+
+// Fungsi helper untuk generate deskripsi berdasarkan template predikat
+export const generateDeskripsi = (predikat, template, namaMapel) => {
+  if (!template) {
+    // Fallback jika template tidak ada
+    const defaultDescriptions = {
+      A: `Menunjukkan penguasaan yang sangat baik dalam ${namaMapel}, mampu menguasai seluruh kompetensi dengan sangat memuaskan.`,
+      B: `Menunjukkan penguasaan yang baik dalam ${namaMapel}, mampu menguasai kompetensi dasar dengan memuaskan.`,
+      C: `Menunjukkan penguasaan yang cukup dalam ${namaMapel}, perlu meningkatkan pemahaman pada beberapa kompetensi.`,
+      D: `Perlu bimbingan lebih lanjut dalam ${namaMapel} untuk meningkatkan penguasaan kompetensi dasar.`
+    };
+    return defaultDescriptions[predikat] || defaultDescriptions.D;
+  }
+
+  // Replace placeholder {materi} dengan nama mapel
+  return template.replace(/{materi}/g, namaMapel).replace(/{nama}/g, "Siswa");
 };
 
 // 4. Ambil Wali Kelas berdasarkan KELAS_ID (Join ke master_guru)
@@ -61,7 +94,6 @@ export const getKehadiranSiswa = async (NIS, TAHUN_ID, SEMESTER) => {
 export const getReferensiCetak = async (SEMESTER_KE) => {
   return await db("referensi_tanggal_rapor").where("SEMESTER_KE", SEMESTER_KE).first();
 };
-
 
 // Fungsi untuk mendapatkan profil user (jika belum ada)
 export const getUserProfile = async (userId) => {
@@ -123,6 +155,7 @@ export const getSiswaByKelasWali = async (nip, tahunAjaranId) => {
 
     return rows;
 };
+
 // Fungsi untuk mendapatkan info kelas dari wali kelas
 export const getKelasInfoByWali = async (nip) => {
     const result = await db("transaksi_guru_wakel as tw")

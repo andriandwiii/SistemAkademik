@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
-import html2pdf from 'html2pdf.js';
 
 export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
     const printRef = useRef();
@@ -24,7 +23,11 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
             html2canvas: { scale: 2, useCORS: true, letterRendering: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        html2pdf().set(opt).from(element).save();
+        // Note: html2pdf harus diimport terlebih dahulu
+        // import html2pdf from 'html2pdf.js';
+        if (typeof html2pdf !== 'undefined') {
+            html2pdf().set(opt).from(element).save();
+        }
     };
 
     return (
@@ -270,21 +273,25 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                         </tbody>
                     </table>
 
-                    {/* Tabel Nilai */}
+                    {/* Tabel Nilai - DENGAN DUA KOLOM NILAI */}
                     <table className="table-nilai">
                         <thead>
                             <tr className="bg-header">
-                                <th width="5%" className="text-center">No</th>
-                                <th width="28%">Mata Pelajaran</th>
-                                <th width="7%" className="text-center">Nilai</th>
-                                <th width="60%">Capaian Kompetensi</th>
+                                <th width="4%" rowSpan="2" className="text-center">No</th>
+                                <th width="30%" rowSpan="2">Mata Pelajaran</th>
+                                <th width="12%" colSpan="2" className="text-center">Nilai</th>
+                                <th width="54%" rowSpan="2">Capaian Kompetensi</th>
+                            </tr>
+                            <tr className="bg-header">
+                                <th className="text-center" style={{ fontSize: '9pt' }}>P</th>
+                                <th className="text-center" style={{ fontSize: '9pt' }}>K</th>
                             </tr>
                         </thead>
                         <tbody>
                             {Object.entries(nilaiRaport).map(([kategori, mapels]) => (
                                 <React.Fragment key={kategori}>
                                     <tr className="bg-kategori">
-                                        <td colSpan="4" className="font-bold" style={{ paddingLeft: '8px' }}>
+                                        <td colSpan="5" className="font-bold" style={{ paddingLeft: '8px' }}>
                                             {kategori}
                                         </td>
                                     </tr>
@@ -292,7 +299,8 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                                         <tr key={idx}>
                                             <td className="text-center">{idx + 1}</td>
                                             <td style={{ paddingLeft: '8px' }}>{m.NAMA_MAPEL}</td>
-                                            <td className="text-center font-bold">{m.NILAI_P}</td>
+                                            <td className="text-center font-bold">{m.NILAI_P || '-'}</td>
+                                            <td className="text-center font-bold">{m.NILAI_K || '-'}</td>
                                             <td style={{ paddingLeft: '8px', paddingRight: '8px', textAlign: 'justify', fontSize: '9pt', lineHeight: '1.3' }}>
                                                 {m.DESKRIPSI_P || `Menunjukkan pemahaman yang baik dalam ${m.NAMA_MAPEL}, mampu menguasai kompetensi dasar dengan sangat memuaskan.`}
                                             </td>
@@ -302,6 +310,11 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                             ))}
                         </tbody>
                     </table>
+
+                    {/* Keterangan Nilai */}
+                    <div style={{ marginTop: '8px', fontSize: '9pt', fontStyle: 'italic' }}>
+                        <strong>Keterangan:</strong> P = Pengetahuan | K = Keterampilan
+                    </div>
 
                     {/* Ketidakhadiran */}
                     <div style={{ marginTop: '15px' }}>
