@@ -57,7 +57,7 @@ export async function up(knex) {
       .onUpdate("CASCADE")
       .onDelete("RESTRICT");
 
-    // Relasi ke master_mata_pelajaran -> MAPEL_ID
+    // Relasi ke master_mata_pelajaran -> KODE_MAPEL
     table
       .string("KODE_MAPEL", 8)
       .notNullable()
@@ -74,6 +74,22 @@ export async function up(knex) {
       .inTable("master_jam_pelajaran")
       .onUpdate("CASCADE")
       .onDelete("RESTRICT");
+
+    // --- KOLOM TAMBAHAN YANG SEBELUMNYA KURANG ---
+
+    // Relasi ke master_tahun_ajaran -> TAHUN_AJARAN_ID
+    table
+      .string("TAHUN_AJARAN_ID", 10) // Sesuaikan panjang karakter (misal: TA2526)
+      .notNullable()
+      .references("TAHUN_AJARAN_ID")
+      .inTable("master_tahun_ajaran")
+      .onUpdate("CASCADE")
+      .onDelete("RESTRICT");
+
+    // Field Semester (Ganjil/Genap)
+    table.enum("SEMESTER", ["Ganjil", "Genap"]).notNullable();
+
+    // ---------------------------------------------
 
     // timestamps
     table.timestamp("created_at").defaultTo(knex.fn.now());

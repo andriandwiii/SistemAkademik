@@ -53,6 +53,7 @@ if (userRole === "SUPER_ADMIN") {
                             { label: "Master Jabatan", icon: "pi pi-user-plus", to: "/master/jabatan" },
                             { label: "Master KKM", icon: "pi pi-fw pi-file", to: "/master/kkm" },
                             { label: "Master Predikat", icon: "pi pi-fw pi-file", to: "/master/predikat" },
+                            { label: "Master Kelompok", icon: "pi pi-fw pi-file", to: "/master/kelompok_mapel" },
                             { label: "Master Pelanggaran", icon: "pi pi-fw pi-file", to: "/master/pelanggaran" },
                         ]
                     },
@@ -65,7 +66,8 @@ if (userRole === "SUPER_ADMIN") {
                             { label: "Transaksi Kenaikan Kelas", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi-siswa-naik" },
                             { label: "Transaksi Nilai", icon: "pi pi-fw pi-money-bill", to: "/master/transaksi_nilai" },
                             { label: "User", icon: "pi pi-fw pi-user", to: "/superadmin/menu/users" },
-                            { label: "pembayaran Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/pembayaran" }
+                            { label: "pembayaran Siswa", icon: "pi pi-fw pi-money-bill", to: "/master/pembayaran" },
+                            { label: "Transaksi Gabung Mapel", icon: "pi pi-fw pi-file", to: "/master/gabungan_mapel" }
                         ]
                     },
                     {
@@ -84,6 +86,20 @@ if (userRole === "SUPER_ADMIN") {
                             // INI MENU YANG BARU DITAMBAHKAN SESUAI FOLDER TUTASM KAMU
                             { label: "Input Absensi (TU)", icon: "pi pi-fw pi-pencil", to: "/master/tutasm/absensi" },
                             { label: "Input Absensi (BPBK)", icon: "pi pi-fw pi-pencil", to: "/master/bpbkm" },
+                        ]
+                    },
+                    {
+                        label: "Manajemen Rapor",
+                        icon: "pi pi-fw pi-check-square",
+                        items: [
+                            // INI MENU YANG BARU DITAMBAHKAN SESUAI FOLDER TUTASM KAMU
+                         { label: "Transaksi Gabung Mapel", icon: "pi pi-fw pi-file", to: "/master/gabungan_mapel" },
+                            { label: "Mapping Rapor", icon: "pi pi-fw pi-pencil", to: "/master/mapping_rapor" },
+                               { label: "Data Tanggal", icon: "pi pi-fw pi-pencil", to: "/master/tanggal_rapor" },
+                                { label: "Status Penilaian", icon: "pi pi-fw pi-pencil", to: "/master/status_nilai" },
+                                 { label: "Kehadiran Rapor", icon: "pi pi-fw pi-pencil", to: "/master/kehadiran_rapor" },
+                                 { label: "Cetak Buku Induk", icon: "pi pi-fw pi-pencil", to: "/master/buku_induk" },
+                        
                         ]
                     }
                 ]

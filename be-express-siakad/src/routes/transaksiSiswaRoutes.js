@@ -8,4 +8,5 @@ router.post("/", TransaksiController.createTransaksi);
 router.put('/:id', TransaksiController.updateTransaksi);
 router.delete("/:id", TransaksiController.deleteTransaksi);
 
+// PASTIKAN BARIS INI ADA DI PALING BAWAH
 export default router;
