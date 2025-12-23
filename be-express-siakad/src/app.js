@@ -44,6 +44,14 @@ import bkAbsensiRoutes from "./routes/bkAbsensiRoutes.js";
 import laporanAbsensiRoutes from "./routes/laporanAbsensiRoutes.js";
 import masterPelanggaranRoute from "./routes/masterPelanggaranRoute.js";
 import dashboardTURoutes from "./routes/dashboardTURoutes.js";
+import MasterKelompokMapel from "./routes/masterKelompokMapelRoutes.js";
+import transaksigabungMapelRoutes from "./routes/transaksigabungMapelRoutes.js";
+import mappingRaporRoutes from "./routes/mappingRaporRoutes.js";
+import tanggalRaporRoutes from "./routes/tanggalRaporRoutes.js";
+import statusRoutes from "./routes/statusRoutes.js";
+import kehadiranRoutes from "./routes/kehadiranRoutes.js";
+import bukuIndukRoutes from "./routes/bukuIndukRoutes.js";
+
 
 const app = express();
 
@@ -115,6 +123,12 @@ app.use("/api/bk-absensi", bkAbsensiRoutes);
 app.use("/api/laporan-absensi", laporanAbsensiRoutes);
 app.use("/api/master-pelanggaran", masterPelanggaranRoute);
 app.use("/api/dashboard-tu", dashboardTURoutes);
-
+app.use("/api/master-kelompok", MasterKelompokMapel);
+app.use("/api/transaksi-mapel", transaksigabungMapelRoutes);
+app.use("/api/mapping-rapor", mappingRaporRoutes);
+app.use("/api/tanggal-rapor", tanggalRaporRoutes);
+app.use("/api/penilaian", statusRoutes);
+app.use("/api/kehadiran", kehadiranRoutes);
+app.use("/api/buku-induk", bukuIndukRoutes);
 
 export default app;
