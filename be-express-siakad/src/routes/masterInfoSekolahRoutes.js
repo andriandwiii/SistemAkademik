@@ -1,21 +1,18 @@
-import { Router } from "express";
-import * as MasterInfoSekolahController from "../controllers/masterinfosekolahController.js";
+import express from 'express';
+import {
+  getAllInfoSekolah,
+  getInfoSekolahById,
+  createInfoSekolah,
+  updateInfoSekolah,
+  deleteInfoSekolah
+} from '../controllers/masterinfosekolahController.js';
 
-const router = Router();
+const router = express.Router();
 
-// GET all Info Sekolah
-router.get("/", MasterInfoSekolahController.getAllInfoSekolah);
-
-// GET Info Sekolah by INFO_ID
-router.get("/:INFO_ID", MasterInfoSekolahController.getInfoSekolahById);
-
-// POST new Info Sekolah
-router.post("/", MasterInfoSekolahController.createInfoSekolah);
-
-// PUT update Info Sekolah by INFO_ID
-router.put("/:INFO_ID", MasterInfoSekolahController.updateInfoSekolah);
-
-// DELETE Info Sekolah by INFO_ID
-router.delete("/:INFO_ID", MasterInfoSekolahController.deleteInfoSekolah);
+router.get('/', getAllInfoSekolah);
+router.get('/:id', getInfoSekolahById);
+router.post('/', createInfoSekolah);
+router.put('/:id', updateInfoSekolah);
+router.delete('/:id', deleteInfoSekolah);
 
 export default router;

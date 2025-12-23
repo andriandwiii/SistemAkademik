@@ -1,273 +1,240 @@
 "use client";
 
-import axios from "axios";
-import { useEffect, useRef, useState } from "react";
-import Cookies from "js-cookie";
-import { useRouter } from "next/navigation";
-import TabelInformasiSekolah from "./components/tabelInformasiSekolah";
-import FormDialogSekolah from "./components/formDialogInformasiSekolah";
-import HeaderBar from "@/app/components/headerbar";
-import ToastNotifier from "@/app/components/ToastNotifier";
+import { useEffect, useState, useRef } from "react";
+import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { Dialog } from "primereact/dialog";
+import { Tag } from "primereact/tag";
+import ToastNotifier from "../../../components/ToastNotifier";
+import CustomDataTable from "../../../components/DataTable";
+import FormInfoSekolah from "./components/FormInfoSekolah";
+import dynamic from "next/dynamic";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// 🔹 Import Dinamis untuk PDF Tools
+const PDFViewer = dynamic(() => import("./print/PDFViewer"), { ssr: false });
+const AdjustPrintMarginLaporan = dynamic(
+  () => import("./print/AdjustPrintMarginLaporan"),
+  { ssr: false }
+);
 
-const InfoSekolahPage = () => {
-  const [data, setData] = useState([]);
-  const [originalData, setOriginalData] = useState([]);
+export default function MasterInfoSekolahPage() {
+  const toastRef = useRef(null);
+  const [infoList, setInfoList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [dialogVisible, setDialogVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [dialogMode, setDialogMode] = useState(null);
+  const [searchKeyword, setSearchKeyword] = useState("");
 
-  const [formData, setFormData] = useState({
-    INFO_ID: 0,
-    NAMA_SEKOLAH: "",
-    NPSN: "",
-    NSS: "",
-    JENJANG_PENDIDIKAN: "",
-    STATUS_SEKOLAH: "",
-    VISI: "",
-    MISI: "",
-    MOTTO: "",
-    ALAMAT_JALAN: "",
-    RT: "",
-    RW: "",
-    KELURAHAN_DESA: "",
-    KECAMATAN: "",
-    KABUPATEN_KOTA: "",
-    PROVINSI: "",
-    KODE_POS: "",
-    TELEPON: "",
-    FAX: "",
-    EMAIL: "",
-    WEBSITE: "",
-    AKREDITASI: "",
-    NO_SK_AKREDITASI: "",
-    TANGGAL_SK_AKREDITASI: "",
-    TANGGAL_AKHIR_AKREDITASI: "",
-    NAMA_KEPALA_SEKOLAH: "",
-    NIP_KEPALA_SEKOLAH: "",
-    EMAIL_KEPALA_SEKOLAH: "",
-    NO_HP_KEPALA_SEKOLAH: "",
-    PENYELENGGARA: "",
-    NO_SK_PENDIRIAN: "",
-    TANGGAL_SK_PENDIRIAN: "",
-    NO_SK_IZIN_OPERASIONAL: "",
-    TANGGAL_SK_IZIN_OPERASIONAL: "",
-    LINTANG: "",
-    BUJUR: "",
-    LOGO_SEKOLAH_URL: "",
-    NAMA_BANK: "",
-    NOMOR_REKENING: "",
-    NAMA_PEMILIK_REKENING: "",
-    NPWP: "",
-    KURIKULUM_DIGUNAKAN: "",
-    WAKTU_PENYELENGGARAAN: "",
-    SUMBER_LISTRIK: "",
-    AKSES_INTERNET: "",
-    NAMA_OPERATOR_DAPODIK: "",
-    EMAIL_OPERATOR_DAPODIK: "",
-    NO_HP_OPERATOR_DAPODIK: "",
-    NAMA_KETUA_KOMITE: "",
-    FACEBOOK_URL: "",
-    INSTAGRAM_URL: "",
-    TWITTER_X_URL: "",
-    YOUTUBE_URL: "",
-    IS_ACTIVE: true,
+  // 🔹 State untuk Printing
+  const [adjustDialog, setAdjustDialog] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [jsPdfPreviewOpen, setJsPdfPreviewOpen] = useState(false);
+  const [dataAdjust, setDataAdjust] = useState({
+    marginTop: 10,
+    marginBottom: 10,
+    marginRight: 10,
+    marginLeft: 10,
+    paperSize: "A4",
+    orientation: "portrait",
   });
 
-  const [errors, setErrors] = useState({});
-  const toastRef = useRef(null);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
 
   useEffect(() => {
-    fetchSekolah();
-  }, []);
+    if (!token) {
+      window.location.href = "/";
+    } else {
+      fetchInfoSekolah();
+    }
+  }, [token]);
 
-  const fetchSekolah = async () => {
+  // 🔹 Fetch Data (Menggunakan endpoint baru: /api/master-infosekolah)
+  const fetchInfoSekolah = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/master-infosekolah`);
-      setData(res.data);
-      setOriginalData(res.data);
+      const res = await fetch(`${API_URL}/master-infosekolah`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      setInfoList(json.data || []);
     } catch (err) {
-      console.error("Gagal mengambil data:", err);
+      console.error(err);
+      toastRef.current?.showToast("01", "Gagal memuat data informasi");
     } finally {
       setLoading(false);
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.NAMA_SEKOLAH?.trim()) newErrors.NAMA_SEKOLAH = "Nama Sekolah wajib diisi";
-    if (!formData.NPSN?.trim()) newErrors.NPSN = "NPSN wajib diisi";
-    if (!formData.STATUS_SEKOLAH?.trim()) newErrors.STATUS_SEKOLAH = "Status Sekolah wajib diisi";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
+  // 🔍 Search Filter
   const handleSearch = (keyword) => {
-    const lowercasedKeyword = keyword.toLowerCase();
+    setSearchKeyword(keyword);
     if (!keyword) {
-      setData(originalData);
+      fetchInfoSekolah();
     } else {
-      const filtered = originalData.filter(
-        (item) =>
-          item.NAMA_SEKOLAH.toLowerCase().includes(lowercasedKeyword) ||
-          item.NPSN.toLowerCase().includes(lowercasedKeyword) ||
-          item.STATUS_SEKOLAH.toLowerCase().includes(lowercasedKeyword)
+      const filtered = infoList.filter(
+        (i) =>
+          i.JUDUL?.toLowerCase().includes(keyword.toLowerCase()) ||
+          i.KATEGORI?.toLowerCase().includes(keyword.toLowerCase())
       );
-      setData(filtered);
+      setInfoList(filtered);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    const isEdit = !!formData.INFO_ID;
-    const url = isEdit
-      ? `${API_URL}/master-infosekolah/${formData.INFO_ID}`
-      : `${API_URL}/master-infosekolah`;
-
+  // 💾 Save Handler (Tambah & Edit)
+  const handleSave = async (data) => {
+    setLoading(true);
     try {
-      if (isEdit) {
-        await axios.put(url, formData);
-        toastRef.current?.showToast("00", "Data berhasil diperbarui");
+      const isAdd = dialogMode === "add";
+      const url = isAdd 
+        ? `${API_URL}/master-infosekolah` 
+        : `${API_URL}/master-infosekolah/${selectedItem.ID}`;
+      
+      const res = await fetch(url, {
+        method: isAdd ? "POST" : "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        toastRef.current?.showToast("00", `Data berhasil ${isAdd ? "disimpan" : "diperbarui"}`);
+        fetchInfoSekolah();
+        setDialogMode(null);
+        setSelectedItem(null);
       } else {
-        await axios.post(url, formData);
-        toastRef.current?.showToast("00", "Data berhasil ditambahkan");
+        throw new Error("Gagal menyimpan");
       }
-      fetchSekolah();
-      setDialogVisible(false);
-      resetForm();
     } catch (err) {
-      console.error("Gagal menyimpan data:", err);
-      toastRef.current?.showToast("01", "Gagal menyimpan data");
+      console.error(err);
+      toastRef.current?.showToast("01", "Terjadi kesalahan sistem");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEdit = (row) => {
-    setFormData({ ...row });
-    setDialogVisible(true);
-  };
-
+  // ❌ Delete Handler
   const handleDelete = (row) => {
     confirmDialog({
-      message: `Apakah Anda yakin ingin menghapus informasi sekolah ${row.NAMA_KURIKULUM}?`,
+      message: `Hapus informasi "${row.JUDUL}"?`,
       header: "Konfirmasi Hapus",
-      icon: "pi pi-exclamation-triangle",
-      acceptLabel: "Ya",
-      rejectLabel: "Batal",
+      icon: "pi pi-info-circle",
+      acceptClassName: "p-button-danger",
       accept: async () => {
+        setLoading(true);
         try {
-          await axios.delete(`${API_URL}/master-infosekolah/${row.INFO_ID}`);
-          fetchSekolah();
-          toastRef.current?.showToast("00", "Data berhasil dihapus");
+          await fetch(`${API_URL}/master-infosekolah/${row.ID}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          toastRef.current?.showToast("00", "Berhasil dihapus");
+          fetchInfoSekolah();
         } catch (err) {
-          console.error("Gagal menghapus data:", err);
-          toastRef.current?.showToast("01", "Gagal menghapus data");
+          toastRef.current?.showToast("01", "Gagal menghapus");
+        } finally {
+          setLoading(false);
         }
       },
     });
   };
 
-  const resetForm = () => {
-    setFormData({
-      INFO_ID: 0,
-      NAMA_SEKOLAH: "",
-      NPSN: "",
-      NSS: "",
-      JENJANG_PENDIDIKAN: "",
-      STATUS_SEKOLAH: "",
-      VISI: "",
-      MISI: "",
-      MOTTO: "",
-      ALAMAT_JALAN: "",
-      RT: "",
-      RW: "",
-      KELURAHAN_DESA: "",
-      KECAMATAN: "",
-      KABUPATEN_KOTA: "",
-      PROVINSI: "",
-      KODE_POS: "",
-      TELEPON: "",
-      FAX: "",
-      EMAIL: "",
-      WEBSITE: "",
-      AKREDITASI: "",
-      NO_SK_AKREDITASI: "",
-      TANGGAL_SK_AKREDITASI: "",
-      TANGGAL_AKHIR_AKREDITASI: "",
-      NAMA_KEPALA_SEKOLAH: "",
-      NIP_KEPALA_SEKOLAH: "",
-      EMAIL_KEPALA_SEKOLAH: "",
-      NO_HP_KEPALA_SEKOLAH: "",
-      PENYELENGGARA: "",
-      NO_SK_PENDIRIAN: "",
-      TANGGAL_SK_PENDIRIAN: "",
-      NO_SK_IZIN_OPERASIONAL: "",
-      TANGGAL_SK_IZIN_OPERASIONAL: "",
-      LINTANG: "",
-      BUJUR: "",
-      LOGO_SEKOLAH_URL: "",
-      NAMA_BANK: "",
-      NOMOR_REKENING: "",
-      NAMA_PEMILIK_REKENING: "",
-      NPWP: "",
-      KURIKULUM_DIGUNAKAN: "",
-      WAKTU_PENYELENGGARAAN: "",
-      SUMBER_LISTRIK: "",
-      AKSES_INTERNET: "",
-      NAMA_OPERATOR_DAPODIK: "",
-      EMAIL_OPERATOR_DAPODIK: "",
-      NO_HP_OPERATOR_DAPODIK: "",
-      NAMA_KETUA_KOMITE: "",
-      FACEBOOK_URL: "",
-      INSTAGRAM_URL: "",
-      TWITTER_X_URL: "",
-      YOUTUBE_URL: "",
-      IS_ACTIVE: true,
-    });
-    setErrors({});
+  // 🎨 Tag Colors
+  const getSeverity = (kat) => {
+    switch (kat) {
+      case "Akademik": return "info";
+      case "Ekstrakurikuler": return "success";
+      case "Prestasi": return "help";
+      case "Umum": return "warning";
+      default: return null;
+    }
   };
 
+  const columns = [
+    { field: "ID", header: "ID", style: { width: "70px", textAlign: "center" } },
+    { 
+      field: "TANGGAL", 
+      header: "Tanggal", 
+      style: { width: "150px" },
+      body: (row) => new Date(row.TANGGAL).toLocaleDateString("id-ID") 
+    },
+    { field: "JUDUL", header: "Judul Informasi", style: { minWidth: "200px" } },
+    { 
+      field: "KATEGORI", 
+      header: "Kategori", 
+      style: { width: "150px" },
+      body: (row) => <Tag value={row.KATEGORI} severity={getSeverity(row.KATEGORI)} />
+    },
+    {
+      header: "Aksi",
+      body: (row) => (
+        <div className="flex gap-2">
+          <Button icon="pi pi-pencil" severity="warning" rounded text onClick={() => { setSelectedItem(row); setDialogMode("edit"); }} />
+          <Button icon="pi pi-trash" severity="danger" rounded text onClick={() => handleDelete(row)} />
+        </div>
+      ),
+      style: { width: "120px", textAlign: "center" },
+    },
+  ];
+
   return (
-    <div className="card">
+    <div className="card p-4">
       <ToastNotifier ref={toastRef} />
       <ConfirmDialog />
 
-      <h3 className="text-xl font-semibold mb-3">Master Informasi Sekolah</h3>
-
-      <div className="flex items-center justify-end">
-        <HeaderBar
-          title=""
-          placeholder="Cari Sekolah"
-          onSearch={handleSearch}
-          onAddClick={() => {
-            resetForm();
-            setDialogVisible(true);
-          }}
-        />
+      <div className="flex justify-content-between align-items-center mb-4">
+        <h3 className="m-0 font-semibold text-xl">Master Informasi Sekolah</h3>
+        <div className="flex gap-2">
+            <Button icon="pi pi-print" severity="secondary" onClick={() => setAdjustDialog(true)} tooltip="Cetak Laporan" />
+            <Button label="Tambah Baru" icon="pi pi-plus" severity="info" onClick={() => { setDialogMode("add"); setSelectedItem(null); }} />
+        </div>
       </div>
 
-      <TabelInformasiSekolah
-        data={data}
-        loading={loading}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
+      <div className="mb-3">
+        <span className="p-input-icon-left w-full md:w-20rem">
+          <i className="pi pi-search" />
+          <InputText
+            value={searchKeyword}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Cari judul atau kategori..."
+            className="w-full"
+          />
+        </span>
+      </div>
+
+      <CustomDataTable data={infoList} loading={loading} columns={columns} />
+
+      <FormInfoSekolah
+        visible={dialogMode !== null}
+        onHide={() => { setDialogMode(null); setSelectedItem(null); }}
+        selectedInfo={selectedItem}
+        onSave={handleSave}
       />
 
-      <FormDialogSekolah
-        visible={dialogVisible}
-        onHide={() => {
-          setDialogVisible(false);
-          resetForm();
-        }}
-        onChange={setFormData}
-        onSubmit={handleSubmit}
-        formData={formData}
-        errors={errors}
+      <AdjustPrintMarginLaporan
+        adjustDialog={adjustDialog}
+        setAdjustDialog={setAdjustDialog}
+        dataInfo={infoList}
+        setPdfUrl={setPdfUrl}
+        setFileName={setFileName}
+        setJsPdfPreviewOpen={setJsPdfPreviewOpen}
+        dataAdjust={dataAdjust}
+        setDataAdjust={setDataAdjust}
       />
+
+      <Dialog
+        visible={jsPdfPreviewOpen}
+        onHide={() => setJsPdfPreviewOpen(false)}
+        header="Preview Laporan"
+        style={{ width: "85vw" }}
+        maximized
+        modal
+      >
+        <PDFViewer pdfUrl={pdfUrl} fileName={fileName} />
+      </Dialog>
     </div>
   );
-};
-
-export default InfoSekolahPage;
+}
