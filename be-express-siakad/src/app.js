@@ -130,5 +130,7 @@ app.use("/api/tanggal-rapor", tanggalRaporRoutes);
 app.use("/api/penilaian", statusRoutes);
 app.use("/api/kehadiran", kehadiranRoutes);
 app.use("/api/buku-induk", bukuIndukRoutes);
+app.use("/api/buku-induk-guru", bukuIndukRoutes);
+
 
 export default app;

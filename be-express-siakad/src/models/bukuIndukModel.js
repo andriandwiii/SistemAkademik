@@ -61,3 +61,83 @@ export const getKehadiranSiswa = async (NIS, TAHUN_ID, SEMESTER) => {
 export const getReferensiCetak = async (SEMESTER_KE) => {
   return await db("referensi_tanggal_rapor").where("SEMESTER_KE", SEMESTER_KE).first();
 };
+
+
+// Fungsi untuk mendapatkan profil user (jika belum ada)
+export const getUserProfile = async (userId) => {
+    const user = await db("users")
+        .where({ id: userId })
+        .select("id", "name", "email", "role")
+        .first();
+
+    if (!user) return null;
+
+    if (user.role === "GURU") {
+        const guruData = await db("master_guru")
+            .where("EMAIL", user.email)
+            .select("GURU_ID", "NIP", "NAMA", "KODE_JABATAN")
+            .first();
+
+        return { ...user, guru: guruData };
+    }
+
+    return user;
+};
+
+// Fungsi untuk cek apakah guru adalah wali kelas di kelas tertentu
+export const checkGuruIsWaliKelas = async (nip, kelasId) => {
+    const result = await db("transaksi_guru_wakel")
+        .where({ 
+            NIP: nip, 
+            KELAS_ID: kelasId 
+        })
+        .first();
+
+    return !!result; // Return true jika ditemukan
+};
+
+// Fungsi untuk mendapatkan daftar siswa berdasarkan kelas wali
+export const getSiswaByKelasWali = async (nip, tahunAjaranId) => {
+    const rows = await db("transaksi_guru_wakel as tw")
+        .join("transaksi_siswa_kelas as ts", function() {
+            this.on("tw.KELAS_ID", "=", "ts.KELAS_ID")
+                .andOn("tw.TINGKATAN_ID", "=", "ts.TINGKATAN_ID")
+                .andOn("tw.JURUSAN_ID", "=", "ts.JURUSAN_ID");
+        })
+        .join("master_siswa as ms", "ts.NIS", "ms.NIS")
+        .leftJoin("master_kelas as mk", "tw.KELAS_ID", "mk.KELAS_ID")
+        .leftJoin("master_ruang as mr", "mk.RUANG_ID", "mr.RUANG_ID")
+        .where({
+            "tw.NIP": nip,
+            "ts.TAHUN_AJARAN_ID": tahunAjaranId
+        })
+        .select(
+            "ms.NIS",
+            "ms.NAMA",
+            "ms.GENDER",
+            "ms.FOTO",
+            "tw.KELAS_ID",
+            "mr.NAMA_RUANG"
+        )
+        .orderBy("ms.NAMA", "asc");
+
+    return rows;
+};
+// Fungsi untuk mendapatkan info kelas dari wali kelas
+export const getKelasInfoByWali = async (nip) => {
+    const result = await db("transaksi_guru_wakel as tw")
+        .leftJoin("master_kelas as mk", "tw.KELAS_ID", "mk.KELAS_ID")
+        .leftJoin("master_ruang as mr", "mk.RUANG_ID", "mr.RUANG_ID")
+        .leftJoin("master_tingkatan as mt", "tw.TINGKATAN_ID", "mt.TINGKATAN_ID")
+        .leftJoin("master_jurusan as mj", "tw.JURUSAN_ID", "mj.JURUSAN_ID")
+        .where("tw.NIP", nip)
+        .select(
+            "tw.KELAS_ID",
+            "mr.NAMA_RUANG",
+            "mt.TINGKATAN",
+            "mj.NAMA_JURUSAN"
+        )
+        .first();
+
+    return result || null;
+};
