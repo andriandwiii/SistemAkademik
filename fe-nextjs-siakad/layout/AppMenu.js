@@ -376,7 +376,8 @@ if (userRole === "SUPER_ADMIN") {
             label: "Dashboard Guru",
             icon: "pi pi-fw pi-home",
             items: [
-                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/guru/dashboard" }
+                { label: "Beranda", icon: "pi pi-fw pi-home", to: "/guru/dashboard" },
+                { label: "Profil", icon: "pi pi-fw pi-user", to: "/guru/menu/profile" },
             ],
         },
         {
@@ -436,7 +437,7 @@ else if (userRole === "SISWA") {
                     icon: "pi pi-fw pi-database",
                     items: [
                         { label: "Profil Saya", icon: "pi pi-fw pi-id-card", to: "/siswa/menu/profile" },
-                        { label: "Nilai & Rapor", icon: "pi pi-fw pi-book", to: "/siswa/menu/nilai" },
+                        { label: "Nilai & Rapor", icon: "pi pi-fw pi-book", to: "/siswa/menu/raport" },
                         { label: "Informasi Sekolah", icon: "pi pi-fw pi-info-circle", to: "/siswa/menu/informasi" },
                     ],
                 },

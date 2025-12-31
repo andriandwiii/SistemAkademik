@@ -138,13 +138,14 @@ export const getUserProfileById = async (userId) => {
 
   if (!user) return null;
 
-  // Jika GURU, ambil data guru
+  // Jika GURU, ambil data guru + transaksi wali kelas
   if (user.role === "GURU") {
     const guruData = await db("master_guru as g")
       .leftJoin("master_jabatan as j", "g.KODE_JABATAN", "j.KODE_JABATAN")
       .where("g.EMAIL", user.email)
       .select(
         "g.GURU_ID",
+        "g.EMAIL",
         "g.NIP",
         "g.NAMA",
         "g.PANGKAT",
@@ -157,9 +158,57 @@ export const getUserProfileById = async (userId) => {
         "g.ALAMAT",
         "g.NO_TELP",
         "g.FOTO",
+        "g.PENDIDIKAN_TERAKHIR",
+        "g.TAHUN_LULUS",
+        "g.UNIVERSITAS",
+        "g.NO_SERTIFIKAT_PENDIDIK",
+        "g.TAHUN_SERTIFIKAT",
         "g.KEAHLIAN"
       )
       .first();
+
+    // Jika ada data guru, ambil transaksi wali kelas
+    if (guruData) {
+      const transaksiWakel = await db("transaksi_guru_wakel as t")
+        .leftJoin("master_tingkatan as ti", "t.TINGKATAN_ID", "ti.TINGKATAN_ID")
+        .leftJoin("master_jurusan as j", "t.JURUSAN_ID", "j.JURUSAN_ID")
+        .leftJoin("master_kelas as k", "t.KELAS_ID", "k.KELAS_ID")
+        .leftJoin("master_ruang as r", "k.RUANG_ID", "r.RUANG_ID")
+        .where("t.NIP", guruData.NIP)
+        .select(
+          "t.ID",
+          "t.TRANSAKSI_ID",
+          "t.TINGKATAN_ID",
+          "t.JURUSAN_ID",
+          "t.KELAS_ID",
+          "ti.TINGKATAN",
+          "j.NAMA_JURUSAN",
+          "k.GEDUNG_ID",
+          "k.RUANG_ID",
+          "r.NAMA_RUANG"
+        )
+        .orderBy("t.created_at", "desc");
+
+      // Format transaksi
+      guruData.transaksi_guru_wakel = transaksiWakel.map((t) => ({
+        ID: t.ID,
+        TRANSAKSI_ID: t.TRANSAKSI_ID,
+        tingkatan: {
+          TINGKATAN_ID: t.TINGKATAN_ID,
+          TINGKATAN: t.TINGKATAN,
+        },
+        jurusan: {
+          JURUSAN_ID: t.JURUSAN_ID,
+          NAMA_JURUSAN: t.NAMA_JURUSAN,
+        },
+        kelas: {
+          KELAS_ID: t.KELAS_ID,
+          GEDUNG_ID: t.GEDUNG_ID,
+          RUANG_ID: t.RUANG_ID,
+          NAMA_RUANG: t.NAMA_RUANG,
+        },
+      }));
+    }
 
     return { ...user, guru: guruData };
   }

@@ -101,7 +101,7 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                                     <tr>
                                         <td style={{ verticalAlign: 'top' }}>4.</td>
                                         <td>Jenis Kelamin</td>
-                                        <td>: {biodata?.JENIS_KELAMIN === 'L' ? 'Laki-laki' : 'Perempuan'}</td>
+                                        <td>: {biodata?.GENDER === 'L' ? 'Laki-laki' : 'Perempuan'}</td>
                                     </tr>
                                     <tr>
                                         <td style={{ verticalAlign: 'top' }}>5.</td>
@@ -111,7 +111,7 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                                     <tr>
                                         <td style={{ verticalAlign: 'top' }}>6.</td>
                                         <td>Tanggal Lahir</td>
-                                        <td>: {biodata?.TANGGAL_LAHIR}</td>
+                                        <td>: {biodata?.TGL_LAHIR || '-'}</td>
                                     </tr>
                                     <tr>
                                         <td style={{ verticalAlign: 'top' }}>7.</td>

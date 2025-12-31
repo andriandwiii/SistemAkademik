@@ -25,18 +25,68 @@ export default function PDFViewer({ pdfUrl, fileName, paperSize = "A4" }) {
     setError("Gagal memuat PDF");
   };
 
-  const handleDownload = () => {
-    const link = document.createElement("a");
-    link.href = pdfUrl;
-    link.download = fileName || "laporan.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    try {
+      setLoading(true);
+      
+      // Metode 1: Download dengan fetch untuk file lokal/same-origin
+      const response = await fetch(pdfUrl);
+      
+      if (!response.ok) {
+        throw new Error('Gagal mengunduh file');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || "laporan.pdf";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Cleanup
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      setLoading(false);
+    } catch (err) {
+      console.error('Download error:', err);
+      
+      // Fallback: Buka di tab baru (untuk CORS atau external URL)
+      const link = document.createElement("a");
+      link.href = pdfUrl;
+      link.download = fileName || "laporan.pdf";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setLoading(false);
+    }
   };
 
   const handlePrint = () => {
-    if (iframeRef.current) {
-      iframeRef.current.contentWindow.print();
+    try {
+      // Coba print dari iframe (untuk same-origin PDF)
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.print();
+      } else {
+        throw new Error('Cannot access iframe');
+      }
+    } catch (err) {
+      // Jika iframe tidak bisa diakses (CORS), buka di tab baru
+      console.warn("CORS restriction detected. Opening PDF in new window for printing...");
+      
+      const printWindow = window.open(pdfUrl, "_blank", "width=800,height=600");
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 250);
+        };
+      } else {
+        alert("Popup diblokir! Mohon izinkan popup untuk print.");
+      }
     }
   };
 
