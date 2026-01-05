@@ -39,9 +39,9 @@ export async function up(knex) {
       .onUpdate("CASCADE")
       .onDelete("RESTRICT");
 
-    // Relasi ke master_kelas -> KELAS_ID
+    // Relasi ke master_kelas -> KELAS_ID (Sudah 20 karakter, Aman!)
     table
-      .string("KELAS_ID", 6)
+      .string("KELAS_ID", 20)
       .notNullable()
       .references("KELAS_ID")
       .inTable("master_kelas")
@@ -75,11 +75,9 @@ export async function up(knex) {
       .onUpdate("CASCADE")
       .onDelete("RESTRICT");
 
-    // --- KOLOM TAMBAHAN YANG SEBELUMNYA KURANG ---
-
     // Relasi ke master_tahun_ajaran -> TAHUN_AJARAN_ID
     table
-      .string("TAHUN_AJARAN_ID", 10) // Sesuaikan panjang karakter (misal: TA2526)
+      .string("TAHUN_AJARAN_ID", 10)
       .notNullable()
       .references("TAHUN_AJARAN_ID")
       .inTable("master_tahun_ajaran")
@@ -87,9 +85,8 @@ export async function up(knex) {
       .onDelete("RESTRICT");
 
     // Field Semester (Ganjil/Genap)
-    table.enum("SEMESTER", ["Ganjil", "Genap"]).notNullable();
-
-    // ---------------------------------------------
+    // Menggunakan string agar lebih aman dari error "Data Truncated"
+    table.string("SEMESTER", 10).notNullable().defaultTo('Ganjil');
 
     // timestamps
     table.timestamp("created_at").defaultTo(knex.fn.now());
