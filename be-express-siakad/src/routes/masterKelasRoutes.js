@@ -1,5 +1,5 @@
 import express from "express";
-import * as MasterKelasController from "../controllers/masterKelasController.js";
+import * as MasterKelasController from "../controllers/masterkelasController.js";
 
 const router = express.Router();
 
