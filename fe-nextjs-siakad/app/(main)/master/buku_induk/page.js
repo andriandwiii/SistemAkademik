@@ -158,7 +158,7 @@ export default function EntryNilaiPage() {
                         </div>
 
                         <div className="field col-12 md:col-3">
-                            <label className="font-bold text-500">Tingkat (Opsional)</label>
+                            <label className="font-bold text-500">Tingkat</label>
                             <Dropdown value={filters.TINGKATAN_ID} options={opsiTingkat} 
                                 onChange={(e) => setFilters({ ...filters, TINGKATAN_ID: e.value, KELAS_ID: "", NIS: "" })} 
                                 placeholder="Semua" showClear 
@@ -166,7 +166,7 @@ export default function EntryNilaiPage() {
                         </div>
 
                         <div className="field col-12 md:col-3">
-                            <label className="font-bold text-500">Jurusan (Opsional)</label>
+                            <label className="font-bold text-500">Jurusan</label>
                             <Dropdown value={filters.JURUSAN_ID} options={opsiJurusan} 
                                 onChange={(e) => setFilters({ ...filters, JURUSAN_ID: e.value, KELAS_ID: "", NIS: "" })} 
                                 placeholder="Semua" showClear 

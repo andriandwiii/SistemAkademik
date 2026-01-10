@@ -14,19 +14,75 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
         window.print();
     };
 
-    const handleDownloadPDF = () => {
-        const element = document.getElementById('print-area');
-        const opt = {
-            margin: 0,
-            filename: `Buku_Induk_${biodata?.NAMA || 'Siswa'}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        // Note: html2pdf harus diimport terlebih dahulu
-        // import html2pdf from 'html2pdf.js';
-        if (typeof html2pdf !== 'undefined') {
-            html2pdf().set(opt).from(element).save();
+    const handleDownloadPDF = async () => {
+        try {
+            const loadingEl = document.createElement('div');
+            loadingEl.id = 'pdf-loading';
+            loadingEl.innerHTML = `
+                <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;">
+                    <div style="background:white;padding:30px;border-radius:10px;text-align:center;">
+                        <div style="font-size:18px;font-weight:bold;margin-bottom:10px;">Generating PDF...</div>
+                        <div style="font-size:14px;color:#666;">Mohon tunggu sebentar</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingEl);
+
+            const jsPDF = (await import('jspdf')).default;
+            const html2canvas = (await import('html2canvas')).default;
+            
+            const sheets = document.querySelectorAll('.sheet');
+            
+            if (sheets.length === 0) {
+                alert('Tidak ada halaman untuk dicetak!');
+                return;
+            }
+
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                compress: false
+            });
+
+            const pageWidth = 210;
+
+            for (let i = 0; i < sheets.length; i++) {
+                const sheet = sheets[i];
+                
+                const canvas = await html2canvas(sheet, {
+                    scale: 3,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                    windowWidth: 794,
+                    windowHeight: 1123,
+                });
+
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const imgWidth = pageWidth;
+                const imgHeight = (canvas.height * pageWidth) / canvas.width;
+                
+                if (i > 0) {
+                    pdf.addPage();
+                }
+                
+                pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+            }
+
+            pdf.save(`Buku_Induk_${biodata?.NAMA || 'Siswa'}.pdf`);
+            document.body.removeChild(loadingEl);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            const loadingEl = document.getElementById('pdf-loading');
+            if (loadingEl) document.body.removeChild(loadingEl);
+            
+            if (error.message?.includes('Cannot find module')) {
+                alert('Library belum terinstall!\n\nJalankan: npm install jspdf html2canvas');
+            } else {
+                alert('Gagal mengunduh PDF: ' + error.message);
+            }
         }
     };
 
@@ -34,8 +90,9 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
         <Dialog 
             header="Preview Buku Induk Siswa" 
             visible={visible} 
-            style={{ width: '95vw' }} 
+            style={{ width: '95vw', maxHeight: '90vh' }} 
             onHide={onHide}
+            maximizable
             footer={
                 <div className="flex justify-content-end gap-2">
                     <Button label="Tutup" icon="pi pi-times" className="p-button-text" onClick={onHide} />
@@ -44,333 +101,375 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                 </div>
             }
         >
-            <div id="print-area" className="print-container" ref={printRef}>
-                
-                {/* ================= HALAMAN 1: BUKU INDUK ================= */}
-                <div className="sheet">
-                    {/* Header */}
-                    <div className="header-section">
-                        <table style={{ width: '100%', marginBottom: '10px' }}>
+            <div className="preview-wrapper" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <div id="print-area" className="print-container" ref={printRef}>
+                    
+                    {/* ================= HALAMAN 1: BUKU INDUK ================= */}
+                    <div className="sheet">
+                        {/* Header */}
+                        <table style={{ width: '100%', marginBottom: '15px', borderCollapse: 'collapse' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '80px', verticalAlign: 'top' }}>
-                                        <div className="logo-box">LOGO</div>
+                                    <td style={{ width: '15%', verticalAlign: 'middle', textAlign: 'center' }}>
+                                        <div style={{ 
+                                            width: '80px', 
+                                            height: '80px', 
+                                            border: '2px solid #000', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center',
+                                            margin: '0 auto',
+                                            fontSize: '10pt'
+                                        }}>LOGO</div>
                                     </td>
-                                    <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <h4 className="m-0" style={{ fontSize: '11pt' }}>PEMERINTAH PROVINSI JAWA TIMUR</h4>
-                                        <h4 className="m-0" style={{ fontSize: '11pt' }}>DINAS PENDIDIKAN</h4>
-                                        <h2 className="m-0 font-bold" style={{ fontSize: '16pt', marginTop: '5px' }}>SMA NEGERI 1 MADIUN</h2>
-                                        <p className="m-0" style={{ fontSize: '9pt', marginTop: '5px' }}>
+                                    <td style={{ width: '70%', textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <div style={{ fontSize: '11pt', fontWeight: 'normal', marginBottom: '2px' }}>PEMERINTAH PROVINSI JAWA TIMUR</div>
+                                        <div style={{ fontSize: '11pt', fontWeight: 'normal', marginBottom: '2px' }}>DINAS PENDIDIKAN</div>
+                                        <div style={{ fontSize: '18pt', fontWeight: 'bold', marginTop: '5px', marginBottom: '5px' }}>SMA NEGERI 1 MADIUN</div>
+                                        <div style={{ fontSize: '9pt', marginTop: '5px' }}>
                                             Jl. Pendidikan No. 123, Madiun 63137<br/>
                                             Telp. (0351) 123456 | Email: sman1madiun@example.com
-                                        </p>
+                                        </div>
                                     </td>
-                                    <td style={{ width: '80px' }}></td>
+                                    <td style={{ width: '15%' }}></td>
                                 </tr>
                             </tbody>
                         </table>
-                        <div style={{ borderBottom: '3px solid black', marginBottom: '3px' }}></div>
-                        <div style={{ borderBottom: '1px solid black', marginBottom: '15px' }}></div>
-                    </div>
-
-                    <div className="text-center mb-4">
-                        <h2 className="m-0 font-bold" style={{ fontSize: '14pt', textDecoration: 'underline' }}>BUKU INDUK SISWA</h2>
-                        <p className="m-0" style={{ fontSize: '10pt', marginTop: '5px' }}>SMA NEGERI 1 MADIUN</p>
-                    </div>
-
-                    <div className="grid" style={{ marginTop: '20px' }}>
-                        <div className="col-9">
-                            <h5 className="section-title">A. KETERANGAN TENTANG DIRI SISWA</h5>
-                            <table className="table-biodata">
-                                <tbody>
-                                    <tr>
-                                        <td width="30px" style={{ verticalAlign: 'top' }}>1.</td>
-                                        <td width="200px">Nomor Induk Siswa (NIS)</td>
-                                        <td>: <strong>{biodata?.NIS}</strong></td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>2.</td>
-                                        <td>Nomor Induk Siswa Nasional (NISN)</td>
-                                        <td>: <strong>{biodata?.NISN}</strong></td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>3.</td>
-                                        <td>Nama Lengkap Siswa</td>
-                                        <td>: <strong>{biodata?.NAMA}</strong></td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>4.</td>
-                                        <td>Jenis Kelamin</td>
-                                        <td>: {biodata?.GENDER === 'L' ? 'Laki-laki' : 'Perempuan'}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>5.</td>
-                                        <td>Tempat Lahir</td>
-                                        <td>: {biodata?.TEMPAT_LAHIR}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>6.</td>
-                                        <td>Tanggal Lahir</td>
-                                        <td>: {biodata?.TGL_LAHIR || '-'}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>7.</td>
-                                        <td>Agama</td>
-                                        <td>: {biodata?.AGAMA}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>8.</td>
-                                        <td>Alamat Lengkap</td>
-                                        <td>: {biodata?.ALAMAT}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>9.</td>
-                                        <td>Nomor Telepon/HP</td>
-                                        <td>: {biodata?.NO_TELP || '-'}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>10.</td>
-                                        <td>Tahun Masuk</td>
-                                        <td>: <strong>{biodata?.TAHUN_MASUK || '2022'}</strong></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-
-                            <h5 className="section-title" style={{ marginTop: '25px' }}>B. KETERANGAN TENTANG ORANG TUA/WALI</h5>
-                            <table className="table-biodata">
-                                <tbody>
-                                    <tr>
-                                        <td width="30px" style={{ verticalAlign: 'top' }}>1.</td>
-                                        <td width="200px">Nama Ayah Kandung</td>
-                                        <td>: {biodata?.NAMA_AYAH}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>2.</td>
-                                        <td>Pekerjaan Ayah</td>
-                                        <td>: {biodata?.PEKERJAAN_AYAH}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>3.</td>
-                                        <td>Nama Ibu Kandung</td>
-                                        <td>: {biodata?.NAMA_IBU}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>4.</td>
-                                        <td>Pekerjaan Ibu</td>
-                                        <td>: {biodata?.PEKERJAAN_IBU}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>5.</td>
-                                        <td>Alamat Orang Tua</td>
-                                        <td>: {biodata?.ALAMAT_ORTU || biodata?.ALAMAT}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style={{ verticalAlign: 'top' }}>6.</td>
-                                        <td>Nama Wali (jika ada)</td>
-                                        <td>: {biodata?.NAMA_WALI || '-'}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                         
-                        <div className="col-3">
-                            <div className="photo-box">
-                                <div style={{ fontSize: '9pt', color: '#999' }}>
-                                    PAS FOTO<br/>3 x 4 cm<br/>Berwarna
-                                </div>
-                            </div>
+                        <div style={{ borderTop: '3px solid #000', marginBottom: '2px' }}></div>
+                        <div style={{ borderTop: '1px solid #000', marginBottom: '20px' }}></div>
+
+                        <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+                            <div style={{ fontSize: '14pt', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '5px' }}>BUKU INDUK SISWA</div>
+                            <div style={{ fontSize: '10pt' }}>SMA NEGERI 1 MADIUN</div>
                         </div>
-                    </div>
 
-                    <div style={{ marginTop: '60px' }}>
-                        <table style={{ width: '100%' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <tbody>
                                 <tr>
-                                    <td style={{ width: '50%' }}></td>
-                                    <td style={{ width: '50%', textAlign: 'center' }}>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>{tanda_tangan?.titimangsa || 'Madiun, 23 Desember 2025'}</p>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt', marginTop: '5px' }}>Kepala Sekolah,</p>
-                                        <div style={{ height: '70px' }}></div>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt', textDecoration: 'underline' }}>
-                                            {tanda_tangan?.kepala_sekolah?.nama}
-                                        </p>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>NIP. {tanda_tangan?.kepala_sekolah?.nip}</p>
+                                    <td style={{ width: '70%', verticalAlign: 'top', paddingRight: '20px' }}>
+                                        {/* Section A */}
+                                        <div style={{ 
+                                            fontSize: '11pt', 
+                                            fontWeight: 'bold', 
+                                            marginBottom: '10px',
+                                            paddingBottom: '5px',
+                                            borderBottom: '2px solid #000'
+                                        }}>A. KETERANGAN TENTANG DIRI SISWA</div>
+                                        
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '20px' }}>
+                                            <tbody>
+                                                <tr>
+                                                    <td style={{ width: '30px', padding: '4px 0', verticalAlign: 'top' }}>1.</td>
+                                                    <td style={{ width: '220px', padding: '4px 0' }}>Nomor Induk Siswa (NIS)</td>
+                                                    <td style={{ padding: '4px 0' }}>: <strong>{biodata?.NIS}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>2.</td>
+                                                    <td style={{ padding: '4px 0' }}>Nomor Induk Siswa Nasional (NISN)</td>
+                                                    <td style={{ padding: '4px 0' }}>: <strong>{biodata?.NISN}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>3.</td>
+                                                    <td style={{ padding: '4px 0' }}>Nama Lengkap Siswa</td>
+                                                    <td style={{ padding: '4px 0' }}>: <strong>{biodata?.NAMA}</strong></td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>4.</td>
+                                                    <td style={{ padding: '4px 0' }}>Jenis Kelamin</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.GENDER === 'L' ? 'Laki-laki' : 'Perempuan'}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>5.</td>
+                                                    <td style={{ padding: '4px 0' }}>Tempat Lahir</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.TEMPAT_LAHIR}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>6.</td>
+                                                    <td style={{ padding: '4px 0' }}>Tanggal Lahir</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.TGL_LAHIR || '-'}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>7.</td>
+                                                    <td style={{ padding: '4px 0' }}>Agama</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.AGAMA}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>8.</td>
+                                                    <td style={{ padding: '4px 0' }}>Alamat Lengkap</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.ALAMAT}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>9.</td>
+                                                    <td style={{ padding: '4px 0' }}>Nomor Telepon/HP</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.NO_TELP || '-'}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>10.</td>
+                                                    <td style={{ padding: '4px 0' }}>Tahun Masuk</td>
+                                                    <td style={{ padding: '4px 0' }}>: <strong>{biodata?.TAHUN_MASUK || '2022'}</strong></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        {/* Section B */}
+                                        <div style={{ 
+                                            fontSize: '11pt', 
+                                            fontWeight: 'bold', 
+                                            marginBottom: '10px',
+                                            paddingBottom: '5px',
+                                            borderBottom: '2px solid #000'
+                                        }}>B. KETERANGAN TENTANG ORANG TUA/WALI</div>
+                                        
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
+                                            <tbody>
+                                                <tr>
+                                                    <td style={{ width: '30px', padding: '4px 0', verticalAlign: 'top' }}>1.</td>
+                                                    <td style={{ width: '220px', padding: '4px 0' }}>Nama Ayah Kandung</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.NAMA_AYAH}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>2.</td>
+                                                    <td style={{ padding: '4px 0' }}>Pekerjaan Ayah</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.PEKERJAAN_AYAH}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>3.</td>
+                                                    <td style={{ padding: '4px 0' }}>Nama Ibu Kandung</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.NAMA_IBU}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>4.</td>
+                                                    <td style={{ padding: '4px 0' }}>Pekerjaan Ibu</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.PEKERJAAN_IBU}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>5.</td>
+                                                    <td style={{ padding: '4px 0' }}>Alamat Orang Tua</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.ALAMAT_ORTU || biodata?.ALAMAT}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '4px 0', verticalAlign: 'top' }}>6.</td>
+                                                    <td style={{ padding: '4px 0' }}>Nama Wali (jika ada)</td>
+                                                    <td style={{ padding: '4px 0' }}>: {biodata?.NAMA_WALI || '-'}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                    
+                                    <td style={{ width: '30%', verticalAlign: 'top', textAlign: 'center' }}>
+                                        <div style={{ 
+                                            width: '113px', 
+                                            height: '151px', 
+                                            border: '2px solid #000',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            margin: '0 auto',
+                                            fontSize: '9pt',
+                                            color: '#999',
+                                            backgroundColor: '#fafafa',
+                                            lineHeight: '1.5'
+                                        }}>
+                                            PAS FOTO<br/>3 x 4 cm<br/>Berwarna
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
 
-                {/* FORCE PAGE BREAK */}
-                <div className="page-break"></div>
-
-                {/* ================= HALAMAN 2: RAPOR ================= */}
-                <div className="sheet">
-                    {/* Header Rapor */}
-                    <div className="header-section">
-                        <table style={{ width: '100%', marginBottom: '10px' }}>
-                            <tbody>
-                                <tr>
-                                    <td style={{ width: '80px', verticalAlign: 'top' }}>
-                                        <div className="logo-box">LOGO</div>
-                                    </td>
-                                    <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                        <h4 className="m-0" style={{ fontSize: '11pt' }}>PEMERINTAH PROVINSI JAWA TIMUR</h4>
-                                        <h4 className="m-0" style={{ fontSize: '11pt' }}>DINAS PENDIDIKAN</h4>
-                                        <h2 className="m-0 font-bold" style={{ fontSize: '16pt', marginTop: '5px' }}>SMA NEGERI 1 MADIUN</h2>
-                                        <p className="m-0" style={{ fontSize: '9pt', marginTop: '5px' }}>
-                                            Jl. Pendidikan No. 123, Madiun 63137<br/>
-                                            Telp. (0351) 123456 | Email: sman1madiun@example.com
-                                        </p>
-                                    </td>
-                                    <td style={{ width: '80px' }}></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div style={{ borderBottom: '3px solid black', marginBottom: '3px' }}></div>
-                        <div style={{ borderBottom: '1px solid black', marginBottom: '15px' }}></div>
-                    </div>
-
-                    <div className="text-center mb-3">
-                        <h2 className="m-0 font-bold" style={{ fontSize: '13pt', textDecoration: 'underline' }}>
-                            LAPORAN HASIL BELAJAR SISWA
-                        </h2>
-                    </div>
-
-                    {/* Identitas Siswa */}
-                    <table className="table-identitas mb-3">
-                        <tbody>
-                            <tr>
-                                <td width="25%">Nama Siswa</td>
-                                <td width="2%">:</td>
-                                <td width="40%"><strong>{biodata?.NAMA}</strong></td>
-                                <td width="15%">Kelas</td>
-                                <td width="2%">:</td>
-                                <td><strong>{biodata?.KELAS_AKTIF}</strong></td>
-                            </tr>
-                            <tr>
-                                <td>Nomor Induk / NISN</td>
-                                <td>:</td>
-                                <td>{biodata?.NIS} / {biodata?.NISN}</td>
-                                <td>Semester</td>
-                                <td>:</td>
-                                <td><strong>{akademik?.semester}</strong></td>
-                            </tr>
-                            <tr>
-                                <td>Nama Sekolah</td>
-                                <td>:</td>
-                                <td>SMA NEGERI 1 MADIUN</td>
-                                <td>Tahun Pelajaran</td>
-                                <td>:</td>
-                                <td><strong>{akademik?.tahun_ajaran}</strong></td>
-                            </tr>
-                            <tr>
-                                <td>Alamat Sekolah</td>
-                                <td>:</td>
-                                <td colSpan="4">Jl. Pendidikan No. 123, Madiun</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    {/* Tabel Nilai - DENGAN DUA KOLOM NILAI */}
-                    <table className="table-nilai">
-                        <thead>
-                            <tr className="bg-header">
-                                <th width="4%" rowSpan="2" className="text-center">No</th>
-                                <th width="30%" rowSpan="2">Mata Pelajaran</th>
-                                <th width="12%" colSpan="2" className="text-center">Nilai</th>
-                                <th width="54%" rowSpan="2">Capaian Kompetensi</th>
-                            </tr>
-                            <tr className="bg-header">
-                                <th className="text-center" style={{ fontSize: '9pt' }}>P</th>
-                                <th className="text-center" style={{ fontSize: '9pt' }}>K</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Object.entries(nilaiRaport).map(([kategori, mapels]) => (
-                                <React.Fragment key={kategori}>
-                                    <tr className="bg-kategori">
-                                        <td colSpan="5" className="font-bold" style={{ paddingLeft: '8px' }}>
-                                            {kategori}
+                        {/* Tanda Tangan */}
+                        <div style={{ marginTop: '80px' }}>
+                            <table style={{ width: '100%', fontSize: '10pt' }}>
+                                <tbody>
+                                    <tr>
+                                        <td style={{ width: '50%' }}></td>
+                                        <td style={{ width: '50%', textAlign: 'center' }}>
+                                            <div>{tanda_tangan?.titimangsa || 'Madiun, -'}</div>
+                                            <div style={{ fontWeight: 'bold', marginTop: '5px' }}>Kepala Sekolah,</div>
+                                            <div style={{ height: '70px' }}></div>
+                                            <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>
+                                                {tanda_tangan?.kepala_sekolah?.nama || '-'}
+                                            </div>
+                                            <div>NIP. {tanda_tangan?.kepala_sekolah?.nip || '-'}</div>
                                         </td>
                                     </tr>
-                                    {mapels.map((m, idx) => (
-                                        <tr key={idx}>
-                                            <td className="text-center">{idx + 1}</td>
-                                            <td style={{ paddingLeft: '8px' }}>{m.NAMA_MAPEL}</td>
-                                            <td className="text-center font-bold">{m.NILAI_P || '-'}</td>
-                                            <td className="text-center font-bold">{m.NILAI_K || '-'}</td>
-                                            <td style={{ paddingLeft: '8px', paddingRight: '8px', textAlign: 'justify', fontSize: '9pt', lineHeight: '1.3' }}>
-                                                {m.DESKRIPSI_P || `Menunjukkan pemahaman yang baik dalam ${m.NAMA_MAPEL}, mampu menguasai kompetensi dasar dengan sangat memuaskan.`}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </React.Fragment>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    {/* Keterangan Nilai */}
-                    <div style={{ marginTop: '8px', fontSize: '9pt', fontStyle: 'italic' }}>
-                        <strong>Keterangan:</strong> P = Pengetahuan | K = Keterampilan
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    {/* Ketidakhadiran */}
-                    <div style={{ marginTop: '15px' }}>
-                        <table className="table-kehadiran">
+                    {/* PAGE BREAK */}
+                    <div className="page-break"></div>
+
+                    {/* ================= HALAMAN 2: RAPOR ================= */}
+                    <div className="sheet">
+                        {/* Header */}
+                        <table style={{ width: '100%', marginBottom: '15px', borderCollapse: 'collapse' }}>
+                            <tbody>
+                                <tr>
+                                    <td style={{ width: '15%', verticalAlign: 'middle', textAlign: 'center' }}>
+                                        <div style={{ 
+                                            width: '80px', 
+                                            height: '80px', 
+                                            border: '2px solid #000', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center',
+                                            margin: '0 auto',
+                                            fontSize: '10pt'
+                                        }}>LOGO</div>
+                                    </td>
+                                    <td style={{ width: '70%', textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <div style={{ fontSize: '11pt', fontWeight: 'normal', marginBottom: '2px' }}>PEMERINTAH PROVINSI JAWA TIMUR</div>
+                                        <div style={{ fontSize: '11pt', fontWeight: 'normal', marginBottom: '2px' }}>DINAS PENDIDIKAN</div>
+                                        <div style={{ fontSize: '18pt', fontWeight: 'bold', marginTop: '5px', marginBottom: '5px' }}>SMA NEGERI 1 MADIUN</div>
+                                        <div style={{ fontSize: '9pt', marginTop: '5px' }}>
+                                            Jl. Pendidikan No. 123, Madiun 63137<br/>
+                                            Telp. (0351) 123456 | Email: sman1madiun@example.com
+                                        </div>
+                                    </td>
+                                    <td style={{ width: '15%' }}></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div style={{ borderTop: '3px solid #000', marginBottom: '2px' }}></div>
+                        <div style={{ borderTop: '1px solid #000', marginBottom: '20px' }}></div>
+
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                            <div style={{ fontSize: '13pt', fontWeight: 'bold', textDecoration: 'underline' }}>LAPORAN HASIL BELAJAR SISWA</div>
+                        </div>
+
+                        {/* Identitas */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '15px' }}>
+                            <tbody>
+                                <tr>
+                                    <td style={{ width: '22%', padding: '3px 0' }}>Nama Siswa</td>
+                                    <td style={{ width: '2%', padding: '3px 0' }}>:</td>
+                                    <td style={{ width: '38%', padding: '3px 0' }}><strong>{biodata?.NAMA}</strong></td>
+                                    <td style={{ width: '18%', padding: '3px 0' }}>Kelas</td>
+                                    <td style={{ width: '2%', padding: '3px 0' }}>:</td>
+                                    <td style={{ padding: '3px 0' }}><strong>{biodata?.KELAS_AKTIF}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td style={{ padding: '3px 0' }}>Nomor Induk / NISN</td>
+                                    <td style={{ padding: '3px 0' }}>:</td>
+                                    <td style={{ padding: '3px 0' }}>{biodata?.NIS} / {biodata?.NISN}</td>
+                                    <td style={{ padding: '3px 0' }}>Semester</td>
+                                    <td style={{ padding: '3px 0' }}>:</td>
+                                    <td style={{ padding: '3px 0' }}><strong>{akademik?.semester}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td style={{ padding: '3px 0' }}>Nama Sekolah</td>
+                                    <td style={{ padding: '3px 0' }}>:</td>
+                                    <td style={{ padding: '3px 0' }}>SMA NEGERI 1 MADIUN</td>
+                                    <td style={{ padding: '3px 0' }}>Tahun Pelajaran</td>
+                                    <td style={{ padding: '3px 0' }}>:</td>
+                                    <td style={{ padding: '3px 0' }}><strong>{akademik?.tahun_ajaran}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td style={{ padding: '3px 0' }}>Alamat Sekolah</td>
+                                    <td style={{ padding: '3px 0' }}>:</td>
+                                    <td colSpan="4" style={{ padding: '3px 0' }}>Jl. Pendidikan No. 123, Madiun</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        {/* Tabel Nilai */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: '10pt' }}>
                             <thead>
-                                <tr className="bg-header">
-                                    <th colSpan="2">KETIDAKHADIRAN</th>
+                                <tr style={{ backgroundColor: '#e0e0e0' }}>
+                                    <th rowSpan="2" style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', width: '5%' }}>No</th>
+                                    <th rowSpan="2" style={{ border: '1px solid #000', padding: '8px', textAlign: 'left', width: '30%' }}>Mata Pelajaran</th>
+                                    <th colSpan="2" style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', width: '10%' }}>Nilai</th>
+                                    <th rowSpan="2" style={{ border: '1px solid #000', padding: '8px', textAlign: 'left', width: '55%' }}>Capaian Kompetensi</th>
+                                </tr>
+                                <tr style={{ backgroundColor: '#e0e0e0' }}>
+                                    <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontSize: '9pt' }}>P</th>
+                                    <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontSize: '9pt' }}>K</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(nilaiRaport).map(([kategori, mapels]) => (
+                                    <React.Fragment key={kategori}>
+                                        <tr style={{ backgroundColor: '#f5f5f5' }}>
+                                            <td colSpan="5" style={{ border: '1px solid #000', padding: '6px', fontWeight: 'bold' }}>
+                                                {kategori}
+                                            </td>
+                                        </tr>
+                                        {mapels.map((m, idx) => (
+                                            <tr key={idx}>
+                                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{idx + 1}</td>
+                                                <td style={{ border: '1px solid #000', padding: '6px' }}>{m.NAMA_MAPEL}</td>
+                                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>{m.NILAI_P || '-'}</td>
+                                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontWeight: 'bold' }}>{m.NILAI_K || '-'}</td>
+                                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'justify', fontSize: '9pt', lineHeight: '1.3' }}>
+                                                    {m.DESKRIPSI_P || `Menunjukkan pemahaman yang baik dalam ${m.NAMA_MAPEL}.`}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div style={{ fontSize: '9pt', fontStyle: 'italic', marginTop: '8px' }}>
+                            <em>Keterangan: P = Pengetahuan | K = Keterampilan</em>
+                        </div>
+
+                        {/* Ketidakhadiran */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: '10pt', marginTop: '15px' }}>
+                            <thead>
+                                <tr style={{ backgroundColor: '#e0e0e0' }}>
+                                    <th colSpan="2" style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>KETIDAKHADIRAN</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td width="70%">Sakit</td>
-                                    <td className="text-center">{akademik?.kehadiran?.sakit || 0} hari</td>
+                                    <td style={{ border: '1px solid #000', padding: '8px', width: '70%' }}>Sakit</td>
+                                    <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{akademik?.kehadiran?.sakit || 0} hari</td>
                                 </tr>
                                 <tr>
-                                    <td>Izin</td>
-                                    <td className="text-center">{akademik?.kehadiran?.izin || 0} hari</td>
+                                    <td style={{ border: '1px solid #000', padding: '8px' }}>Izin</td>
+                                    <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{akademik?.kehadiran?.izin || 0} hari</td>
                                 </tr>
                                 <tr>
-                                    <td>Tanpa Keterangan</td>
-                                    <td className="text-center">{akademik?.kehadiran?.alpa || 0} hari</td>
+                                    <td style={{ border: '1px solid #000', padding: '8px' }}>Tanpa Keterangan</td>
+                                    <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>{akademik?.kehadiran?.alpa || 0} hari</td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
 
-                    {/* Tanda Tangan */}
-                    <div style={{ marginTop: '30px' }}>
-                        <table style={{ width: '100%' }}>
+                        {/* Tanda Tangan */}
+                        <table style={{ width: '100%', fontSize: '10pt', marginTop: '40px' }}>
                             <tbody>
                                 <tr>
                                     <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'top' }}>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>Mengetahui,</p>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt' }}>Orang Tua/Wali</p>
-                                        <div style={{ height: '60px' }}></div>
-                                        <p className="m-0" style={{ fontSize: '10pt', borderBottom: '1px solid black', display: 'inline-block', minWidth: '150px' }}>
-                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                        </p>
+                                        <div>Mengetahui,</div>
+                                        <div style={{ fontWeight: 'bold' }}>Orang Tua/Wali</div>
+                                        <div style={{ height: '70px' }}></div>
+                                        <div style={{ borderBottom: '1px solid #000', display: 'inline-block', minWidth: '150px', paddingBottom: '2px' }}>
+                                            &nbsp;
+                                        </div>
                                     </td>
                                     <td style={{ width: '34%', textAlign: 'center', verticalAlign: 'top' }}>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>{tanda_tangan?.titimangsa || 'Madiun, 23 Desember 2025'}</p>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt' }}>Wali Kelas</p>
-                                        <div style={{ height: '60px' }}></div>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt', textDecoration: 'underline' }}>
-                                            {tanda_tangan?.wali_kelas?.nama}
-                                        </p>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>NIP. {tanda_tangan?.wali_kelas?.nip}</p>
+                                        <div>{tanda_tangan?.titimangsa || 'Madiun, -'}</div>
+                                        <div style={{ fontWeight: 'bold' }}>Wali Kelas</div>
+                                        <div style={{ height: '70px' }}></div>
+                                        <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>
+                                            {tanda_tangan?.wali_kelas?.nama || 'Muhadi'}
+                                        </div>
+                                        <div>NIP. {tanda_tangan?.wali_kelas?.nip || '1234567891234567891'}</div>
                                     </td>
                                     <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'top' }}>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>Mengetahui,</p>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt' }}>Kepala Sekolah</p>
-                                        <div style={{ height: '60px' }}></div>
-                                        <p className="m-0 font-bold" style={{ fontSize: '10pt', textDecoration: 'underline' }}>
-                                            {tanda_tangan?.kepala_sekolah?.nama}
-                                        </p>
-                                        <p className="m-0" style={{ fontSize: '10pt' }}>NIP. {tanda_tangan?.kepala_sekolah?.nip}</p>
+                                        <div>Mengetahui,</div>
+                                        <div style={{ fontWeight: 'bold' }}>Kepala Sekolah</div>
+                                        <div style={{ height: '70px' }}></div>
+                                        <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>
+                                            {tanda_tangan?.kepala_sekolah?.nama || '-'}
+                                        </div>
+                                        <div>NIP. {tanda_tangan?.kepala_sekolah?.nip || '-'}</div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -380,6 +479,11 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
             </div>
 
             <style jsx global>{`
+                * {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                
                 .print-container { 
                     background: #e5e5e5; 
                     padding: 20px 0; 
@@ -388,6 +492,9 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                     align-items: center; 
                     gap: 20px;
                     font-family: 'Times New Roman', Times, serif;
+                    width: 100%;
+                    max-width: 210mm;
+                    margin: 0 auto;
                 }
                 
                 .sheet { 
@@ -398,95 +505,21 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                     box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
                     box-sizing: border-box;
                     position: relative;
+                    page-break-after: always;
+                    page-break-inside: avoid;
                 }
-
-                .logo-box {
-                    width: 70px;
-                    height: 70px;
-                    border: 2px solid #333;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 9pt;
-                    color: #666;
-                    background: #f9f9f9;
-                }
-
-                .section-title {
-                    font-weight: bold;
-                    font-size: 11pt;
-                    margin: 15px 0 10px 0;
-                    padding-bottom: 5px;
-                    border-bottom: 2px solid #000;
-                }
-
-                .table-biodata {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-
-                .table-biodata td {
-                    padding: 6px 0;
-                    font-size: 10pt;
-                    line-height: 1.4;
-                }
-
-                .photo-box {
-                    width: 3cm;
-                    height: 4cm;
-                    border: 2px solid #333;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    text-align: center;
-                    background: #fafafa;
-                    margin: 0 auto;
-                }
-
-                .table-identitas {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 10pt;
-                }
-
-                .table-identitas td {
-                    padding: 4px 0;
-                }
-
-                .table-nilai, .table-kehadiran {
-                    width: 100%;
-                    border-collapse: collapse;
-                    border: 2px solid #000;
-                }
-
-                .table-nilai th, .table-nilai td,
-                .table-kehadiran th, .table-kehadiran td {
-                    border: 1px solid #000;
-                    padding: 6px;
-                    font-size: 10pt;
-                }
-
-                .table-kehadiran {
-                    width: 100%;
-                }
-
-                .bg-header {
-                    background: #d9d9d9 !important;
-                    font-weight: bold;
-                    text-align: center;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-
-                .bg-kategori {
-                    background: #efefef !important;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
+                
+                .page-break {
+                    display: block;
+                    height: 20px;
+                    page-break-before: always;
+                    page-break-after: always;
+                    background: transparent;
                 }
 
                 @media print {
                     @page { 
-                        size: A4; 
+                        size: A4 portrait; 
                         margin: 0; 
                     }
                     
@@ -512,14 +545,15 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                         box-shadow: none; 
                         border: none; 
                         margin: 0; 
-                        padding: 15mm; 
+                        padding: 20mm; 
                         page-break-after: always !important; 
                         page-break-inside: avoid;
                     }
                     
                     .p-dialog-header, 
                     .p-dialog-footer, 
-                    .p-dialog-mask { 
+                    .p-dialog-mask,
+                    .preview-wrapper { 
                         display: none !important; 
                     }
                     
@@ -527,11 +561,6 @@ export default function AdjustPrintBukuInduk({ visible, onHide, dataRaport }) {
                         display: block; 
                         page-break-before: always; 
                         page-break-after: always;
-                    }
-
-                    .bg-header, .bg-kategori {
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
                     }
                 }
             `}</style>

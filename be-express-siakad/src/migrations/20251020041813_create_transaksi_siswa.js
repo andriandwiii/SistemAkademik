@@ -40,7 +40,7 @@ export async function up(knex) {
 
     // Relasi ke master_kelas pakai KELAS_ID
     table
-      .string("KELAS_ID", 6)
+      .string("KELAS_ID", 20)
       .notNullable()
       .references("KELAS_ID")
       .inTable("master_kelas")
