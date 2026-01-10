@@ -150,7 +150,7 @@ const DashboardSiswa = () => {
         { field: 'jam_pelajaran.JP_KE', header: 'JP', body: (rowData) => `JP ${rowData.jam_pelajaran?.JP_KE || '-'}` },
         { field: 'jam_pelajaran.WAKTU_MULAI', header: 'Jam', body: (rowData) => `${rowData.jam_pelajaran?.WAKTU_MULAI} - ${rowData.jam_pelajaran?.WAKTU_SELESAI}` },
         { field: 'mata_pelajaran.NAMA_MAPEL', header: 'Mata Pelajaran', body: (rowData) => rowData.mata_pelajaran?.NAMA_MAPEL || '-' },
-        { field: 'guru.NAMA', header: 'Guru', body: (rowData) => rowData.guru?.NAMA || '-' },
+        { field: 'guru.NAMA', header: 'Guru', body: (rowData) => rowData.guru?.NAMA_GURU || rowData.guru?.NAMA || '-' },
         { header: 'Status', body: statusTemplate }
     ];
 
